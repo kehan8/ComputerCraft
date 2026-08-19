@@ -5,6 +5,7 @@
 -- ====================== CONFIG ======================
 local MONITOR_NAME = nil      -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
 local MONITOR_SCALE = 1       -- text scale on the monitor; try 2-3 if text is too small to read from afar
+local ICON_FONT_SIZE = 2      -- size of the X/O icons; try 1-3 depending on cell size
 local REDSTONE_SIDE = "back"  -- side that goes high once the player wins
 -- ======================================================
 
@@ -39,20 +40,21 @@ math.randomseed(os.time())
 local state, gameOver
 
 -- ====================== UI ======================
-local cells, statusLabel = {}, nil
+local cells, icons, statusLabel = {}, {}, nil
 
--- Cell styling per mark: background, text color and symbol
+-- Cell styling per mark: cell background, icon color and icon symbol
 local CELL_STYLE = {
-    [""]     = { bg = colors.gray,  fg = colors.lightGray, text = " " },
-    [HUMAN]  = { bg = colors.blue,  fg = colors.white,     text = "X" },
-    [AI]     = { bg = colors.red,   fg = colors.white,     text = "O" },
+    [""]     = { bg = colors.gray,  fg = colors.lightGray, icon = "" },
+    [HUMAN]  = { bg = colors.blue,  fg = colors.white,     icon = "X" },
+    [AI]     = { bg = colors.red,   fg = colors.white,     icon = "O" },
 }
 
 local function render()
     for r = 1, 3 do
         for c = 1, 3 do
             local style = CELL_STYLE[state[r][c]]
-            cells[r][c]:setText(style.text):setBackground(style.bg):setForeground(style.fg)
+            cells[r][c]:setBackground(style.bg):setForeground(style.fg)
+            icons[r][c]:setText(style.icon):setForeground(style.fg)
         end
     end
 end
@@ -125,12 +127,19 @@ statusLabel = screen:addLabel()
 
 for r = 1, 3 do
     cells[r] = {}
+    icons[r] = {}
     for c = 1, 3 do
         cells[r][c] = screen:addButton()
             :setText(" ")
             :setPosition(startX + (c - 1) * cellW, startY + (r - 1) * cellH)
             :setSize(cellW - 1, cellH - 1)
             :onClick(function() onCellClick(r, c) end)
+
+        -- Big pixel-art X/O icon, transparent so the button's color shows through
+        icons[r][c] = screen:addBigFont()
+            :setFontSize(ICON_FONT_SIZE)
+            :setBackgroundEnabled(false)
+            :centerIn(cells[r][c])
     end
 end
 
