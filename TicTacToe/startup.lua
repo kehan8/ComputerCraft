@@ -3,7 +3,8 @@
 -- When the player (X) wins, a redstone signal goes high; wiring that to a door is up to you.
 
 -- ====================== CONFIG ======================
-local MONITOR_NAME = nil      -- e.g. "monitor_0"; nil = play on the computer's own screen
+local MONITOR_NAME = nil      -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
+local MONITOR_SCALE = 1       -- text scale on the monitor; try 2-3 if text is too small to read from afar
 local REDSTONE_SIDE = "back"  -- side that goes high once the player wins
 -- ======================================================
 
@@ -17,13 +18,16 @@ local board = require("board")
 local ai = require("ai")
 local HUMAN, AI = board.HUMAN, board.AI
 
+-- Adjacent monitors of the same type auto-merge into one peripheral in
+-- CC:Tweaked, so a multi-block monitor wall is found the same way as a single one.
+local mon = MONITOR_NAME and peripheral.wrap(MONITOR_NAME) or peripheral.find("monitor")
+if MONITOR_NAME and not mon then
+    error("Could not find monitor '" .. MONITOR_NAME .. "'. Check the cable/name.")
+end
+
 local screen
-if MONITOR_NAME then
-    local mon = peripheral.wrap(MONITOR_NAME)
-    if not mon then
-        error("Could not find monitor '" .. MONITOR_NAME .. "'. Check the cable/name.")
-    end
-    mon.setTextScale(1)
+if mon then
+    mon.setTextScale(MONITOR_SCALE)
     screen = basalt.createFrame():setTerm(mon)
 else
     screen = basalt.getMainFrame()
