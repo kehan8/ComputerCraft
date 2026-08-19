@@ -41,27 +41,37 @@ local state, gameOver
 -- ====================== UI ======================
 local cells, statusLabel = {}, nil
 
+-- Cell styling per mark: background, text color and symbol
+local CELL_STYLE = {
+    [""]     = { bg = colors.gray,  fg = colors.lightGray, text = " " },
+    [HUMAN]  = { bg = colors.blue,  fg = colors.white,     text = "X" },
+    [AI]     = { bg = colors.red,   fg = colors.white,     text = "O" },
+}
+
 local function render()
     for r = 1, 3 do
         for c = 1, 3 do
-            cells[r][c]:setText(state[r][c] == "" and " " or state[r][c])
+            local style = CELL_STYLE[state[r][c]]
+            cells[r][c]:setText(style.text):setBackground(style.bg):setForeground(style.fg)
         end
     end
 end
 
-local function setStatus(text)
-    statusLabel:setText(text)
+local function setStatus(text, color)
+    statusLabel:setText(text):setForeground(color or colors.white)
 end
 
 local function endGame(result)
     gameOver = true
-    if result == HUMAN then
-        setStatus("You win! Opening the door...")
+    if result == AI then
+        -- Only an actual AI win is a loss; draw counts as a win, same as beating it.
+        setStatus("The AI wins. Try again!", colors.red)
+    elseif result == HUMAN then
+        setStatus("You win! Opening the door...", colors.lime)
         redstone.setOutput(REDSTONE_SIDE, true)
-    elseif result == AI then
-        setStatus("The AI wins. Try again!")
     else
-        setStatus("Draw. Try again!")
+        setStatus("Draw! Opening the door...", colors.lime)
+        redstone.setOutput(REDSTONE_SIDE, true)
     end
 end
 
@@ -82,7 +92,7 @@ local function resetGame()
     gameOver = false
     redstone.setOutput(REDSTONE_SIDE, false)
     render()
-    setStatus("Your turn (X)")
+    setStatus("Your turn (X)", colors.white)
 end
 
 local function onCellClick(r, c)
@@ -106,7 +116,12 @@ local cellH = math.max(2, math.floor((h - 4) / 3))
 local startX = math.floor((w - cellW * 3) / 2) + 1
 local startY = 3
 
-statusLabel = screen:addLabel():setText("Your turn (X)"):setPosition(2, 1):setSize(w - 2, 1)
+statusLabel = screen:addLabel()
+    :setText("Your turn (X)")
+    :setPosition(2, 1)
+    :setSize(w - 2, 1)
+    :setBackground(colors.black)
+    :setForeground(colors.white)
 
 for r = 1, 3 do
     cells[r] = {}
@@ -123,6 +138,8 @@ screen:addButton()
     :setText("New game")
     :setPosition(2, h)
     :setSize(12, 1)
+    :setBackground(colors.green)
+    :setForeground(colors.white)
     :onClick(resetGame)
 
 resetGame()
