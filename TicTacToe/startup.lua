@@ -39,20 +39,78 @@ math.randomseed(os.time())
 local state, gameOver
 
 -- ====================== UI ======================
-local cells, statusLabel = {}, nil
+local cells, cellPos, icons, statusLabel = {}, {}, {}, nil
 
--- Cell styling per mark: background, text color and symbol
+-- Cell background and icon (pixel) color per mark
 local CELL_STYLE = {
-    [""]     = { bg = colors.gray,  fg = colors.lightGray, text = " " },
-    [HUMAN]  = { bg = colors.blue,  fg = colors.white,     text = "X" },
-    [AI]     = { bg = colors.red,   fg = colors.white,     text = "O" },
+    [""]    = { bg = colors.black, icon = colors.black },
+    [HUMAN] = { bg = colors.black, icon = colors.red },
+    [AI]    = { bg = colors.black, icon = colors.blue },
 }
+
+-- 5x5 pixel-art patterns for the icons (1 = filled pixel)
+local ICON_PATTERNS = {
+    [HUMAN] = {
+        {1,0,0,0,1},
+        {0,1,0,1,0},
+        {0,0,1,0,0},
+        {0,1,0,1,0},
+        {1,0,0,0,1},
+    },
+    [AI] = {
+        {0,1,1,1,0},
+        {1,0,0,0,1},
+        {1,0,0,0,1},
+        {1,0,0,0,1},
+        {0,1,1,1,0},
+    },
+}
+
+local pixelW, pixelH -- set once layout is known, used by renderCell below
+
+-- Draws (or clears) the pixel-art icon for one cell. Icon pixels are plain
+-- Buttons (Label backgrounds don't render in this Basalt build - confirmed
+-- with icontest.lua) and are only ever created for an already-filled cell,
+-- so they can never sit on top of a still-clickable empty cell.
+local function renderCell(r, c)
+    local mark = state[r][c]
+    local style = CELL_STYLE[mark]
+    cells[r][c]:setBackground(style.bg)
+
+    if icons[r][c] and icons[r][c].mark == mark then
+        return
+    end
+
+    if icons[r][c] then
+        for _, pixel in ipairs(icons[r][c].pixels) do
+            pixel:setBackground(colors.black)
+        end
+    end
+
+    local pattern = ICON_PATTERNS[mark]
+    local pixels = {}
+    if pattern then
+        local pos = cellPos[r][c]
+        for pr = 1, 5 do
+            for pc = 1, 5 do
+                if pattern[pr][pc] == 1 then
+                    local btn = screen:addButton()
+                        :setText("")
+                        :setPosition(pos.iconX + (pc - 1) * pixelW, pos.iconY + (pr - 1) * pixelH)
+                        :setSize(pixelW, pixelH)
+                        :setBackground(style.icon)
+                    table.insert(pixels, btn)
+                end
+            end
+        end
+    end
+    icons[r][c] = { mark = mark, pixels = pixels }
+end
 
 local function render()
     for r = 1, 3 do
         for c = 1, 3 do
-            local style = CELL_STYLE[state[r][c]]
-            cells[r][c]:setText(style.text):setBackground(style.bg):setForeground(style.fg)
+            renderCell(r, c)
         end
     end
 end
@@ -128,15 +186,37 @@ statusLabel = screen:addLabel()
     :setBackground(colors.black)
     :setForeground(colors.white)
 
+-- Size of one pixel-art "pixel" in characters, derived from cell size so the
+-- 5x5 icon always fits with a small margin.
+pixelW = math.max(1, math.floor((cellW - 3) / 5))
+pixelH = math.max(1, math.floor((cellH - 3) / 5))
+local iconW, iconH = pixelW * 5, pixelH * 5
+
 for r = 1, 3 do
     cells[r] = {}
+    cellPos[r] = {}
     for c = 1, 3 do
+        local cellX = startX + (c - 1) * cellW
+        local cellY = startY + (r - 1) * cellH
+
         cells[r][c] = screen:addButton()
-            :setText(" ")
-            :setPosition(startX + (c - 1) * cellW, startY + (r - 1) * cellH)
+            :setText("")
+            :setPosition(cellX, cellY)
             :setSize(cellW - 1, cellH - 1)
             :onClick(function() onCellClick(r, c) end)
+
+        cellPos[r][c] = {
+            iconX = cellX + math.floor((cellW - 1 - iconW) / 2),
+            iconY = cellY + math.floor((cellH - 1 - iconH) / 2),
+        }
     end
+end
+
+-- White grid lines between the cells (Buttons, not Labels, so they actually render)
+local LINE_COLOR = colors.white
+for i = 1, 2 do
+    screen:addButton():setText(""):setPosition(startX + i * cellW - 1, startY):setSize(1, cellH * 3 - 1):setBackground(LINE_COLOR)
+    screen:addButton():setText(""):setPosition(startX, startY + i * cellH - 1):setSize(cellW * 3 - 1, 1):setBackground(LINE_COLOR)
 end
 
 screen:addButton()
