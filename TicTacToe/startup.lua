@@ -48,21 +48,20 @@ local CELL_STYLE = {
     [AI]    = { bg = colors.black, icon = colors.blue },
 }
 
--- 5x5 pixel-art patterns for the icons (1 = filled pixel)
+-- 3x3 pixel-art patterns for the icons (1 = filled pixel). Kept small on
+-- purpose: a 5x5 pattern needs 5 full rows of height per cell, which
+-- overflowed badly once the aspect-ratio fix made cells shorter.
+local ICON_SIZE = 3
 local ICON_PATTERNS = {
     [HUMAN] = {
-        {1,0,0,0,1},
-        {0,1,0,1,0},
-        {0,0,1,0,0},
-        {0,1,0,1,0},
-        {1,0,0,0,1},
+        {1,0,1},
+        {0,1,0},
+        {1,0,1},
     },
     [AI] = {
-        {0,1,1,1,0},
-        {1,0,0,0,1},
-        {1,0,0,0,1},
-        {1,0,0,0,1},
-        {0,1,1,1,0},
+        {1,1,1},
+        {1,0,1},
+        {1,1,1},
     },
 }
 
@@ -91,8 +90,8 @@ local function renderCell(r, c)
     local pixels = {}
     if pattern then
         local pos = cellPos[r][c]
-        for pr = 1, 5 do
-            for pc = 1, 5 do
+        for pr = 1, ICON_SIZE do
+            for pc = 1, ICON_SIZE do
                 if pattern[pr][pc] == 1 then
                     local btn = screen:addButton()
                         :setText("")
@@ -187,14 +186,15 @@ statusLabel = screen:addLabel()
     :setForeground(colors.white)
 
 -- Size of one pixel-art "pixel" in characters, derived from cell size so the
--- 5x5 icon always fits with a small margin.
-pixelW = math.max(1, math.floor((cellW - 3) / 5))
-pixelH = math.max(1, math.floor((cellH - 3) / 5))
-local iconW, iconH = pixelW * 5, pixelH * 5
+-- icon always fits with a small margin.
+pixelW = math.max(1, math.floor((cellW - 3) / ICON_SIZE))
+pixelH = math.max(1, math.floor((cellH - 3) / ICON_SIZE))
+local iconW, iconH = pixelW * ICON_SIZE, pixelH * ICON_SIZE
 
 for r = 1, 3 do
     cells[r] = {}
     cellPos[r] = {}
+    icons[r] = {}
     for c = 1, 3 do
         local cellX = startX + (c - 1) * cellW
         local cellY = startY + (r - 1) * cellH
