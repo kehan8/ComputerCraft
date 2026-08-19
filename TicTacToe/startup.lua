@@ -15,6 +15,14 @@ if not fs.exists("basalt") and not fs.exists("basalt.lua") then
 end
 local basalt = require("basalt")
 
+-- BigFont isn't bundled by default; let Basalt auto-load it (from disk cache or remotely) on first use
+basalt.getElementManager().configure({
+    autoLoadMissing = true,
+    allowRemoteLoading = true,
+    allowDiskLoading = true,
+    useGlobalCache = true,
+})
+
 local board = require("board")
 local ai = require("ai")
 local HUMAN, AI = board.HUMAN, board.AI
