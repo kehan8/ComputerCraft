@@ -39,50 +39,20 @@ math.randomseed(os.time())
 local state, gameOver
 
 -- ====================== UI ======================
-local cells, icons, statusLabel = {}, {}, nil
+local cells, statusLabel = {}, nil
 
--- Cell background and icon (pixel) color per mark
+-- Cell styling per mark: background, text color and symbol
 local CELL_STYLE = {
-    [""]    = { bg = colors.black, icon = colors.black },
-    [HUMAN] = { bg = colors.black, icon = colors.red },
-    [AI]    = { bg = colors.black, icon = colors.blue },
-}
-
--- 5x5 pixel-art patterns for the icons (1 = filled pixel)
-local ICON_PATTERNS = {
-    [HUMAN] = {
-        {1,0,0,0,1},
-        {0,1,0,1,0},
-        {0,0,1,0,0},
-        {0,1,0,1,0},
-        {1,0,0,0,1},
-    },
-    [AI] = {
-        {0,1,1,1,0},
-        {1,0,0,0,1},
-        {1,0,0,0,1},
-        {1,0,0,0,1},
-        {0,1,1,1,0},
-    },
+    [""]     = { bg = colors.gray,  fg = colors.lightGray, text = " " },
+    [HUMAN]  = { bg = colors.blue,  fg = colors.white,     text = "X" },
+    [AI]     = { bg = colors.red,   fg = colors.white,     text = "O" },
 }
 
 local function render()
     for r = 1, 3 do
         for c = 1, 3 do
-            local mark = state[r][c]
-            local style = CELL_STYLE[mark]
-            cells[r][c]:setBackground(style.bg)
-
-            local pattern = ICON_PATTERNS[mark]
-            for pr = 1, 5 do
-                for pc = 1, 5 do
-                    local pixel = icons[r][c][pr][pc]
-                    if pixel then
-                        local on = pattern and pattern[pr][pc] == 1
-                        pixel:setBackground(on and style.icon or style.bg)
-                    end
-                end
-            end
+            local style = CELL_STYLE[state[r][c]]
+            cells[r][c]:setText(style.text):setBackground(style.bg):setForeground(style.fg)
         end
     end
 end
@@ -139,10 +109,15 @@ local function onCellClick(r, c)
     setStatus("Your turn (X)")
 end
 
--- Layout: 3x3 grid of buttons, centered on the screen
+-- Layout: 3x3 grid of buttons, centered on the screen.
+-- A monitor character cell is roughly 1.5-2x taller than it is wide, so cells
+-- need proportionally more columns than rows to look square, not "schuin".
+local CHAR_ASPECT = 2 -- tweak this if cells still look too tall/wide
 local w, h = screen:getSize()
-local cellW = math.max(3, math.floor((w - 2) / 3))
-local cellH = math.max(2, math.floor((h - 4) / 3))
+local cellHMax = math.max(2, math.floor((h - 4) / 3))
+local cellWMax = math.max(3, math.floor((w - 2) / 3))
+local cellH = math.min(cellHMax, math.floor(cellWMax / CHAR_ASPECT))
+local cellW = cellH * CHAR_ASPECT
 local startX = math.floor((w - cellW * 3) / 2) + 1
 local startY = 3
 
@@ -153,53 +128,15 @@ statusLabel = screen:addLabel()
     :setBackground(colors.black)
     :setForeground(colors.white)
 
--- Size of one pixel-art "pixel" in characters, derived from cell size so the
--- 5x5 icon always fits with a small margin (raise/lower the "- 3" margin to
--- taste; bigger pixels = thicker-looking lines in the icon).
-local pixelW = math.max(1, math.floor((cellW - 3) / 5))
-local pixelH = math.max(1, math.floor((cellH - 3) / 5))
-local iconW, iconH = pixelW * 5, pixelH * 5
-
 for r = 1, 3 do
     cells[r] = {}
-    icons[r] = {}
     for c = 1, 3 do
-        local cellX = startX + (c - 1) * cellW
-        local cellY = startY + (r - 1) * cellH
-
         cells[r][c] = screen:addButton()
-            :setText("")
-            :setPosition(cellX, cellY)
+            :setText(" ")
+            :setPosition(startX + (c - 1) * cellW, startY + (r - 1) * cellH)
             :setSize(cellW - 1, cellH - 1)
             :onClick(function() onCellClick(r, c) end)
-
-        local iconX = cellX + math.floor((cellW - 1 - iconW) / 2)
-        local iconY = cellY + math.floor((cellH - 1 - iconH) / 2)
-
-        local grid = {}
-        for pr = 1, 5 do
-            grid[pr] = {}
-            for pc = 1, 5 do
-                -- Only create a pixel where at least one mark actually uses it
-                if ICON_PATTERNS[HUMAN][pr][pc] == 1 or ICON_PATTERNS[AI][pr][pc] == 1 then
-                    grid[pr][pc] = screen:addLabel()
-                        :setText("")
-                        :setAutoSize(false)
-                        :setPosition(iconX + (pc - 1) * pixelW, iconY + (pr - 1) * pixelH)
-                        :setSize(pixelW, pixelH)
-                        :setBackground(colors.black)
-                end
-            end
-        end
-        icons[r][c] = grid
     end
-end
-
--- White grid lines between the cells
-local LINE_COLOR = colors.white
-for i = 1, 2 do
-    screen:addLabel():setText(""):setAutoSize(false):setPosition(startX + i * cellW - 1, startY):setSize(1, cellH * 3 - 1):setBackground(LINE_COLOR)
-    screen:addLabel():setText(""):setAutoSize(false):setPosition(startX, startY + i * cellH - 1):setSize(cellW * 3 - 1, 1):setBackground(LINE_COLOR)
 end
 
 screen:addButton()
