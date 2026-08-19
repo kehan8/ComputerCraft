@@ -4,7 +4,7 @@
 
 -- ====================== CONFIG ======================
 local MONITOR_NAME = nil      -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
-local MONITOR_SCALE = 1       -- text scale on the monitor; try 2-3 if text is too small to read from afar
+local MONITOR_SCALE = 0.5     -- text scale on the monitor; lower = more resolution for the icons, higher = bigger/easier to read from afar
 local REDSTONE_SIDE = "back"  -- side that goes high once the player wins
 -- ======================================================
 
@@ -48,20 +48,22 @@ local CELL_STYLE = {
     [AI]    = { bg = colors.black, icon = colors.blue },
 }
 
--- 3x3 pixel-art patterns for the icons (1 = filled pixel). Kept small on
--- purpose: a 5x5 pattern needs 5 full rows of height per cell, which
--- overflowed badly once the aspect-ratio fix made cells shorter.
-local ICON_SIZE = 3
+-- 5x5 pixel-art patterns for the icons (1 = filled pixel)
+local ICON_SIZE = 5
 local ICON_PATTERNS = {
     [HUMAN] = {
-        {1,0,1},
-        {0,1,0},
-        {1,0,1},
+        {1,0,0,0,1},
+        {0,1,0,1,0},
+        {0,0,1,0,0},
+        {0,1,0,1,0},
+        {1,0,0,0,1},
     },
     [AI] = {
-        {1,1,1},
-        {1,0,1},
-        {1,1,1},
+        {0,1,1,1,0},
+        {1,0,0,0,1},
+        {1,0,0,0,1},
+        {1,0,0,0,1},
+        {0,1,1,1,0},
     },
 }
 
@@ -169,7 +171,8 @@ end
 -- Layout: 3x3 grid of buttons, centered on the screen.
 -- A monitor character cell is roughly 1.5-2x taller than it is wide, so cells
 -- need proportionally more columns than rows to look square, not "schuin".
-local CHAR_ASPECT = 2 -- tweak this if cells still look too tall/wide
+local CHAR_ASPECT = 2  -- tweak this if cells still look too tall/wide
+local LINE_THICKNESS = 2 -- width/height, in characters, of the grid lines between cells
 local w, h = screen:getSize()
 local cellHMax = math.max(2, math.floor((h - 4) / 3))
 local cellWMax = math.max(3, math.floor((w - 2) / 3))
@@ -185,10 +188,14 @@ statusLabel = screen:addLabel()
     :setBackground(colors.black)
     :setForeground(colors.white)
 
+-- Button size leaves a LINE_THICKNESS-wide gap after each cell for the grid line
+local btnW = cellW - LINE_THICKNESS
+local btnH = cellH - LINE_THICKNESS
+
 -- Size of one pixel-art "pixel" in characters, derived from cell size so the
 -- icon always fits with a small margin.
-pixelW = math.max(1, math.floor((cellW - 3) / ICON_SIZE))
-pixelH = math.max(1, math.floor((cellH - 3) / ICON_SIZE))
+pixelW = math.max(1, math.floor((btnW - 2) / ICON_SIZE))
+pixelH = math.max(1, math.floor((btnH - 2) / ICON_SIZE))
 local iconW, iconH = pixelW * ICON_SIZE, pixelH * ICON_SIZE
 
 for r = 1, 3 do
@@ -202,12 +209,12 @@ for r = 1, 3 do
         cells[r][c] = screen:addButton()
             :setText("")
             :setPosition(cellX, cellY)
-            :setSize(cellW - 1, cellH - 1)
+            :setSize(btnW, btnH)
             :onClick(function() onCellClick(r, c) end)
 
         cellPos[r][c] = {
-            iconX = cellX + math.floor((cellW - 1 - iconW) / 2),
-            iconY = cellY + math.floor((cellH - 1 - iconH) / 2),
+            iconX = cellX + math.floor((btnW - iconW) / 2),
+            iconY = cellY + math.floor((btnH - iconH) / 2),
         }
     end
 end
@@ -215,8 +222,8 @@ end
 -- White grid lines between the cells (Buttons, not Labels, so they actually render)
 local LINE_COLOR = colors.white
 for i = 1, 2 do
-    screen:addButton():setText(""):setPosition(startX + i * cellW - 1, startY):setSize(1, cellH * 3 - 1):setBackground(LINE_COLOR)
-    screen:addButton():setText(""):setPosition(startX, startY + i * cellH - 1):setSize(cellW * 3 - 1, 1):setBackground(LINE_COLOR)
+    screen:addButton():setText(""):setPosition(startX + i * cellW - LINE_THICKNESS, startY):setSize(LINE_THICKNESS, cellH * 3 - LINE_THICKNESS):setBackground(LINE_COLOR)
+    screen:addButton():setText(""):setPosition(startX, startY + i * cellH - LINE_THICKNESS):setSize(cellW * 3 - LINE_THICKNESS, LINE_THICKNESS):setBackground(LINE_COLOR)
 end
 
 screen:addButton()
