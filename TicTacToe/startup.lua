@@ -184,6 +184,7 @@ for r = 1, 3 do
                 if ICON_PATTERNS[HUMAN][pr][pc] == 1 or ICON_PATTERNS[AI][pr][pc] == 1 then
                     grid[pr][pc] = screen:addLabel()
                         :setText("")
+                        :setAutoSize(false)
                         :setPosition(iconX + (pc - 1) * pixelW, iconY + (pr - 1) * pixelH)
                         :setSize(pixelW, pixelH)
                         :setBackground(colors.black)
@@ -197,8 +198,8 @@ end
 -- White grid lines between the cells
 local LINE_COLOR = colors.white
 for i = 1, 2 do
-    screen:addLabel():setText(""):setPosition(startX + i * cellW - 1, startY):setSize(1, cellH * 3 - 1):setBackground(LINE_COLOR)
-    screen:addLabel():setText(""):setPosition(startX, startY + i * cellH - 1):setSize(cellW * 3 - 1, 1):setBackground(LINE_COLOR)
+    screen:addLabel():setText(""):setAutoSize(false):setPosition(startX + i * cellW - 1, startY):setSize(1, cellH * 3 - 1):setBackground(LINE_COLOR)
+    screen:addLabel():setText(""):setAutoSize(false):setPosition(startX, startY + i * cellH - 1):setSize(cellW * 3 - 1, 1):setBackground(LINE_COLOR)
 end
 
 screen:addButton()
