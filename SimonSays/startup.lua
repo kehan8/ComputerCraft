@@ -57,9 +57,10 @@ local playerIndex = 1
 local isPlayerTurn = false
 local gameOver = false
 local token = 0 -- bumped on every reset so stale scheduled coroutines bail out
+local mode = "idle" -- "idle" (showing "Start") or "playing" (showing "New game")
 
 -- ====================== UI ======================
-local statusLabel, pads = nil, {}
+local statusLabel, startButton, pads = nil, nil, {}
 
 local PAD_COLORS = {
     [1] = { dim = colors.brown,  lit = colors.red },
@@ -136,9 +137,10 @@ local function onWrong()
     end)
 end
 
-local function resetGame()
+-- Stops any running/won game and returns to the idle "press Start" state.
+local function goIdle()
     token = token + 1
-    local myToken = token
+    mode = "idle"
 
     pattern = simon.new()
     round = 0
@@ -147,8 +149,34 @@ local function resetGame()
     gameOver = false
     setDoorSignal(false)
     setAllPads(false)
+    setStatus("Press Start to begin", colors.white)
+    startButton:setText("Start")
+end
+
+-- Starts a fresh game from the idle state.
+local function beginGame()
+    token = token + 1
+    local myToken = token
+    mode = "playing"
+
+    pattern = simon.new()
+    round = 0
+    playerIndex = 1
+    isPlayerTurn = false
+    gameOver = false
+    setDoorSignal(false)
+    setAllPads(false)
+    startButton:setText("New game")
 
     nextRound(myToken)
+end
+
+local function onStartButtonClick()
+    if mode == "idle" then
+        beginGame()
+    else
+        goIdle()
+    end
 end
 
 local function onPadClick(i)
@@ -215,12 +243,12 @@ for i = 1, 4 do
         :onClick(function() onPadClick(i) end)
 end
 
-screen:addButton()
+startButton = screen:addButton()
     :setText("Start")
     :setPosition(2, h)
     :setSize(12, 1)
     :setBackground(colors.green)
     :setForeground(colors.white)
-    :onClick(resetGame)
+    :onClick(onStartButtonClick)
 
 basalt.run()

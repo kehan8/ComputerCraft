@@ -11,6 +11,7 @@ A Simon Says memory puzzle for [CC:Tweaked](https://tweaked.cc/), built with the
 - Tap the pad you just saw light up. Get it right, and the computer replays the same pattern **plus one more step**.
 - Each round adds one step. Reach a pattern of `WIN_LENGTH` steps (default 6) without a mistake and the door opens.
 - Tap the wrong pad at any point and the whole board flashes red twice, then the puzzle resets to a fresh 1-step pattern.
+- Once a game is running, the **Start** button turns into **New game**. Tap it anytime — mid-round or after solving — to stop and return to the idle "press Start" state. Note that solving the puzzle does *not* automatically turn the door signal back off; hit **New game** first if you want to reset it.
 
 ## Requirements
 
