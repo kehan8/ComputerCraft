@@ -3,10 +3,12 @@
 -- When the player (X) wins, a redstone signal goes high; wiring that to a door is up to you.
 
 -- ====================== CONFIG ======================
-local MONITOR_NAME = nil        -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
-local MONITOR_SCALE = 0.5       -- text scale on the monitor; lower = more resolution for the icons, higher = bigger/easier to read from afar
-local REDSTONE_RELAY_NAME = "redstone_relay_0" -- name of your Redstone Relay peripheral
-local REDSTONE_SIDE = "back"                   -- side of the relay that goes high once the player wins
+-- Your local settings live in config.lua (not touched by update.lua).
+local config = require("config")
+local MONITOR_NAME = config.MONITOR_NAME
+local MONITOR_SCALE = config.MONITOR_SCALE
+local REDSTONE_RELAY_NAME = config.REDSTONE_RELAY_NAME
+local REDSTONE_SIDE = config.REDSTONE_SIDE
 -- ======================================================
 
 if not fs.exists("basalt") and not fs.exists("basalt.lua") then

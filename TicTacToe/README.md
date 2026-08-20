@@ -28,17 +28,17 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/TicT
 install
 ```
 
-This downloads `startup.lua`, `board.lua`, `ai.lua`, `update.lua`, and installs Basalt2 if it isn't already present.
+This downloads `config.lua`, `startup.lua`, `board.lua`, `ai.lua`, `update.lua`, `update_full.lua`, and installs Basalt2 if it isn't already present.
 
 ## Configure
 
-Before running, open `startup.lua` and set the values at the top to match your build:
+Before running, open `config.lua` and set the values to match your build:
 
 ```lua
-local MONITOR_NAME = nil        -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
-local MONITOR_SCALE = 0.5       -- text scale on the monitor; lower = more resolution for the icons
-local REDSTONE_RELAY_NAME = "redstone_relay_0" -- name of your Redstone Relay peripheral
-local REDSTONE_SIDE = "back"                   -- side of the relay that goes high once the player wins
+MONITOR_NAME = nil,        -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
+MONITOR_SCALE = 0.5,       -- text scale on the monitor; lower = more resolution for the icons
+REDSTONE_RELAY_NAME = "redstone_relay_0", -- name of your Redstone Relay peripheral
+REDSTONE_SIDE = "back",                   -- side of the relay that goes high once the player wins
 ```
 
 If you're not sure what your relay/monitor is named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
@@ -55,12 +55,20 @@ To pull the latest version later:
 update
 ```
 
+`update` re-downloads the code but **leaves `config.lua` alone**, so your monitor/relay settings survive. If you ever want `config.lua` itself reset back to the repo defaults (e.g. it got corrupted, or a new version adds new settings), run:
+
+```
+update_full
+```
+
 ## Files
 
 | File | Purpose |
 |---|---|
-| `startup.lua` | Config, UI (Basalt2), game flow, redstone output |
+| `config.lua` | Your local settings (monitor, relay) — not touched by `update.lua` |
+| `startup.lua` | UI (Basalt2), game flow, redstone output |
 | `board.lua` | Board state and win detection |
 | `ai.lua` | Minimax AI |
 | `install.lua` | First-time setup |
-| `update.lua` | Re-downloads all files |
+| `update.lua` | Re-downloads the code, keeps your `config.lua` |
+| `update_full.lua` | Re-downloads everything, including `config.lua` |

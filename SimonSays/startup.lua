@@ -4,18 +4,20 @@
 -- goes high; wiring that to a door is up to you.
 
 -- ====================== CONFIG ======================
-local MONITOR_NAME = nil        -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
-local MONITOR_SCALE = 0.5       -- text scale on the monitor
-local REDSTONE_RELAY_NAME = "redstone_relay_0" -- name of your Redstone Relay peripheral
-local REDSTONE_SIDE = "back"                   -- side of the relay that goes high once solved
+-- Your local settings live in config.lua (not touched by update.lua).
+local config = require("config")
+local MONITOR_NAME = config.MONITOR_NAME
+local MONITOR_SCALE = config.MONITOR_SCALE
+local REDSTONE_RELAY_NAME = config.REDSTONE_RELAY_NAME
+local REDSTONE_SIDE = config.REDSTONE_SIDE
 
-local WIN_LENGTH = 6            -- pattern length (rounds) needed to solve the puzzle
-local FLASH_TIME = 0.6          -- seconds a pad stays lit during playback
-local GAP_TIME = 0.25           -- seconds between pads during playback
-local ROUND_START_DELAY = 1     -- pause before playback starts each round
-local NEXT_ROUND_DELAY = 0.8    -- pause after a correct round before the next one plays
-local CLICK_FLASH_TIME = 0.15   -- how long a pad stays lit when the player taps it
-local WRONG_FLASH_TIME = 0.2    -- on/off timing for the red "wrong" flash
+local WIN_LENGTH = config.WIN_LENGTH
+local FLASH_TIME = config.FLASH_TIME
+local GAP_TIME = config.GAP_TIME
+local ROUND_START_DELAY = config.ROUND_START_DELAY
+local NEXT_ROUND_DELAY = config.NEXT_ROUND_DELAY
+local CLICK_FLASH_TIME = config.CLICK_FLASH_TIME
+local WRONG_FLASH_TIME = config.WRONG_FLASH_TIME
 -- ======================================================
 
 if not fs.exists("basalt") and not fs.exists("basalt.lua") then

@@ -30,25 +30,25 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/Simo
 install
 ```
 
-This downloads `startup.lua`, `simon.lua`, `update.lua`, and installs Basalt2 if it isn't already present.
+This downloads `config.lua`, `startup.lua`, `simon.lua`, `update.lua`, `update_full.lua`, and installs Basalt2 if it isn't already present.
 
 ## Configure
 
-Before running, open `startup.lua` and set the values at the top to match your build:
+Before running, open `config.lua` and set the values to match your build:
 
 ```lua
-local MONITOR_NAME = nil        -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
-local MONITOR_SCALE = 0.5       -- text scale on the monitor
-local REDSTONE_RELAY_NAME = "redstone_relay_0" -- name of your Redstone Relay peripheral
-local REDSTONE_SIDE = "back"                   -- side of the relay that goes high once solved
+MONITOR_NAME = nil,        -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
+MONITOR_SCALE = 0.5,       -- text scale on the monitor
+REDSTONE_RELAY_NAME = "redstone_relay_0", -- name of your Redstone Relay peripheral
+REDSTONE_SIDE = "back",                   -- side of the relay that goes high once solved
 
-local WIN_LENGTH = 6            -- pattern length (rounds) needed to solve the puzzle
-local FLASH_TIME = 0.6          -- seconds a pad stays lit during playback
-local GAP_TIME = 0.25           -- seconds between pads during playback
-local ROUND_START_DELAY = 1     -- pause before playback starts each round
-local NEXT_ROUND_DELAY = 0.8    -- pause after a correct round before the next one plays
-local CLICK_FLASH_TIME = 0.15   -- how long a pad stays lit when the player taps it
-local WRONG_FLASH_TIME = 0.2    -- on/off timing for the red "wrong" flash
+WIN_LENGTH = 6,            -- pattern length (rounds) needed to solve the puzzle
+FLASH_TIME = 0.6,          -- seconds a pad stays lit during playback
+GAP_TIME = 0.25,           -- seconds between pads during playback
+ROUND_START_DELAY = 1,     -- pause before playback starts each round
+NEXT_ROUND_DELAY = 0.8,    -- pause after a correct round before the next one plays
+CLICK_FLASH_TIME = 0.15,   -- how long a pad stays lit when the player taps it
+WRONG_FLASH_TIME = 0.2,    -- on/off timing for the red "wrong" flash
 ```
 
 If you're not sure what your relay/monitor is named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
@@ -65,11 +65,19 @@ To pull the latest version later:
 update
 ```
 
+`update` re-downloads the code but **leaves `config.lua` alone**, so your monitor/relay/timing settings survive. If you ever want `config.lua` itself reset back to the repo defaults (e.g. it got corrupted, or a new version adds new settings), run:
+
+```
+update_full
+```
+
 ## Files
 
 | File | Purpose |
 |---|---|
-| `startup.lua` | Config, UI (Basalt2), game flow, redstone output |
+| `config.lua` | Your local settings (monitor, relay, timings) — not touched by `update.lua` |
+| `startup.lua` | UI (Basalt2), game flow, redstone output |
 | `simon.lua` | Pattern state (start a new pattern, add a random step) |
 | `install.lua` | First-time setup |
-| `update.lua` | Re-downloads all files |
+| `update.lua` | Re-downloads the code, keeps your `config.lua` |
+| `update_full.lua` | Re-downloads everything, including `config.lua` |

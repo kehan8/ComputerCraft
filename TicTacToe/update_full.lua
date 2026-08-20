@@ -1,5 +1,7 @@
--- install.lua: downloads all game files from GitHub (including your config.lua defaults)
--- and installs Basalt
+-- update_full.lua: redownloads EVERYTHING from GitHub, including config.lua.
+-- Use this instead of update.lua if config.lua ever gets corrupted/deleted, or you
+-- want to wipe your local settings back to the repo defaults after a fresh pull.
+-- Your MONITOR_NAME / REDSTONE_RELAY_NAME / etc. edits in config.lua WILL be lost.
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/TicTacToe/"
 
@@ -20,13 +22,10 @@ local function downloadFile(name)
     return true
 end
 
-if not fs.exists("basalt") and not fs.exists("basalt.lua") then
-    shell.run("wget run https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
-end
-
+print("This will also overwrite config.lua with the repo defaults.")
 for _, name in ipairs(FILES) do
-    print("Downloading " .. name .. "...")
+    print("Updating " .. name .. "...")
     downloadFile(name)
 end
 
-print("Done. Run 'startup' to play.")
+print("Done. Re-edit config.lua if needed, then run 'startup' (or reboot) to play.")
