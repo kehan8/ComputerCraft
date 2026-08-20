@@ -133,6 +133,7 @@ end
 local function listenForStatus()
     while true do
         local senderId, msg = rednet.receive(PROTOCOL)
+        print("rednet: got message from " .. tostring(senderId) .. " -> " .. tostring(msg and msg.status))
         if msg and msg.label then
             local slot = deviceSlot[senderId] or claimSlot(senderId, CONTROLLABLE_TYPES[msg.type] == true)
             if slot then
@@ -141,6 +142,9 @@ local function listenForStatus()
                 slot.online = true
                 slot.lastSeen = os.clock()
                 refreshRow(slot)
+                print("row updated for slot")
+            else
+                print("no free slot available (raise MAX_DEVICES)")
             end
         end
     end
