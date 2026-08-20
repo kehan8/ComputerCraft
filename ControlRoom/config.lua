@@ -10,4 +10,9 @@ return {
 
     -- Seconds without a status broadcast from a device before it's shown as "offline".
     HEARTBEAT_TIMEOUT = 8,
+
+    -- How many device rows to draw on the monitor. All rows are created up front
+    -- (blank) at startup and filled in as devices broadcast -- Basalt doesn't
+    -- reliably draw widgets added after basalt.run() has started.
+    MAX_DEVICES = 8,
 }

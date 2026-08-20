@@ -1,9 +1,9 @@
 -- ControlRoom
 -- Listens on rednet for status broadcasts from the other puzzle/door computers
 -- (AdminDoor, GymLock, TicTacToe, SimonSays) and shows them on a monitor. Devices
--- show up automatically the moment they broadcast -- nothing to configure per device.
--- TicTacToe and SimonSays get a "Reset" button so you don't have to walk over and
--- press "New game"/"Start" on the puzzle itself.
+-- claim a row automatically the moment they broadcast -- nothing to configure per
+-- device. TicTacToe and SimonSays get a "Reset" button so you don't have to walk
+-- over and press "New game"/"Start" on the puzzle itself.
 
 -- ====================== CONFIG ======================
 -- Your local settings live in config.lua (not touched by update.lua).
@@ -12,6 +12,7 @@ local MODEM_NAME = config.MODEM_NAME
 local MONITOR_NAME = config.MONITOR_NAME
 local MONITOR_SCALE = config.MONITOR_SCALE
 local HEARTBEAT_TIMEOUT = config.HEARTBEAT_TIMEOUT
+local MAX_DEVICES = config.MAX_DEVICES
 -- ======================================================
 
 if not fs.exists("basalt") and not fs.exists("basalt.lua") then
@@ -54,52 +55,71 @@ screen:addLabel()
     :setForeground(colors.white)
 
 -- ====================== DEVICE ROWS ======================
+-- All MAX_DEVICES rows are created here, up front, blank. Basalt doesn't reliably
+-- draw widgets that get added after basalt.run() has already started, so nothing
+-- below this point ever calls addLabel()/addButton() again -- only :setText() on
+-- these pre-existing widgets.
+local slots = {}
+for i = 1, MAX_DEVICES do
+    local y = 3 + (i - 1) * 2
+    local slot = { senderId = nil, controllable = false, online = false }
+
+    slot.text = screen:addLabel()
+        :setText("")
+        :setPosition(2, y)
+        :setSize(w - 11, 1)
+        :setForeground(colors.lightGray)
+
+    slot.button = screen:addButton()
+        :setText("")
+        :setPosition(w - 9, y)
+        :setSize(8, 1)
+        :setBackground(colors.black)
+        :setForeground(colors.white)
+        :onClick(function()
+            if slot.controllable and slot.senderId then
+                rednet.send(slot.senderId, { cmd = "new_game" }, PROTOCOL)
+            end
+        end)
+
+    slots[i] = slot
+end
+
 -- Keyed by rednet computer ID (always unique, assigned by CC:Tweaked -- no manual
 -- device IDs to keep in sync between this config and each satellite's config).
-local deviceState = {}
-local nextRowY = 3
+local deviceSlot = {}
+local nextFreeSlot = 1
+
+local function claimSlot(senderId, controllable)
+    if nextFreeSlot > MAX_DEVICES then
+        return nil -- out of rows; raise MAX_DEVICES in config.lua
+    end
+    local slot = slots[nextFreeSlot]
+    nextFreeSlot = nextFreeSlot + 1
+
+    slot.senderId = senderId
+    slot.controllable = controllable
+    if controllable then
+        slot.button:setText("Reset"):setBackground(colors.green)
+    end
+
+    deviceSlot[senderId] = slot
+    return slot
+end
 
 -- Same wording the device shows on its own screen -- never a reworded summary.
-local function rowText(state)
-    if state.online then
-        return state.label .. ": " .. (state.status or "")
+local function rowText(slot)
+    if slot.online then
+        return slot.label .. ": " .. (slot.status or "")
     else
-        return state.label .. ": offline"
+        return slot.label .. ": offline"
     end
 end
 
-local function createRow(id, controllable)
-    local y = nextRowY
-    nextRowY = nextRowY + 2
-
-    local labelWidth = controllable and (w - 12) or (w - 2)
-    local row = {
-        text = screen:addLabel()
-            :setPosition(2, y)
-            :setSize(labelWidth, 1)
-            :setForeground(colors.lightGray),
-    }
-
-    if controllable then
-        row.button = screen:addButton()
-            :setText("Reset")
-            :setPosition(w - 9, y)
-            :setSize(8, 1)
-            :setBackground(colors.green)
-            :setForeground(colors.white)
-            :onClick(function()
-                rednet.send(id, { cmd = "new_game" }, PROTOCOL)
-            end)
-    end
-
-    return row
-end
-
-local function refreshRow(id)
-    local state = deviceState[id]
-    state.row.text
-        :setText(rowText(state))
-        :setForeground(state.online and colors.lime or colors.gray)
+local function refreshRow(slot)
+    slot.text
+        :setText(rowText(slot))
+        :setForeground(slot.online and colors.lime or colors.gray)
 end
 
 -- ====================== BACKGROUND TASKS ======================
@@ -108,22 +128,20 @@ end
 -- through the OS's own `parallel` API instead, alongside basalt.run(), which
 -- forwards every raw event to every branch.
 
--- Listens for status broadcasts and creates/updates a row per device the first
+-- Listens for status broadcasts and claims/updates a row per device the first
 -- time it hears from it.
 local function listenForStatus()
     while true do
         local senderId, msg = rednet.receive(PROTOCOL)
         if msg and msg.label then
-            local state = deviceState[senderId]
-            if not state then
-                state = { row = createRow(senderId, CONTROLLABLE_TYPES[msg.type] == true) }
-                deviceState[senderId] = state
+            local slot = deviceSlot[senderId] or claimSlot(senderId, CONTROLLABLE_TYPES[msg.type] == true)
+            if slot then
+                slot.label = msg.label
+                slot.status = msg.status
+                slot.online = true
+                slot.lastSeen = os.clock()
+                refreshRow(slot)
             end
-            state.label = msg.label
-            state.status = msg.status
-            state.online = true
-            state.lastSeen = os.clock()
-            refreshRow(senderId)
         end
     end
 end
@@ -132,10 +150,10 @@ end
 local function watchForStaleDevices()
     while true do
         os.sleep(1)
-        for id, state in pairs(deviceState) do
-            if state.online and os.clock() - state.lastSeen > HEARTBEAT_TIMEOUT then
-                state.online = false
-                refreshRow(id)
+        for _, slot in pairs(deviceSlot) do
+            if slot.online and os.clock() - slot.lastSeen > HEARTBEAT_TIMEOUT then
+                slot.online = false
+                refreshRow(slot)
             end
         end
     end
