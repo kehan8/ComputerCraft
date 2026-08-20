@@ -9,7 +9,15 @@ return {
     TICTACTOE_RELAY_NAME = "redstone_relay_1", -- relay wired to the TicTacToe computer's door signal
     TICTACTOE_SIDE = "front",                   -- side of that relay carrying the signal
 
-    -- Outputs: drives the main piston door once BOTH puzzles are solved.
+    -- Admin override: a lever wired through its own relay. When on, forces the main
+    -- door open regardless of the puzzles -- it does NOT touch the puzzle computers
+    -- themselves, so their own state/signal is unaffected. When off, the door goes
+    -- back to normal puzzle-controlled behavior.
+    ADMIN_RELAY_NAME = "redstone_relay_4",
+    ADMIN_SIDE = "front",
+
+    -- Outputs: drives the main piston door once BOTH puzzles are solved, OR the
+    -- admin override above is on.
     -- Two relays because the piston door needs signal on two sides/pistons.
     DOOR_RELAY_NAME_1 = "redstone_relay_2",
     DOOR_SIDE_1 = "front",

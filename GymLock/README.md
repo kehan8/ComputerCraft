@@ -9,6 +9,7 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
 - Reads two redstone inputs: one relay wired to the Simon Says computer's door signal, one wired to the Tic Tac Toe computer's door signal.
 - The moment **both** are high, it opens the main door — driving two relay outputs high (a piston door needs signal on two sides/pistons).
 - If either puzzle gets reset (its signal drops back low, e.g. someone hits "New game"), the main door closes again automatically.
+- A third input — an **admin lever** wired through its own relay — force-opens the main door regardless of the puzzles. Flip it off and the door goes back to normal puzzle-controlled behavior. It only affects the main door; it has no effect on the puzzle computers or their signals.
 - Fully event-driven — it sits idle until a redstone signal actually changes, then reprints its status:
 
   ```
@@ -16,6 +17,7 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
 
   Simon Says:  SOLVED
   Tic Tac Toe: locked
+  Admin lever: off
 
   Main door:   closed
   ```
@@ -24,8 +26,9 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
 
 - CC:Tweaked (Minecraft mod)
 - A **Computer** (regular is fine — no color/touch/monitor needed)
-- **4 Redstone Relays**, each connected to the computer with a Wired Modem + Networking Cable:
+- **5 Redstone Relays**, each connected to the computer with a Wired Modem + Networking Cable:
   - 2 as **inputs** — wired to the Simon Says and Tic Tac Toe computers' door-signal relays
+  - 1 as an **input** — wired to an admin lever (force-opens the door, independent of the puzzles)
   - 2 as **outputs** — wired to your piston door
 
 ## Install
@@ -48,6 +51,9 @@ SIMON_RELAY_NAME = "redstone_relay_0",     -- relay wired to the SimonSays compu
 SIMON_SIDE = "front",                       -- side of that relay carrying the signal
 TICTACTOE_RELAY_NAME = "redstone_relay_1", -- relay wired to the TicTacToe computer's door signal
 TICTACTOE_SIDE = "front",                   -- side of that relay carrying the signal
+
+ADMIN_RELAY_NAME = "redstone_relay_4",     -- relay wired to the admin override lever
+ADMIN_SIDE = "front",                       -- side of that relay carrying the signal
 
 DOOR_RELAY_NAME_1 = "redstone_relay_2",
 DOOR_SIDE_1 = "front",
