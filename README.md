@@ -26,13 +26,18 @@ Each puzzle's door signal is independent — wire it to a local door per room if
 
 Each project has its own README with setup, configuration, and file details — the links above go straight there.
 
+## Extras
+
+- **[AdminDoor](AdminDoor)** is a standalone admin-only door — not part of the puzzle chain above. A Player Detector scans for nearby players and only opens the door for names on an admin whitelist; anyone else gets a "NO ACCESS" popup and the door stays shut.
+
 ## Requirements
 
 - CC:Tweaked (Minecraft mod)
 - Simon Says & Tic Tac Toe: an Advanced Computer + Advanced Monitor each (touch support needed), plus a Redstone Relay
 - GymLock: a regular Computer (no monitor needed) plus 4 Redstone Relays (2 reading the puzzle signals, 2 driving the main door)
+- AdminDoor: a regular Computer, a Player Detector ([Advanced Peripherals](https://www.curseforge.com/minecraft/mc-mods/advanced-peripherals)), and a Redstone Relay
 - All computers/relays connected via Wired Modem + Networking Cable
-- [Basalt2](https://github.com/Pyroxenium/Basalt2) for the puzzle UIs — installed automatically on first run
+- [Basalt2](https://github.com/Pyroxenium/Basalt2) for the UIs — installed automatically on first run
 
 ## Install
 
@@ -43,4 +48,4 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/<Pro
 install
 ```
 
-Replace `<Project>` with `SimonSays`, `TicTacToe`, or `GymLock`. See each project's README for configuration, running, updating, and uninstalling.
+Replace `<Project>` with `SimonSays`, `TicTacToe`, `GymLock`, or `AdminDoor`. See each project's README for configuration, running, updating, and uninstalling.
