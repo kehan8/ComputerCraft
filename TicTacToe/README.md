@@ -28,7 +28,7 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/TicT
 install
 ```
 
-This downloads `config.lua`, `startup.lua`, `board.lua`, `ai.lua`, `update.lua`, `update_full.lua`, and installs Basalt2 if it isn't already present.
+This downloads `config.lua`, `startup.lua`, `board.lua`, `ai.lua`, `update.lua`, `update_full.lua`, `uninstall.lua`, and installs Basalt2 if it isn't already present.
 
 ## Configure
 
@@ -38,7 +38,7 @@ Before running, open `config.lua` and set the values to match your build:
 MONITOR_NAME = nil,        -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
 MONITOR_SCALE = 0.5,       -- text scale on the monitor; lower = more resolution for the icons
 REDSTONE_RELAY_NAME = "redstone_relay_0", -- name of your Redstone Relay peripheral
-REDSTONE_SIDE = "back",                   -- side of the relay that goes high once the player wins
+REDSTONE_SIDE = "front",                   -- side of the relay that goes high once the player wins
 ```
 
 If you're not sure what your relay/monitor is named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
@@ -61,6 +61,14 @@ update
 update_full
 ```
 
+## Uninstall
+
+```
+uninstall
+```
+
+Removes everything `install.lua` put on the computer (optionally including `config.lua` and Basalt). Useful for a clean slate before reinstalling.
+
 ## Files
 
 | File | Purpose |
@@ -72,3 +80,4 @@ update_full
 | `install.lua` | First-time setup |
 | `update.lua` | Re-downloads the code, keeps your `config.lua` |
 | `update_full.lua` | Re-downloads everything, including `config.lua` |
+| `uninstall.lua` | Removes the installed files |
