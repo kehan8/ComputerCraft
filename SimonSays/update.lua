@@ -7,7 +7,9 @@ local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/he
 local FILES = { "startup.lua", "simon.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
 
 local function downloadFile(name)
-    local request = http.get(REPO_URL .. name)
+    -- Cache-busting query param: raw.githubusercontent.com caches for a few
+    -- minutes, so without this, a fresh push might not show up right away.
+    local request = http.get(REPO_URL .. name .. "?t=" .. os.epoch("utc"))
     if not request then
         print("Failed to download " .. name)
         return false
