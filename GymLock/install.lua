@@ -2,7 +2,7 @@
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymLock/"
 
-local FILES = { "config.lua", "startup.lua", "update.lua", "update_full.lua" }
+local FILES = { "config.lua", "startup.lua", "update.lua", "update_full.lua", "uninstall.lua" }
 
 local function downloadFile(name)
     local request = http.get(REPO_URL .. name)
