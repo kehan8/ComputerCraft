@@ -6,7 +6,7 @@ return {
     MONITOR_NAME = nil,        -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
     MONITOR_SCALE = 0.5,       -- text scale on the monitor
     REDSTONE_RELAY_NAME = "redstone_relay_0", -- name of your Redstone Relay peripheral
-    REDSTONE_SIDE = "back",                   -- side of the relay that goes high once solved
+    REDSTONE_SIDE = "front",                   -- side of the relay that goes high once solved
 
     WIN_LENGTH = 6,            -- pattern length (rounds) needed to solve the puzzle
     FLASH_TIME = 0.6,          -- seconds a pad stays lit during playback
