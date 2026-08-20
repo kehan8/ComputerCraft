@@ -7,8 +7,8 @@ The main overview computer for [AdminDoor](../AdminDoor), [GymLock](../GymLock),
 ## What it does
 
 - Listens on a wireless [rednet](https://tweaked.cc/module/rednet.html) modem for status broadcasts from every other computer in this repo (each of the other four projects broadcasts its own status every few seconds once you've applied their ControlRoom update).
-- A row appears **automatically** the first time a device broadcasts — nothing to register or configure per device, no IDs to keep in sync between computers.
-- Each row shows exactly the same text that device shows on its own screen (e.g. "Access granted: Steve", "Simon Says: SOLVED | ..."), plus **online**/**offline** (a device that's gone quiet for `HEARTBEAT_TIMEOUT` seconds is shown offline, but its row stays visible with the last known label).
+- A row appears **automatically** the first time a device broadcasts — nothing to register or configure per device, no IDs to keep in sync between computers. Up to `MAX_DEVICES` rows are pre-drawn (blank) at startup and get claimed as devices check in.
+- Each row is a small card: device name + an **ONLINE**/**OFFLINE** badge on the first line, and on the line below it, the exact same status text that device shows on its own screen (e.g. "Access granted: Steve", "Simon Says: SOLVED | ..."). A device that's gone quiet for `HEARTBEAT_TIMEOUT` seconds flips to OFFLINE, but keeps showing its last known status (dimmed) instead of disappearing.
 - Tic Tac Toe and Simon Says rows get a **Reset** button — it tells that computer to run the exact same reset its own "New game"/"Start" button would (board/pattern cleared, door closed), just from here instead of walking over.
 - AdminDoor and GymLock are read-only here — no controls, matching how they work locally.
 
@@ -42,9 +42,19 @@ MONITOR_NAME = nil,    -- e.g. "monitor_0" to force a specific monitor; nil = au
 MONITOR_SCALE = 0.5,   -- text scale on the monitor
 
 HEARTBEAT_TIMEOUT = 8, -- seconds without a broadcast before a device shows "offline"
+MAX_DEVICES = 8,       -- how many device rows to pre-draw (raise if you add more devices)
 ```
 
 If you're not sure what your modem/monitor is named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
+
+### Sizing the monitor
+
+Each device takes 2 lines (name/badge line + status line). If a device's status text gets cut off on a small monitor, that's a monitor-size problem, not a bug:
+
+- **Status text cut off** (a row is too narrow) → make the monitor **wider**.
+- **Rows running off the bottom** (you have several devices) → make the monitor **taller**.
+
+A 3x6 (width x height) Advanced Monitor at the default `MONITOR_SCALE` comfortably fits all five devices from this repo with room to spare.
 
 ### Telling devices apart
 
