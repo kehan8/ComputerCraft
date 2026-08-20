@@ -26,6 +26,8 @@ if not fs.exists("basalt") and not fs.exists("basalt.lua") then
 end
 local basalt = require("basalt")
 
+print("Simon Says is running")
+
 local simon = require("simon")
 
 local mon = MONITOR_NAME and peripheral.wrap(MONITOR_NAME) or peripheral.find("monitor")

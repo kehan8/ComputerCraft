@@ -17,6 +17,8 @@ if not fs.exists("basalt") and not fs.exists("basalt.lua") then
 end
 local basalt = require("basalt")
 
+print("Tic Tac Toe is running")
+
 local board = require("board")
 local ai = require("ai")
 local HUMAN, AI = board.HUMAN, board.AI
