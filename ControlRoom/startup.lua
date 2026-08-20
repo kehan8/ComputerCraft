@@ -133,18 +133,18 @@ end
 local function listenForStatus()
     while true do
         local senderId, msg = rednet.receive(PROTOCOL)
-        print("rednet: got message from " .. tostring(senderId) .. " -> " .. tostring(msg and msg.status))
-        if msg and msg.label then
+        if msg and msg.status then
+            -- Falls back to "Computer <ID>" if that computer never got an
+            -- os.setComputerLabel() -- e.g. it was installed before ControlRoom
+            -- support was added, since `update`/`update_full` don't re-run install.lua.
+            local label = msg.label or ("Computer " .. senderId)
             local slot = deviceSlot[senderId] or claimSlot(senderId, CONTROLLABLE_TYPES[msg.type] == true)
             if slot then
-                slot.label = msg.label
+                slot.label = label
                 slot.status = msg.status
                 slot.online = true
                 slot.lastSeen = os.clock()
                 refreshRow(slot)
-                print("row updated for slot")
-            else
-                print("no free slot available (raise MAX_DEVICES)")
             end
         end
     end
