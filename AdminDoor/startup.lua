@@ -80,27 +80,27 @@ local popupBg = screen:addButton()
     :setPosition(boxX, boxY)
     :setSize(BOX_W, BOX_H)
     :setBackground(colors.red)
-    :hide()
+    :setVisible(false)
 
 local popupTitleLabel = screen:addLabel()
     :setText("NO ACCESS")
     :setPosition(boxX + 1, boxY + 1)
     :setSize(BOX_W - 2, 1)
     :setForeground(colors.white)
-    :hide()
+    :setVisible(false)
 
 local popupNameLabel = screen:addLabel()
     :setText("")
     :setPosition(boxX + 1, boxY + 2)
     :setSize(BOX_W - 2, 1)
     :setForeground(colors.white)
-    :hide()
+    :setVisible(false)
 
 local popupElements = { popupBg, popupTitleLabel, popupNameLabel }
 
 local function setPopupVisible(visible)
     for _, el in ipairs(popupElements) do
-        if visible then el:show() else el:hide() end
+        el:setVisible(visible)
     end
 end
 
