@@ -10,9 +10,15 @@ return {
     DOOR_SIDE = "front",                   -- side of that relay driving the door
 
     -- Whitelist of player names allowed through. Anyone else detected nearby
-    -- triggers the "NO ACCESS" popup instead of opening the door.
+    -- gets the "NO ACCESS" toast instead of the door opening.
     ADMIN_NAMES = { "YourAdminName" },
 
     POLL_INTERVAL = 1, -- seconds between detector scans
-    WARNING_TIME = 2,  -- seconds the "NO ACCESS" popup stays on screen
+
+    -- Chat Box peripheral used to send the unauthorized player an in-game toast
+    -- popup. On MC 1.21.1+ this shows up as "chat_box_N"; on older versions it's
+    -- "chatBox_N" -- check with peripheral.getNames() if unsure.
+    CHATBOX_NAME = "chat_box_0",
+    TOAST_TITLE = "NO ACCESS",
+    TOAST_MESSAGE = "You are not authorized to enter.",
 }
