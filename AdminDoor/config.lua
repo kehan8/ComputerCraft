@@ -21,4 +21,7 @@ return {
     CHATBOX_NAME = "chat_box_0",
     TOAST_TITLE = "NO ACCESS",
     TOAST_MESSAGE = "You are not authorized to enter.",
+
+    -- Wireless modem used to report status to the ControlRoom computer (see ../ControlRoom).
+    MODEM_NAME = "back",
 }

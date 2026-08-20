@@ -15,4 +15,7 @@ return {
     NEXT_ROUND_DELAY = 0.8,    -- pause after a correct round before the next one plays
     CLICK_FLASH_TIME = 0.15,   -- how long a pad stays lit when the player taps it
     WRONG_FLASH_TIME = 0.2,    -- on/off timing for the red "wrong" flash
+
+    -- Wireless modem used to report status to the ControlRoom computer (see ../ControlRoom).
+    MODEM_NAME = "back",
 }

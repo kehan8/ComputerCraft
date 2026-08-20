@@ -18,7 +18,13 @@ local DOOR_RELAY_NAME_1 = config.DOOR_RELAY_NAME_1
 local DOOR_SIDE_1 = config.DOOR_SIDE_1
 local DOOR_RELAY_NAME_2 = config.DOOR_RELAY_NAME_2
 local DOOR_SIDE_2 = config.DOOR_SIDE_2
+local MODEM_NAME = config.MODEM_NAME
+local HEARTBEAT_INTERVAL = config.HEARTBEAT_INTERVAL
 -- ======================================================
+
+-- Protocol used to report status to the ControlRoom computer (see ../ControlRoom).
+local PROTOCOL = "controlroom"
+local DEVICE_TYPE = "GymLock"
 
 local function wrapRelay(name)
     local relay = peripheral.wrap(name)
@@ -33,6 +39,11 @@ local tictactoeRelay = wrapRelay(TICTACTOE_RELAY_NAME)
 local adminRelay = wrapRelay(ADMIN_RELAY_NAME)
 local doorRelay1 = wrapRelay(DOOR_RELAY_NAME_1)
 local doorRelay2 = wrapRelay(DOOR_RELAY_NAME_2)
+
+if not peripheral.isPresent(MODEM_NAME) then
+    error("Could not find modem '" .. MODEM_NAME .. "'. Check the wireless modem is attached and named correctly.")
+end
+rednet.open(MODEM_NAME)
 
 local function isSimonSolved()
     return simonRelay.getInput(SIMON_SIDE)
@@ -63,6 +74,14 @@ local function printStatus(simonSolved, tictactoeSolved, adminOverride, doorOpen
     print("Main door:   " .. (doorOpen and "OPEN" or "closed"))
 end
 
+-- Same wording as printStatus() above, joined onto one line for the ControlRoom status field.
+local function statusLine(simonSolved, tictactoeSolved, adminOverride, doorOpen)
+    return "Simon Says: " .. (simonSolved and "SOLVED" or "locked")
+        .. " | Tic Tac Toe: " .. (tictactoeSolved and "SOLVED" or "locked")
+        .. " | Admin lever: " .. (adminOverride and "ON" or "off")
+        .. " | Main door: " .. (doorOpen and "OPEN" or "closed")
+end
+
 -- Only re-draws/re-writes the relays when something actually changed.
 local lastState = nil
 
@@ -71,6 +90,12 @@ local function update()
     local tictactoeSolved = isTicTacToeSolved()
     local adminOverride = isAdminOverride()
     local doorOpen = adminOverride or (simonSolved and tictactoeSolved)
+
+    rednet.broadcast({
+        label = os.getComputerLabel(),
+        type = DEVICE_TYPE,
+        status = statusLine(simonSolved, tictactoeSolved, adminOverride, doorOpen),
+    }, PROTOCOL)
 
     local state = (simonSolved and "1" or "0") .. (tictactoeSolved and "1" or "0") .. (adminOverride and "1" or "0")
     if state == lastState then return end
@@ -81,7 +106,17 @@ local function update()
 end
 
 update()
-while true do
-    os.pullEvent("redstone")
-    update()
-end
+parallel.waitForAny(
+    function()
+        while true do
+            os.pullEvent("redstone")
+            update()
+        end
+    end,
+    function()
+        while true do
+            os.sleep(HEARTBEAT_INTERVAL)
+            update()
+        end
+    end
+)

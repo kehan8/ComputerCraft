@@ -29,4 +29,10 @@ for _, name in ipairs(FILES) do
     downloadFile(name)
 end
 
+-- Gives the ControlRoom computer something readable to show for this device;
+-- never overwrites a label you already set yourself.
+if not os.getComputerLabel() then
+    os.setComputerLabel("TicTacToe")
+end
+
 print("Done. Run 'startup' to play.")

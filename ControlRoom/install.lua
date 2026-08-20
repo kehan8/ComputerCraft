@@ -1,9 +1,9 @@
 -- install.lua: downloads all game files from GitHub (including your config.lua defaults)
 -- and installs Basalt
 
-local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/SimonSays/"
+local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/ControlRoom/"
 
-local FILES = { "config.lua", "startup.lua", "simon.lua", "update.lua", "update_full.lua", "uninstall.lua" }
+local FILES = { "config.lua", "startup.lua", "update.lua", "update_full.lua", "uninstall.lua" }
 
 local function downloadFile(name)
     local request = http.get(REPO_URL .. name)
@@ -27,12 +27,6 @@ end
 for _, name in ipairs(FILES) do
     print("Downloading " .. name .. "...")
     downloadFile(name)
-end
-
--- Gives the ControlRoom computer something readable to show for this device;
--- never overwrites a label you already set yourself.
-if not os.getComputerLabel() then
-    os.setComputerLabel("SimonSays")
 end
 
 print("Done. Run 'startup' to play.")

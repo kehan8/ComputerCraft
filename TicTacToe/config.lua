@@ -7,4 +7,7 @@ return {
     MONITOR_SCALE = 0.5,       -- text scale on the monitor; lower = more resolution for the icons, higher = bigger/easier to read from afar
     REDSTONE_RELAY_NAME = "redstone_relay_0", -- name of your Redstone Relay peripheral
     REDSTONE_SIDE = "front",                   -- side of the relay that goes high once the player wins
+
+    -- Wireless modem used to report status to the ControlRoom computer (see ../ControlRoom).
+    MODEM_NAME = "back",
 }

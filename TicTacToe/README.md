@@ -10,6 +10,7 @@ A Tic Tac Toe puzzle for [CC:Tweaked](https://tweaked.cc/), built with the [Basa
 - The AI (`O`) plays a perfect [minimax](https://en.wikipedia.org/wiki/Minimax) strategy — it can't be beaten, only tied or lost to.
 - **Win or draw** opens the door (fires the redstone signal) — since the AI is unbeatable, requiring an outright win would make the puzzle unsolvable.
 - Lose, and you can just hit "New game" and try again.
+- Broadcasts its status over rednet, and accepts a remote **Reset** command, so a [ControlRoom](../ControlRoom) computer can show/reset it without you walking over.
 
 ## Requirements
 
@@ -17,6 +18,7 @@ A Tic Tac Toe puzzle for [CC:Tweaked](https://tweaked.cc/), built with the [Basa
 - An **Advanced Computer** (needs color + touch support)
 - An **Advanced Monitor** — regular Monitors don't send touch/click events. Multiple monitors placed adjacent to each other auto-merge into one screen, so a multi-block monitor wall works too.
 - A **Redstone Relay**, connected to the computer with a Wired Modem + Networking Cable, wired to whatever the redstone signal should control (a door, dropper, etc.)
+- A **wireless modem** attached, for reporting status to / accepting Reset from [ControlRoom](../ControlRoom)
 - [Basalt2](https://github.com/Pyroxenium/Basalt2) — installed automatically on first run if it's missing.
 
 ## Install
@@ -39,9 +41,13 @@ MONITOR_NAME = nil,        -- e.g. "monitor_0" to force a specific monitor; nil 
 MONITOR_SCALE = 0.5,       -- text scale on the monitor; lower = more resolution for the icons
 REDSTONE_RELAY_NAME = "redstone_relay_0", -- name of your Redstone Relay peripheral
 REDSTONE_SIDE = "front",                   -- side of the relay that goes high once the player wins
+
+MODEM_NAME = "back", -- wireless modem used to talk to ControlRoom
 ```
 
 If you're not sure what your relay/monitor is named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
+
+> Updating from an older install? `update.lua` never touches `config.lua`, so the new `MODEM_NAME` field won't appear on its own — run `update_full` (see below) or add the line yourself.
 
 ## Run
 

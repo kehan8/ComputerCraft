@@ -9,7 +9,14 @@ local MONITOR_NAME = config.MONITOR_NAME
 local MONITOR_SCALE = config.MONITOR_SCALE
 local REDSTONE_RELAY_NAME = config.REDSTONE_RELAY_NAME
 local REDSTONE_SIDE = config.REDSTONE_SIDE
+local MODEM_NAME = config.MODEM_NAME
 -- ======================================================
+
+-- Protocol used to report status to, and accept a remote "Reset" from, the
+-- ControlRoom computer (see ../ControlRoom).
+local PROTOCOL = "controlroom"
+local DEVICE_TYPE = "TicTacToe"
+local HEARTBEAT_INTERVAL = 2
 
 if not fs.exists("basalt") and not fs.exists("basalt.lua") then
     print("Installing Basalt UI library...")
@@ -45,10 +52,16 @@ local function setDoorSignal(on)
     relay.setOutput(REDSTONE_SIDE, on)
 end
 
+if not peripheral.isPresent(MODEM_NAME) then
+    error("Could not find modem '" .. MODEM_NAME .. "'. Check the wireless modem is attached and named correctly.")
+end
+rednet.open(MODEM_NAME)
+
 math.randomseed(os.time())
 
 -- ====================== GAME STATE ======================
 local state, gameOver
+local lastStatusText = ""
 
 -- ====================== UI ======================
 local cells, cellPos, icons, statusLabel = {}, {}, {}, nil
@@ -124,6 +137,7 @@ local function render()
 end
 
 local function setStatus(text, color)
+    lastStatusText = text
     statusLabel:setText(text):setForeground(color or colors.white)
 end
 
@@ -259,6 +273,23 @@ screen:addButton()
     :setBackground(colors.green)
     :setForeground(colors.white)
     :onClick(resetGame)
+
+-- Reports status to, and accepts a remote "Reset" from, the ControlRoom computer.
+basalt.schedule(function()
+    while true do
+        rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = lastStatusText }, PROTOCOL)
+        os.sleep(HEARTBEAT_INTERVAL)
+    end
+end)
+
+basalt.schedule(function()
+    while true do
+        local _, msg = rednet.receive(PROTOCOL)
+        if msg and msg.cmd == "new_game" then
+            resetGame()
+        end
+    end
+end)
 
 resetGame()
 basalt.run()

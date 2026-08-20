@@ -22,6 +22,8 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
   Main door:   closed
   ```
 
+- Also broadcasts that same status over rednet every `HEARTBEAT_INTERVAL` seconds (and on every change) so a [ControlRoom](../ControlRoom) computer can show it remotely (read-only — no controls for this device).
+
 ## Requirements
 
 - CC:Tweaked (Minecraft mod)
@@ -30,6 +32,7 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
   - 2 as **inputs** — wired to the Simon Says and Tic Tac Toe computers' door-signal relays
   - 1 as an **input** — wired to an admin lever (force-opens the door, independent of the puzzles)
   - 2 as **outputs** — wired to your piston door
+- A **wireless modem** attached, for reporting status to [ControlRoom](../ControlRoom)
 
 ## Install
 
@@ -59,9 +62,14 @@ DOOR_RELAY_NAME_1 = "redstone_relay_2",
 DOOR_SIDE_1 = "front",
 DOOR_RELAY_NAME_2 = "redstone_relay_3",
 DOOR_SIDE_2 = "front",
+
+MODEM_NAME = "back",       -- wireless modem used to report status to ControlRoom
+HEARTBEAT_INTERVAL = 3,    -- seconds between status broadcasts, even without a change
 ```
 
 If you're not sure what your relays are named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
+
+> Updating from an older install? `update.lua` never touches `config.lua`, so the new `MODEM_NAME`/`HEARTBEAT_INTERVAL` fields won't appear on their own — run `update_full` (see below) or add the lines yourself.
 
 ## Run
 

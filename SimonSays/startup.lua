@@ -18,7 +18,14 @@ local ROUND_START_DELAY = config.ROUND_START_DELAY
 local NEXT_ROUND_DELAY = config.NEXT_ROUND_DELAY
 local CLICK_FLASH_TIME = config.CLICK_FLASH_TIME
 local WRONG_FLASH_TIME = config.WRONG_FLASH_TIME
+local MODEM_NAME = config.MODEM_NAME
 -- ======================================================
+
+-- Protocol used to report status to, and accept a remote "Reset" from, the
+-- ControlRoom computer (see ../ControlRoom).
+local PROTOCOL = "controlroom"
+local DEVICE_TYPE = "SimonSays"
+local HEARTBEAT_INTERVAL = 2
 
 if not fs.exists("basalt") and not fs.exists("basalt.lua") then
     print("Installing Basalt UI library...")
@@ -52,9 +59,15 @@ local function setDoorSignal(on)
     relay.setOutput(REDSTONE_SIDE, on)
 end
 
+if not peripheral.isPresent(MODEM_NAME) then
+    error("Could not find modem '" .. MODEM_NAME .. "'. Check the wireless modem is attached and named correctly.")
+end
+rednet.open(MODEM_NAME)
+
 math.randomseed(os.time())
 
 -- ====================== GAME STATE ======================
+local lastStatusText = "Press Start to begin" -- matches the initial statusLabel text below
 local pattern = simon.new()
 local round = 0
 local playerIndex = 1
@@ -82,6 +95,7 @@ local function setAllPads(lit)
 end
 
 local function setStatus(text, color)
+    lastStatusText = text
     statusLabel:setText(text):setForeground(color or colors.white)
 end
 
@@ -254,5 +268,24 @@ startButton = screen:addButton()
     :setBackground(colors.green)
     :setForeground(colors.white)
     :onClick(onStartButtonClick)
+
+-- Reports status to, and accepts a remote "Reset" from, the ControlRoom computer.
+-- Resets via goIdle() (not beginGame()) -- it safely stops/closes the door and
+-- returns to "Press Start", rather than blindly launching a fresh round.
+basalt.schedule(function()
+    while true do
+        rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = lastStatusText }, PROTOCOL)
+        os.sleep(HEARTBEAT_INTERVAL)
+    end
+end)
+
+basalt.schedule(function()
+    while true do
+        local _, msg = rednet.receive(PROTOCOL)
+        if msg and msg.cmd == "new_game" then
+            goIdle()
+        end
+    end
+end)
 
 basalt.run()

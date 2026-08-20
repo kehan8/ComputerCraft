@@ -23,4 +23,8 @@ return {
     DOOR_SIDE_1 = "front",
     DOOR_RELAY_NAME_2 = "redstone_relay_3",
     DOOR_SIDE_2 = "front",
+
+    -- Wireless modem used to report status to the ControlRoom computer (see ../ControlRoom).
+    MODEM_NAME = "back",
+    HEARTBEAT_INTERVAL = 3, -- seconds between status broadcasts, even if nothing changed
 }

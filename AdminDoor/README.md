@@ -11,6 +11,7 @@ An admin-only door: a **Player Detector** peripheral scans for nearby players, a
 - If a detected player is **not** on the whitelist, the door stays closed and that player gets an in-game toast popup (title `TOAST_TITLE`, message `TOAST_MESSAGE`) sent straight to their screen via the Chat Box.
 - The toast only re-sends when the unauthorized player actually changes — it won't spam the same person with a toast every single poll while they just stand there.
 - Status (who's nearby, door state) is shown as plain text on the computer's own screen — no monitor needed.
+- Broadcasts that same status over rednet so a [ControlRoom](../ControlRoom) computer can show it remotely (read-only — no controls for this device).
 
 ## Requirements
 
@@ -20,6 +21,7 @@ An admin-only door: a **Player Detector** peripheral scans for nearby players, a
 - A **Player Detector** peripheral, connected to the computer with a Wired Modem + Networking Cable
 - A **Chat Box** peripheral, connected the same way (sends the "NO ACCESS" toast)
 - A **Redstone Relay**, connected the same way, wired to your door
+- A **wireless modem** attached, for reporting status to [ControlRoom](../ControlRoom)
 - [Basalt2](https://github.com/Pyroxenium/Basalt2) for the UI — installed automatically on first run
 
 ## Install
@@ -51,9 +53,15 @@ POLL_INTERVAL = 1, -- seconds between detector scans
 CHATBOX_NAME = "chat_box_0",  -- name of your Chat Box peripheral
 TOAST_TITLE = "NO ACCESS",
 TOAST_MESSAGE = "You are not authorized to enter.",
+
+MODEM_NAME = "back", -- wireless modem used to report status to ControlRoom
 ```
 
 If you're not sure what your peripherals are named, run `peripheral.getNames()` from the Lua prompt to list them. The Chat Box shows up as `chat_box_N` on MC 1.21.1+ and `chatBox_N` on older versions.
+
+If you have more than one AdminDoor and want [ControlRoom](../ControlRoom) to tell them apart, give each a label: `label set AdminDoor-Achterdeur`.
+
+> Updating from an older install? `update.lua` never touches `config.lua`, so the new `MODEM_NAME` field won't appear on its own — run `update_full` (see below) or add the line yourself.
 
 ## Run
 
