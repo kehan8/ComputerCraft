@@ -103,9 +103,14 @@ local function refreshRow(id)
 end
 
 -- ====================== BACKGROUND TASKS ======================
+-- basalt.schedule() only resumes its coroutines on event types Basalt itself
+-- recognizes (clicks, timers, ...) -- not on "rednet_message". So these run
+-- through the OS's own `parallel` API instead, alongside basalt.run(), which
+-- forwards every raw event to every branch.
+
 -- Listens for status broadcasts and creates/updates a row per device the first
 -- time it hears from it.
-basalt.schedule(function()
+local function listenForStatus()
     while true do
         local senderId, msg = rednet.receive(PROTOCOL)
         if msg and msg.label then
@@ -121,10 +126,10 @@ basalt.schedule(function()
             refreshRow(senderId)
         end
     end
-end)
+end
 
 -- Marks a device "offline" once it's gone quiet for HEARTBEAT_TIMEOUT seconds.
-basalt.schedule(function()
+local function watchForStaleDevices()
     while true do
         os.sleep(1)
         for id, state in pairs(deviceState) do
@@ -134,6 +139,6 @@ basalt.schedule(function()
             end
         end
     end
-end)
+end
 
-basalt.run()
+parallel.waitForAny(function() basalt.run() end, listenForStatus, watchForStaleDevices)

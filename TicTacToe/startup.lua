@@ -275,21 +275,24 @@ screen:addButton()
     :onClick(resetGame)
 
 -- Reports status to, and accepts a remote "Reset" from, the ControlRoom computer.
-basalt.schedule(function()
+-- Runs through `parallel` (not basalt.schedule) because Basalt only resumes its
+-- own scheduled coroutines on events it recognizes (clicks, timers, ...), not on
+-- "rednet_message" -- a schedule()-based listener would never actually fire.
+local function reportStatus()
     while true do
         rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = lastStatusText }, PROTOCOL)
         os.sleep(HEARTBEAT_INTERVAL)
     end
-end)
+end
 
-basalt.schedule(function()
+local function listenForCommands()
     while true do
         local _, msg = rednet.receive(PROTOCOL)
         if msg and msg.cmd == "new_game" then
             resetGame()
         end
     end
-end)
+end
 
 resetGame()
-basalt.run()
+parallel.waitForAny(function() basalt.run() end, reportStatus, listenForCommands)
