@@ -59,16 +59,30 @@ screen:addLabel()
 -- draw widgets that get added after basalt.run() has already started, so nothing
 -- below this point ever calls addLabel()/addButton() again -- only :setText() on
 -- these pre-existing widgets.
+--
+-- Each device gets a 2-line card: name + ONLINE/OFFLINE badge + Reset button on
+-- the first line, and the full copied status text on its own line below (so a
+-- long status, like GymLock's, never has to fight the button for space).
+local ROW_HEIGHT = 3 -- name/badge/button line, status line, blank spacer
+local NAME_WIDTH = math.max(1, w - 21)
+
 local slots = {}
 for i = 1, MAX_DEVICES do
-    local y = 3 + (i - 1) * 2
-    local slot = { senderId = nil, controllable = false, online = false }
+    local y = 3 + (i - 1) * ROW_HEIGHT
+    local slot = { senderId = nil, controllable = false, online = false, label = "", status = "" }
 
-    slot.text = screen:addLabel()
+    slot.nameLabel = screen:addLabel()
         :setText("")
         :setPosition(2, y)
-        :setSize(w - 11, 1)
-        :setForeground(colors.lightGray)
+        :setSize(NAME_WIDTH, 1)
+        :setForeground(colors.white)
+
+    slot.badge = screen:addButton()
+        :setText("")
+        :setPosition(w - 18, y)
+        :setSize(8, 1)
+        :setBackground(colors.black)
+        :setForeground(colors.white)
 
     slot.button = screen:addButton()
         :setText("")
@@ -81,6 +95,12 @@ for i = 1, MAX_DEVICES do
                 rednet.send(slot.senderId, { cmd = "new_game" }, PROTOCOL)
             end
         end)
+
+    slot.statusLabel = screen:addLabel()
+        :setText("")
+        :setPosition(2, y + 1)
+        :setSize(w - 2, 1)
+        :setForeground(colors.lightGray)
 
     slots[i] = slot
 end
@@ -107,18 +127,19 @@ local function claimSlot(senderId, controllable)
     return slot
 end
 
--- Same wording the device shows on its own screen -- never a reworded summary.
-local function rowText(slot)
-    if slot.online then
-        return slot.label .. ": " .. (slot.status or "")
-    else
-        return slot.label .. ": offline"
-    end
-end
-
 local function refreshRow(slot)
-    slot.text
-        :setText(rowText(slot))
+    slot.nameLabel:setText(slot.label)
+
+    slot.badge
+        :setText(slot.online and "ONLINE" or "OFFLINE")
+        :setBackground(slot.online and colors.green or colors.gray)
+        :setForeground(slot.online and colors.black or colors.white)
+
+    -- Same wording the device shows on its own screen -- never a reworded
+    -- summary. Keeps showing the last known text (dimmed) while offline,
+    -- rather than replacing it, so you can still see what it was doing.
+    slot.statusLabel
+        :setText(slot.status or "")
         :setForeground(slot.online and colors.lime or colors.gray)
 end
 
