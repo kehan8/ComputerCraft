@@ -27,4 +27,16 @@ return {
     -- Wireless modem used to report status to the ControlRoom computer (see ../ControlRoom).
     MODEM_NAME = "back",
     HEARTBEAT_INTERVAL = 3, -- seconds between status broadcasts, even if nothing changed
+
+    -- Anti-cheat gate: a Player Detector placed between GymLock's exit and the next
+    -- puzzle's entrance. Anyone spotted there (e.g. walking back through a warp plate)
+    -- immediately closes the main door and resets Simon Says + Tic Tac Toe, so the
+    -- puzzles can't be cheesed by sneaking back for another look. Ignored while the
+    -- admin lever is on, since you're deliberately holding the door open then.
+    -- Optional -- set GATE_ENABLED to false if you don't have this Player Detector
+    -- (e.g. you're just using this repo's code without the full physical build).
+    GATE_ENABLED = true,
+    GATE_DETECTOR_NAME = "playerDetector_0", -- name of your Player Detector peripheral
+    GATE_DETECT_RANGE = 3,                   -- blocks; keep tight so it only covers the choke point
+    GATE_POLL_INTERVAL = 0.5,                -- seconds between checks (no "in range" event, must poll)
 }

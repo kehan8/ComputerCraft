@@ -10,6 +10,7 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
 - The moment **both** are high, it opens the main door — driving two relay outputs high (a piston door needs signal on two sides/pistons).
 - If either puzzle gets reset (its signal drops back low, e.g. someone hits "New game"), the main door closes again automatically.
 - A third input — an **admin lever** wired through its own relay — force-opens the main door regardless of the puzzles. Flip it off and the door goes back to normal puzzle-controlled behavior. It only affects the main door; it has no effect on the puzzle computers or their signals.
+- An **anti-cheat gate** (optional, see `GATE_ENABLED` below): a Player Detector placed between GymLock's exit and the next puzzle's entrance. The moment anyone is spotted there (e.g. sneaking back through a warp plate to redo a puzzle), the main door force-closes and Simon Says + Tic Tac Toe both get reset — broadcast directly over rednet, no ControlRoom needed. Ignored while the admin lever is on, since that's you deliberately holding the door open.
 - Fully event-driven — it sits idle until a redstone signal actually changes, then reprints its status:
 
   ```
@@ -32,7 +33,8 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
   - 2 as **inputs** — wired to the Simon Says and Tic Tac Toe computers' door-signal relays
   - 1 as an **input** — wired to an admin lever (force-opens the door, independent of the puzzles)
   - 2 as **outputs** — wired to your piston door
-- A **wireless modem** attached, for reporting status to [ControlRoom](../ControlRoom)
+- Optional: a **Player Detector** ([Advanced Peripherals](https://www.curseforge.com/minecraft/mc-mods/advanced-peripherals)) for the anti-cheat gate, placed at the choke point between GymLock's exit and the next puzzle's entrance. Don't have one? Set `GATE_ENABLED = false` in `config.lua` and skip it entirely.
+- A **wireless modem** attached, for reporting status to [ControlRoom](../ControlRoom) and broadcasting the puzzle-reset command
 
 ## Install
 
@@ -65,6 +67,11 @@ DOOR_SIDE_2 = "front",
 
 MODEM_NAME = "back",       -- wireless modem used to report status to ControlRoom
 HEARTBEAT_INTERVAL = 3,    -- seconds between status broadcasts, even without a change
+
+GATE_ENABLED = true,                     -- set to false if you don't have the Player Detector below
+GATE_DETECTOR_NAME = "playerDetector_0", -- name of your Player Detector peripheral
+GATE_DETECT_RANGE = 3,                   -- blocks; keep tight so it only covers the choke point
+GATE_POLL_INTERVAL = 0.5,                -- seconds between checks (no "in range" event, must poll)
 ```
 
 If you're not sure what your relays are named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
@@ -101,8 +108,8 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 
 | File | Purpose |
 |---|---|
-| `config.lua` | Your local settings (relay names/sides) — not touched by `update.lua` |
-| `startup.lua` | Reads the puzzle signals, drives the main door, prints status |
+| `config.lua` | Your local settings (relay names/sides, gate detector) — not touched by `update.lua` |
+| `startup.lua` | Reads the puzzle signals, drives the main door, watches the anti-cheat gate, prints status |
 | `install.lua` | First-time setup |
 | `update.lua` | Re-downloads the code, keeps your `config.lua` |
 | `update_full.lua` | Re-downloads everything, including `config.lua` |
