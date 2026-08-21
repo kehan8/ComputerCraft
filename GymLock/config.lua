@@ -36,7 +36,7 @@ return {
     -- Optional -- set GATE_ENABLED to false if you don't have this Player Detector
     -- (e.g. you're just using this repo's code without the full physical build).
     GATE_ENABLED = true,
-    GATE_DETECTOR_NAME = "playerDetector_0", -- name of your Player Detector peripheral
+    GATE_DETECTOR_NAME = "player_detector_0", -- name of your Player Detector peripheral
     GATE_DETECT_RANGE = 3,                   -- blocks; keep tight so it only covers the choke point
     GATE_POLL_INTERVAL = 0.5,                -- seconds between checks (no "in range" event, must poll)
 }

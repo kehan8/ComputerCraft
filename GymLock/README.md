@@ -69,7 +69,7 @@ MODEM_NAME = "back",       -- wireless modem used to report status to ControlRoo
 HEARTBEAT_INTERVAL = 3,    -- seconds between status broadcasts, even without a change
 
 GATE_ENABLED = true,                     -- set to false if you don't have the Player Detector below
-GATE_DETECTOR_NAME = "playerDetector_0", -- name of your Player Detector peripheral
+GATE_DETECTOR_NAME = "player_detector_0", -- name of your Player Detector peripheral
 GATE_DETECT_RANGE = 3,                   -- blocks; keep tight so it only covers the choke point
 GATE_POLL_INTERVAL = 0.5,                -- seconds between checks (no "in range" event, must poll)
 ```
