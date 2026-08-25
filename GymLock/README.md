@@ -9,7 +9,7 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
 - Reads two redstone inputs: one relay wired to the Simon Says computer's door signal, one wired to the Tic Tac Toe computer's door signal.
 - The moment **both** are high, it opens the main door — driving two relay outputs high (a piston door needs signal on two sides/pistons).
 - If either puzzle gets reset (its signal drops back low, e.g. someone hits "New game"), the main door closes again automatically.
-- A third input — an **admin lever** wired through its own relay — force-opens the main door regardless of the puzzles. Flip it off and the door goes back to normal puzzle-controlled behavior. It only affects the main door; it has no effect on the puzzle computers or their signals.
+- A third input — an **admin lever** wired through its own relay — force-opens the main door regardless of the puzzles. It also force-opens the Simon Says and Tic Tac Toe doors, reusing the exact same relay/side already wired for reading their solved signal (no extra hardware). Flip the lever back off and both puzzles get reset (over rednet), so their own logic closes their doors again instead of staying force-opened forever.
 - An **anti-cheat gate** (optional, see `GATE_ENABLED` below): a Player Detector placed between GymLock's exit and the next puzzle's entrance. The moment anyone is spotted there (e.g. sneaking back through a warp plate to redo a puzzle), the main door force-closes and Simon Says + Tic Tac Toe both get reset — broadcast directly over rednet, no ControlRoom needed. Ignored while the admin lever is on, since that's you deliberately holding the door open.
 - Fully event-driven — it sits idle until a redstone signal actually changes, then reprints its status:
 

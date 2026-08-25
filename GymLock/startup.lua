@@ -1,11 +1,12 @@
 -- GymLock
 -- Reads the "solved" redstone signal from the SimonSays and TicTacToe puzzle computers
 -- (one relay input each) and, once BOTH are high, opens the main door (2 relay outputs,
--- since it's a piston door). An admin lever (its own relay input) can force the door
--- open regardless of the puzzles -- it only affects the main door, never the puzzles
--- themselves. A Player Detector at the exit acts as an anti-cheat gate: anyone spotted
--- there force-closes the door and resets both puzzles. No monitor/UI needed -- status
--- is just printed on this computer.
+-- since it's a piston door). An admin lever (its own relay input) forces the main door
+-- open AND, reusing the same relay/side already used to read them, force-opens the
+-- Simon Says and Tic Tac Toe doors too. Turning the lever back off resets both puzzles
+-- (via rednet) so their own logic closes their doors again. A Player Detector at the
+-- exit acts as an anti-cheat gate: anyone spotted there force-closes the door and
+-- resets both puzzles. No monitor/UI needed -- status is just printed on this computer.
 
 -- ====================== CONFIG ======================
 -- Your local settings live in config.lua (not touched by update.lua).
@@ -112,11 +113,23 @@ end
 -- Only re-draws/re-writes the relays when something actually changed.
 local lastState = nil
 
+-- Tracked separately from lastState so the reset-on-handoff below fires exactly
+-- once per admin OFF transition, not on every unrelated state change.
+local lastAdminOverride = false
+
 local function update()
     local simonSolved = isSimonSolved()
     local tictactoeSolved = isTicTacToeSolved()
     local adminOverride = isAdminOverride()
     local doorOpen = adminOverride or (simonSolved and tictactoeSolved)
+
+    -- Admin lever turning back off: hand control back to the puzzles by resetting
+    -- them (same rednet command the anti-cheat gate uses), so their own logic
+    -- closes their doors again instead of leaving them force-opened forever.
+    if lastAdminOverride and not adminOverride then
+        rednet.broadcast({ cmd = "new_game" }, PROTOCOL)
+    end
+    lastAdminOverride = adminOverride
 
     rednet.broadcast({
         label = os.getComputerLabel(),
@@ -129,6 +142,15 @@ local function update()
     lastState = state
 
     setMainDoor(doorOpen)
+
+    -- Admin override also force-opens the two puzzle doors, reusing the exact
+    -- same relay/side already used above to read their solved signal -- no extra
+    -- hardware needed.
+    if adminOverride then
+        simonRelay.setOutput(SIMON_SIDE, true)
+        tictactoeRelay.setOutput(TICTACTOE_SIDE, true)
+    end
+
     printStatus(simonSolved, tictactoeSolved, adminOverride, doorOpen)
 end
 
