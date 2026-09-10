@@ -1,9 +1,9 @@
 -- install.lua: downloads all game files from GitHub (including your config.lua defaults)
 -- and installs Basalt
 
-local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/TicTacToe/"
+local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/DaylightDetector/"
 
-local FILES = { "config.lua", "startup.lua", "board.lua", "ai.lua", "update.lua", "update_full.lua", "uninstall.lua" }
+local FILES = { "config.lua", "startup.lua", "update.lua", "update_full.lua", "uninstall.lua" }
 
 local function downloadFile(name)
     -- Cache-busting query param: raw.githubusercontent.com caches for a few
@@ -34,7 +34,7 @@ end
 -- Gives the ControlRoom computer something readable to show for this device;
 -- never overwrites a label you already set yourself.
 if not os.getComputerLabel() then
-    os.setComputerLabel("TicTacToe")
+    os.setComputerLabel("DaylightDetector")
 end
 
 print("Done. Run 'startup' to play.")

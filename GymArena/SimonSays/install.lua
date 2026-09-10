@@ -1,7 +1,7 @@
 -- install.lua: downloads all game files from GitHub (including your config.lua defaults)
 -- and installs Basalt
 
-local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/SimonSays/"
+local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/SimonSays/"
 
 local FILES = { "config.lua", "startup.lua", "simon.lua", "update.lua", "update_full.lua", "uninstall.lua" }
 

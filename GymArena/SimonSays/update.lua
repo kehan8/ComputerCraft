@@ -2,7 +2,7 @@
 -- Leaves config.lua alone so your local settings (monitor, relay, timings, ...) survive the update.
 -- Run update_full.lua instead if you want config.lua reset to the repo defaults too.
 
-local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/SimonSays/"
+local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/SimonSays/"
 
 local FILES = { "startup.lua", "simon.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
 

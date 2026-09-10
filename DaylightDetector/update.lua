@@ -2,9 +2,9 @@
 -- Leaves config.lua alone so your local settings (monitor, relay, ...) survive the update.
 -- Run update_full.lua instead if you want config.lua reset to the repo defaults too.
 
-local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/TicTacToe/"
+local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/DaylightDetector/"
 
-local FILES = { "startup.lua", "board.lua", "ai.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
+local FILES = { "startup.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
 
 local function downloadFile(name)
     -- Cache-busting query param: raw.githubusercontent.com caches for a few

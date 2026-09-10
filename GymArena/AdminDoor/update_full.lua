@@ -3,7 +3,7 @@
 -- want to wipe your local settings back to the repo defaults after a fresh pull.
 -- Your DETECTOR_NAME / DOOR_RELAY_NAME / ADMIN_NAMES / etc. edits in config.lua WILL be lost.
 
-local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/AdminDoor/"
+local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/AdminDoor/"
 
 local FILES = { "config.lua", "startup.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
 
