@@ -1,8 +1,8 @@
 -- DaylightDetector
 -- Tracks the in-game clock, flips a redstone signal at dusk/dawn. Drives it via
 -- computer side, Redstone Relay, and/or Create Sequenced Gearshift (toggle each
--- in config.lua). Shows a live clock + status on screen. Admin button cycles
--- AUTO/ON/OFF to force the signal for testing; timer runs signal in AUTO.
+-- in config.lua). Shows a live clock + status on screen. AUTO/ON/OFF buttons
+-- force the signal for testing; timer runs signal in AUTO.
 
 -- ====================== CONFIG ======================
 local config = require("config")
@@ -83,6 +83,7 @@ end
 -- the signal turns on, back when it turns off. Blocks until done, capped by
 -- GEARSHIFT_TIMEOUT so a stuck/misidentified peripheral can't freeze the UI.
 local GEARSHIFT_TIMEOUT = 3 -- seconds
+local BUTTON_COOLDOWN = 1500 -- ms; blocks rapid clicks from double-commanding the gearshift mid-rotation
 local function rotateGearshift(forward)
     local speed = forward and GEARSHIFT_SPEED or -GEARSHIFT_SPEED
     gearshift.rotate(GEARSHIFT_ANGLE, speed)
@@ -100,9 +101,11 @@ local function formatTime(time)
     return string.format("%02d:%02d", hours, minutes)
 end
 
--- Admin override: AUTO (timer decides), ON (force on), OFF (force off). Cycles on click.
+-- Admin override: AUTO (timer decides), ON (force on), OFF (force off).
 local adminMode = "AUTO"
-local update -- forward-declared so the admin button can force an immediate refresh
+local update -- forward-declared so the admin buttons can force an immediate refresh
+local updating = false -- true while update() is mid-run; blocks re-entry (e.g. scheduled tick + a click landing together)
+local nextClickAt = 0 -- os.epoch("utc") ms timestamp; buttons ignored before this
 
 -- ====================== UI ======================
 local screen = basalt.getMainFrame()
@@ -127,64 +130,89 @@ local statusLabel = screen:addLabel()
     :setSize(w - 2, 1)
     :setForeground(colors.lightGray)
 
--- Cycles AUTO -> ON -> OFF -> AUTO. Calls update() for an instant refresh.
-local ADMIN_NEXT = { AUTO = "ON", ON = "OFF", OFF = "AUTO" }
+-- 3 separate buttons, each sets adminMode directly (no cycling). Active one is
+-- colored, the other two go dim. Calls update() for an instant refresh.
 local ADMIN_COLOR = { AUTO = colors.gray, ON = colors.orange, OFF = colors.red }
-local adminButton = screen:addButton()
-    :setText("Admin: AUTO")
-    :setPosition(2, 7)
-    :setSize(12, 1)
-    :setBackground(colors.gray)
-    :setForeground(colors.white)
-    :onClick(function()
-        adminMode = ADMIN_NEXT[adminMode]
-        update()
-    end)
+local BUTTON_W = math.floor((w - 4) / 3)
+local adminButtons = {}
+local function addAdminButton(mode, x)
+    adminButtons[mode] = screen:addButton()
+        :setText(mode)
+        :setPosition(x, 7)
+        :setSize(BUTTON_W, 1)
+        :onClick(function()
+            if updating or os.epoch("utc") < nextClickAt then return end -- busy/cooldown: ignore rapid clicks
+            adminMode = mode
+            update()
+            nextClickAt = os.epoch("utc") + BUTTON_COOLDOWN
+        end)
+end
+addAdminButton("AUTO", 2)
+addAdminButton("ON", 2 + BUTTON_W + 1)
+addAdminButton("OFF", 2 + 2 * (BUTTON_W + 1))
 
 -- ====================== UPDATE LOOP ======================
 -- Tracks the previous *signal* state so the gearshift only rotates on an actual
 -- transition, not every poll. nil at start -> first update always syncs it once.
 local lastSignal = nil
 
+-- Re-entry guarded: a scheduled tick and a button click can land at the same
+-- time, and two overlapping rotateGearshift() calls is what was corrupting the
+-- gearshift. pcall so a peripheral error can't leave `updating` stuck true.
 function update()
-    local time = os.time("ingame")
-    local night = isNight(time)
-    local signalOn
-    if adminMode == "ON" then
-        signalOn = true
-    elseif adminMode == "OFF" then
-        signalOn = false
-    else
-        signalOn = night
-    end
+    if updating then return end
+    updating = true
 
-    clockLabel:setText(formatTime(time))
-    setSignal(signalOn)
+    local ok, err = pcall(function()
+        local time = os.time("ingame")
+        local night = isNight(time)
+        local signalOn
+        if adminMode == "ON" then
+            signalOn = true
+        elseif adminMode == "OFF" then
+            signalOn = false
+        else
+            signalOn = night
+        end
 
-    if GEARSHIFT_ENABLED and signalOn ~= lastSignal then
-        rotateGearshift(signalOn)
-    end
-    lastSignal = signalOn
+        clockLabel:setText(formatTime(time))
+        setSignal(signalOn)
 
-    local statusText
-    if adminMode ~= "AUTO" then
-        statusText = "Signal: " .. (signalOn and "ON" or "off") .. " (admin override)"
-    else
-        statusText = night and "Signal: ON (night)" or "Signal: off (day)"
-    end
-    if GEARSHIFT_ENABLED then
-        statusText = statusText .. (signalOn and " | Gearshift: open" or " | Gearshift: closed")
-    end
-    statusLabel
-        :setText(statusText)
-        :setForeground(signalOn and colors.lime or colors.lightGray)
+        if GEARSHIFT_ENABLED and signalOn ~= lastSignal then
+            statusLabel:setText("Gearshift: rotating..."):setForeground(colors.yellow)
+            rotateGearshift(signalOn)
+        end
+        lastSignal = signalOn
 
-    adminButton
-        :setText("Admin: " .. adminMode)
-        :setBackground(ADMIN_COLOR[adminMode])
+        local statusText
+        if adminMode ~= "AUTO" then
+            statusText = "Signal: " .. (signalOn and "ON" or "off") .. " (admin override)"
+        else
+            statusText = night and "Signal: ON (night)" or "Signal: off (day)"
+        end
+        if GEARSHIFT_ENABLED then
+            statusText = statusText .. (signalOn and " | Gearshift: open" or " | Gearshift: closed")
+        end
+        statusLabel
+            :setText(statusText)
+            :setForeground(signalOn and colors.lime or colors.lightGray)
 
-    if MODEM_ENABLED then
-        rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText }, PROTOCOL)
+        for mode, button in pairs(adminButtons) do
+            if mode == adminMode then
+                button:setBackground(ADMIN_COLOR[mode]):setForeground(colors.white)
+            else
+                button:setBackground(colors.black):setForeground(colors.lightGray)
+            end
+        end
+
+        if MODEM_ENABLED then
+            rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText }, PROTOCOL)
+        end
+    end)
+
+    updating = false
+    if not ok then
+        statusLabel:setText("Error: " .. tostring(err)):setForeground(colors.red)
     end
 end
 
