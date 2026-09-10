@@ -15,7 +15,7 @@ return {
     -- Signal via a Create "Sequenced Gearshift" (rotates a switch, e.g. HV
     -- Switch 100A -- for when redstone's ~16A cap is too low). Rotates at
     -- dusk, back at dawn.
-    GEARSHIFT_NAME = "right",
+    GEARSHIFT_NAME = "back",
     GEARSHIFT_ENABLED = false,
     GEARSHIFT_ANGLE = 180,  -- degrees per rotation
     GEARSHIFT_SPEED = 1,    -- sign = direction

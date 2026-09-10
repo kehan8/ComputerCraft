@@ -13,6 +13,7 @@ Tracks the in-game clock and flips a redstone signal at dusk/dawn -- no physical
   - **`GEARSHIFT_ENABLED`** -- through a Create **Sequenced Gearshift** (`GEARSHIFT_NAME`), physically rotating a switch (e.g. a Create HV Switch, rated up to ~100A) instead of driving redstone. Handy since plain redstone-triggered switches typically cap around 16A -- too low for some circuits. Rotates `GEARSHIFT_ANGLE` degrees at `GEARSHIFT_SPEED` on dusk, and back (negative speed) on dawn, only on an actual day/night transition (not every poll).
 - Shows a live in-game clock (`HH:MM`) on the computer's own screen -- a single fixed line that's only ever updated in place, never reprinted, so it just keeps counting with no scrolling spam.
 - Shows current signal status (ON/off + day/night) right under the clock.
+- On-screen **Admin** button lets you force the signal ON for testing (e.g. checking the relay/gearshift wiring) without waiting for night -- no extra peripheral or config field needed. Leave it off and the day/night timer keeps full priority, exactly as before.
 - Broadcasts that same status over rednet so a [ControlRoom](../ControlRoom) computer can show it remotely, if `MODEM_ENABLED`. Set it to `false` on a computer with no wireless modem attached -- rednet is skipped entirely instead of crashing.
 
 ## Requirements
