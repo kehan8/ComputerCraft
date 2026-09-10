@@ -35,7 +35,7 @@ Each project has its own README with setup, configuration, and file details — 
 - CC:Tweaked (Minecraft mod)
 - Simon Says & Tic Tac Toe: an Advanced Computer + Advanced Monitor each (touch support needed), plus a Redstone Relay
 - GymLock: a regular Computer (no monitor needed) plus 4 Redstone Relays (2 reading the puzzle signals, 2 driving the main door)
-- AdminDoor: a regular Computer, a Player Detector and Chat Box ([Advanced Peripherals](https://www.curseforge.com/minecraft/mc-mods/advanced-peripherals)), and a Redstone Relay
+- AdminDoor: a regular Computer, a Player Detector and Chat Box ([Advanced Peripherals(CurseForge)](https://www.curseforge.com/minecraft/mc-mods/advanced-peripherals)[Advanced Peripherals(Modrinth)](https://modrinth.com/mod/advancedperipherals)), and a Redstone Relay
 - All computers/relays connected via Wired Modem + Networking Cable
 - [Basalt2](https://github.com/Pyroxenium/Basalt2) for the UIs — installed automatically on first run
 
@@ -44,7 +44,7 @@ Each project has its own README with setup, configuration, and file details — 
 Each project installs independently on its own computer. From that computer's Lua prompt:
 
 ```
-wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/<Project>/install.lua install
+wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/<Project>/install.lua install
 install
 ```
 

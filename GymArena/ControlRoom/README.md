@@ -25,7 +25,7 @@ The main overview computer for [AdminDoor](../AdminDoor), [GymLock](../GymLock),
 On a fresh CC:Tweaked computer:
 
 ```
-wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/ControlRoom/install.lua install
+wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/ControlRoom/install.lua install
 install
 ```
 

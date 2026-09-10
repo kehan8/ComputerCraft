@@ -28,7 +28,7 @@ A Simon Says memory puzzle for [CC:Tweaked](https://tweaked.cc/), built with the
 On a fresh CC:Tweaked computer:
 
 ```
-wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/SimonSays/install.lua install
+wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/SimonSays/install.lua install
 install
 ```
 

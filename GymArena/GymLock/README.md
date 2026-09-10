@@ -33,7 +33,7 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
   - 2 as **inputs** — wired to the Simon Says and Tic Tac Toe computers' door-signal relays
   - 1 as an **input** — wired to an admin lever (force-opens the door, independent of the puzzles)
   - 2 as **outputs** — wired to your piston door
-- Optional: a **Player Detector** ([Advanced Peripherals](https://www.curseforge.com/minecraft/mc-mods/advanced-peripherals)) for the anti-cheat gate, placed at the choke point between GymLock's exit and the next puzzle's entrance. Don't have one? Set `GATE_ENABLED = false` in `config.lua` and skip it entirely.
+- Optional: a **Player Detector** ([Advanced Peripherals(CurseForge)](https://www.curseforge.com/minecraft/mc-mods/advanced-peripherals)[Advanced Peripherals(Modrinth)](https://modrinth.com/mod/advancedperipherals)) for the anti-cheat gate, placed at the choke point between GymLock's exit and the next puzzle's entrance. Don't have one? Set `GATE_ENABLED = false` in `config.lua` and skip it entirely.
 - A **wireless modem** attached, for reporting status to [ControlRoom](../ControlRoom) and broadcasting the puzzle-reset command
 
 ## Install
@@ -41,7 +41,7 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
 On a fresh CC:Tweaked computer:
 
 ```
-wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymLock/install.lua install
+wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/GymLock/install.lua install
 install
 ```
 

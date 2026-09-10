@@ -26,7 +26,7 @@ A Tic Tac Toe puzzle for [CC:Tweaked](https://tweaked.cc/), built with the [Basa
 On a fresh CC:Tweaked computer:
 
 ```
-wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/TicTacToe/install.lua install
+wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/TicTacToe/install.lua install
 install
 ```
 

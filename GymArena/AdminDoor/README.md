@@ -16,7 +16,7 @@ An admin-only door: a **Player Detector** peripheral scans for nearby players, a
 ## Requirements
 
 - CC:Tweaked (Minecraft mod)
-- [Advanced Peripherals](https://www.curseforge.com/minecraft/mc-mods/advanced-peripherals) (for the Player Detector and Chat Box)
+- [Advanced Peripherals(CurseForge)](https://www.curseforge.com/minecraft/mc-mods/advanced-peripherals) or [Advanced Peripherals(Modrinth)](https://modrinth.com/mod/advancedperipherals) (for the Player Detector and Chat Box)
 - A **Computer** (regular is fine)
 - A **Player Detector** peripheral, connected to the computer with a Wired Modem + Networking Cable
 - A **Chat Box** peripheral, connected the same way (sends the "NO ACCESS" toast)
@@ -29,7 +29,7 @@ An admin-only door: a **Player Detector** peripheral scans for nearby players, a
 On a fresh CC:Tweaked computer:
 
 ```
-wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/AdminDoor/install.lua install
+wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/AdminDoor/install.lua install
 install
 ```
 
