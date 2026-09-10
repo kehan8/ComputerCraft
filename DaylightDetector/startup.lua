@@ -199,8 +199,8 @@ local function computeAndApply()
         :setForeground(adminMode == "AUTO" and colors.white or colors.lightGray)
     toggleButton
         :setText(signalOn and "ON" or "OFF")
-        :setBackground(signalOn and colors.orange or colors.red)
-        :setForeground(adminMode == "MANUAL" and colors.white or colors.lightGray)
+        :setBackground(signalOn and colors.lime or colors.red)
+        :setForeground(adminMode == "MANUAL" and colors.white or colors.gray)
 
     if MODEM_ENABLED then
         rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText }, PROTOCOL)
