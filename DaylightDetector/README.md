@@ -50,13 +50,13 @@ REDSTONE_RELAY_ENABLED = false,
 
 -- Rotates a Create Sequenced Gearshift instead, e.g. to flip a high-amperage
 -- HV Switch that plain redstone can't drive (typically capped around 16A).
-GEARSHIFT_SIDE = "right",  -- side the Sequenced Gearshift is attached to
+GEARSHIFT_SIDE = "back",  -- side the Sequenced Gearshift is attached to
 GEARSHIFT_ENABLED = false,
 GEARSHIFT_ANGLE = 180,     -- degrees to rotate on each transition (tested: 180)
 GEARSHIFT_SPEED = 1,       -- rotation speed; sign is direction (tested: 1)
 
 MODEM_NAME = "back",  -- wireless modem used to report status to ControlRoom
-MODEM_ENABLED = true,
+MODEM_ENABLED = false,
 
 -- Dusk/dawn is Minecraft's own in-game clock, NOT your real/IRL time -- a full
 -- in-game day/night cycle only takes ~20 real-life minutes. Format is normal

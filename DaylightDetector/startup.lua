@@ -84,7 +84,6 @@ end
 -- the signal turns on, back when it turns off. Blocks until done, capped by
 -- GEARSHIFT_TIMEOUT so a stuck/misidentified peripheral can't freeze the UI.
 local GEARSHIFT_TIMEOUT = 3 -- seconds
-local BUTTON_COOLDOWN = 1500 -- ms; blocks rapid clicks from double-commanding the gearshift mid-rotation
 local function rotateGearshift(forward)
     local speed = forward and GEARSHIFT_SPEED or -GEARSHIFT_SPEED
     gearshift.rotate(GEARSHIFT_ANGLE, speed)
@@ -136,29 +135,34 @@ local statusLabel = screen:addLabel()
 -- value (previews the timer's value while in AUTO); clicking it flips that
 -- value and switches to MANUAL. Cooldown blocks rapid double-clicks so the
 -- gearshift never gets a second rotate() command mid-rotation.
+local BUTTON_COOLDOWN = 1500 -- ms
+local function withCooldown(button, action)
+    button:onClick(function()
+        if os.epoch("utc") < nextClickAt then return end
+        action()
+        dirty = true
+        nextClickAt = os.epoch("utc") + BUTTON_COOLDOWN
+    end)
+end
+
 local BUTTON_W = math.floor((w - 3) / 2)
 local autoButton = screen:addButton()
     :setText("AUTO")
     :setPosition(2, 7)
     :setSize(BUTTON_W, 1)
-    :onClick(function()
-        if os.epoch("utc") < nextClickAt then return end
-        adminMode = "AUTO"
-        dirty = true
-        nextClickAt = os.epoch("utc") + BUTTON_COOLDOWN
-    end)
 
 local toggleButton = screen:addButton()
     :setText("OFF")
     :setPosition(2 + BUTTON_W + 1, 7)
     :setSize(BUTTON_W, 1)
-    :onClick(function()
-        if os.epoch("utc") < nextClickAt then return end
-        manualState = not lastSignal
-        adminMode = "MANUAL"
-        dirty = true
-        nextClickAt = os.epoch("utc") + BUTTON_COOLDOWN
-    end)
+
+withCooldown(autoButton, function()
+    adminMode = "AUTO"
+end)
+withCooldown(toggleButton, function()
+    manualState = not lastSignal
+    adminMode = "MANUAL"
+end)
 
 -- ====================== SIGNAL LOOP ======================
 -- Runs the timer/manual decision, drives the outputs and rotates the gearshift.
