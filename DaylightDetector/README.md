@@ -7,9 +7,10 @@ Tracks the in-game clock and flips a redstone signal at dusk/dawn -- no physical
 ## What it does
 
 - Every `POLL_INTERVAL` seconds, reads the in-game clock and checks whether it's between dusk (`DUSK_HOUR`:`DUSK_MINUTE`) and dawn (`DAWN_HOUR`:`DAWN_MINUTE`), wrapping past midnight. Note this is Minecraft's own daylight-cycle clock, not your real/IRL time -- a full in-game day only takes ~20 real-life minutes.
-- Drives the redstone signal two ways, toggled independently in `config.lua`:
+- Drives the signal three ways, toggled independently in `config.lua` (at least one must be enabled):
   - **`COMPUTER_ENABLED`** -- straight off this computer's own redstone side (`COMPUTER_SIDE`). No peripheral needed, but only works if the computer is physically wired to what you want to drive.
-  - **`REDSTONE_RELAY_ENABLED`** -- through a Redstone Relay peripheral (`REDSTONE_RELAY_NAME` / `REDSTONE_SIDE`) instead, for when the computer can't be wired directly and you route through a Wired Modem + relay. At least one of the two must be enabled.
+  - **`REDSTONE_RELAY_ENABLED`** -- through a Redstone Relay peripheral (`REDSTONE_RELAY_NAME` / `REDSTONE_SIDE`) instead, for when the computer can't be wired directly and you route through a Wired Modem + relay.
+  - **`GEARSHIFT_ENABLED`** -- through a Create **Sequenced Gearshift** (`GEARSHIFT_NAME`), physically rotating a switch (e.g. a Create HV Switch, rated up to ~100A) instead of driving redstone. Handy since plain redstone-triggered switches typically cap around 16A -- too low for some circuits. Rotates `GEARSHIFT_ANGLE` degrees at `GEARSHIFT_SPEED` on dusk, and back (negative speed) on dawn, only on an actual day/night transition (not every poll).
 - Shows a live in-game clock (`HH:MM`) on the computer's own screen -- a single fixed line that's only ever updated in place, never reprinted, so it just keeps counting with no scrolling spam.
 - Shows current signal status (ON/off + day/night) right under the clock.
 - Broadcasts that same status over rednet so a [ControlRoom](../ControlRoom) computer can show it remotely, if `MODEM_ENABLED`. Set it to `false` on a computer with no wireless modem attached -- rednet is skipped entirely instead of crashing.
@@ -19,6 +20,7 @@ Tracks the in-game clock and flips a redstone signal at dusk/dawn -- no physical
 - CC:Tweaked (Minecraft mod)
 - A **Computer** (regular is fine)
 - Optionally, a **Redstone Relay** peripheral, connected with a Wired Modem + Networking Cable (only needed if `REDSTONE_RELAY_ENABLED`)
+- Optionally, a **Create Sequenced Gearshift** peripheral (Create mod), connected with a Wired Modem + Networking Cable, driving whatever high-amperage switch you're using (e.g. a Create HV Switch) -- only needed if `GEARSHIFT_ENABLED`
 - Optionally, a **wireless modem** attached, for reporting status to [ControlRoom](../ControlRoom) (only needed if `MODEM_ENABLED`)
 - [Basalt2](https://github.com/Pyroxenium/Basalt2) for the UI -- installed automatically on first run
 
@@ -44,6 +46,13 @@ COMPUTER_ENABLED = true,
 REDSTONE_RELAY_NAME = "redstone_relay_0", -- name of your Redstone Relay peripheral
 REDSTONE_SIDE = "front",                   -- side of the relay that goes high during the signal
 REDSTONE_RELAY_ENABLED = false,
+
+-- Rotates a Create Sequenced Gearshift instead, e.g. to flip a high-amperage
+-- HV Switch that plain redstone can't drive (typically capped around 16A).
+GEARSHIFT_NAME = "right",  -- side or peripheral name of the Sequenced Gearshift
+GEARSHIFT_ENABLED = false,
+GEARSHIFT_ANGLE = 180,     -- degrees to rotate on each transition (tested: 180)
+GEARSHIFT_SPEED = 1,       -- rotation speed; sign is direction (tested: 1)
 
 MODEM_NAME = "back",  -- wireless modem used to report status to ControlRoom
 MODEM_ENABLED = true,
@@ -93,7 +102,7 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 
 | File | Purpose |
 |---|---|
-| `config.lua` | Your local settings (signal sources, relay name, modem, dusk/dawn times) -- not touched by `update.lua` |
+| `config.lua` | Your local settings (signal sources, relay/gearshift name, modem, dusk/dawn times) -- not touched by `update.lua` |
 | `startup.lua` | Reads the in-game clock, drives the redstone signal, shows the clock/status on screen |
 | `install.lua` | First-time setup |
 | `update.lua` | Re-downloads the code, keeps your `config.lua` |
