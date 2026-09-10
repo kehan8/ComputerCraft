@@ -1,25 +1,17 @@
 -- DaylightDetector
--- Tracks the in-game clock and flips a redstone signal at dusk/dawn -- no physical
--- Daylight Detector block needed, just os.time("ingame"). The signal can be driven
--- straight off this computer's own redstone side, through a Redstone Relay
--- peripheral, and/or through a Create Sequenced Gearshift (for switching a
--- high-amperage HV Switch that plain redstone can't drive) -- toggle each
--- independently in config.lua (handy since the computer itself can't always reach
--- where the signal needs to go, or plain redstone can't handle the circuit).
--- Also shows a live in-game clock on the computer's own screen -- one fixed line
--- that just keeps counting, no monitor needed and no scrolling spam.
--- An on-screen Admin toggle button forces the signal ON for testing (no extra
--- peripheral needed) -- leave it off and the day/night timer keeps full priority.
+-- Tracks the in-game clock, flips a redstone signal at dusk/dawn. Drives it via
+-- computer side, Redstone Relay, and/or Create Sequenced Gearshift (toggle each
+-- in config.lua). Shows a live clock + status on screen. Admin button forces
+-- the signal ON for testing; timer keeps priority whenever it's off.
 
 -- ====================== CONFIG ======================
--- Your local settings live in config.lua (not touched by update.lua).
 local config = require("config")
 local COMPUTER_SIDE = config.COMPUTER_SIDE
 local COMPUTER_ENABLED = config.COMPUTER_ENABLED
 local REDSTONE_RELAY_NAME = config.REDSTONE_RELAY_NAME
 local REDSTONE_SIDE = config.REDSTONE_SIDE
 local REDSTONE_RELAY_ENABLED = config.REDSTONE_RELAY_ENABLED
-local GEARSHIFT_NAME = config.GEARSHIFT_NAME
+local GEARSHIFT_SIDE = config.GEARSHIFT_SIDE
 local GEARSHIFT_ENABLED = config.GEARSHIFT_ENABLED
 local GEARSHIFT_ANGLE = config.GEARSHIFT_ANGLE
 local GEARSHIFT_SPEED = config.GEARSHIFT_SPEED
@@ -27,15 +19,13 @@ local MODEM_NAME = config.MODEM_NAME
 local MODEM_ENABLED = config.MODEM_ENABLED
 local POLL_INTERVAL = config.POLL_INTERVAL
 
--- config.lua stores dusk/dawn as plain HOUR/MINUTE (a normal clock, no decimals to
--- misread) -- convert to the fractional-hour decimal os.time("ingame") itself uses.
--- Reminder: this is Minecraft's in-game daylight clock, NOT your real/IRL time --
--- see the comment in config.lua.
+-- Convert config.lua's plain HOUR/MINUTE into the fractional hour os.time("ingame")
+-- uses. In-game clock, NOT real time.
 local DUSK_TIME = config.DUSK_HOUR + config.DUSK_MINUTE / 60
 local DAWN_TIME = config.DAWN_HOUR + config.DAWN_MINUTE / 60
 -- ======================================================
 
--- Protocol used to report status to the ControlRoom computer (see ../ControlRoom).
+-- Status reported to ControlRoom (see ../ControlRoom).
 local PROTOCOL = "controlroom"
 local DEVICE_TYPE = "DaylightDetector"
 
@@ -59,9 +49,12 @@ end
 
 local gearshift = nil
 if GEARSHIFT_ENABLED then
-    gearshift = peripheral.wrap(GEARSHIFT_NAME)
+    gearshift = peripheral.wrap(GEARSHIFT_SIDE)
     if not gearshift then
-        error("Could not find sequenced gearshift '" .. GEARSHIFT_NAME .. "'. Check the cable/name.")
+        error("No peripheral on side '" .. GEARSHIFT_SIDE .. "'. Check GEARSHIFT_SIDE in config.lua.")
+    end
+    if not gearshift.rotate or not gearshift.isRunning then
+        error("Peripheral on side '" .. GEARSHIFT_SIDE .. "' is not a Sequenced Gearshift.")
     end
 end
 
@@ -72,9 +65,7 @@ if MODEM_ENABLED then
     rednet.open(MODEM_NAME)
 end
 
--- os.time("ingame") returns a fractional 0-24 hour (Minecraft's own daylight-cycle
--- clock, not IRL time). The signal is ON from DUSK_TIME until DAWN_TIME, wrapping
--- past midnight (converted from config.lua's DUSK_HOUR:DUSK_MINUTE / DAWN_HOUR:DAWN_MINUTE).
+-- ON from DUSK_TIME until DAWN_TIME, wrapping past midnight.
 local function isNight(time)
     return time >= DUSK_TIME or time < DAWN_TIME
 end
@@ -88,35 +79,30 @@ local function setSignal(on)
     end
 end
 
--- Rotates the gearshift to physically switch state: forward when the signal turns
--- on (dusk, or the admin override flipping on), back when it turns off. Unlike
--- setSignal() above, this is edge-triggered (called only when the signal state
--- flips), not every poll -- a Sequenced Gearshift re-triggered while already
--- mid-rotation would just interrupt itself. Blocks briefly until the rotation
--- finishes (same as the tested example): fine since a 180 degree turn is well
--- under a second, and this only runs once per transition, so the clock/UI only
--- freezes for a moment, not continuously.
+-- Rotates the gearshift on state transitions only (not every poll), forward when
+-- the signal turns on, back when it turns off. Blocks until done, capped by
+-- GEARSHIFT_TIMEOUT so a stuck/misidentified peripheral can't freeze the UI.
+local GEARSHIFT_TIMEOUT = 3 -- seconds
 local function rotateGearshift(forward)
     local speed = forward and GEARSHIFT_SPEED or -GEARSHIFT_SPEED
     gearshift.rotate(GEARSHIFT_ANGLE, speed)
-    while gearshift.isRunning() do
+    local waited = 0
+    while gearshift.isRunning() and waited < GEARSHIFT_TIMEOUT do
         os.sleep(0.1)
+        waited = waited + 0.1
     end
 end
 
--- Formats os.time("ingame")'s fractional 0-24 hour into a fixed "HH:MM" clock string.
+-- "HH:MM" from os.time("ingame")'s fractional 0-24 hour.
 local function formatTime(time)
     local hours = math.floor(time)
     local minutes = math.floor((time - hours) * 60)
     return string.format("%02d:%02d", hours, minutes)
 end
 
--- Debug/admin override: forces the signal ON regardless of the clock, so you can
--- test wiring/relay/gearshift without waiting for night. No extra peripheral or
--- config needed -- it's just a button on this screen. Toggled below; the day/night
--- timer keeps full priority whenever this is off.
+-- Admin override: forces the signal ON for testing. Timer keeps priority when off.
 local adminOverride = false
-local update -- forward-declared so the admin button below can force an immediate refresh
+local update -- forward-declared so the admin button can force an immediate refresh
 
 -- ====================== UI ======================
 local screen = basalt.getMainFrame()
@@ -128,8 +114,7 @@ screen:addLabel()
     :setSize(w - 2, 1)
     :setForeground(colors.white)
 
--- One fixed line for the clock -- only ever :setText()'d on the same label, so it
--- just keeps counting in place instead of scrolling new lines every tick.
+-- Fixed line, only ever :setText()'d -- no scrolling spam.
 local clockLabel = screen:addLabel()
     :setText("--:--")
     :setPosition(2, 3)
@@ -142,9 +127,7 @@ local statusLabel = screen:addLabel()
     :setSize(w - 2, 1)
     :setForeground(colors.lightGray)
 
--- Debug/admin override toggle -- forces the signal ON while active, for testing.
--- Calls update() straight away so the screen/output react instantly instead of
--- waiting up to POLL_INTERVAL seconds for the next scheduled tick.
+-- Forces the signal ON while active. Calls update() for an instant refresh.
 local adminButton = screen:addButton()
     :setText("Admin: OFF")
     :setPosition(2, 7)
@@ -157,27 +140,22 @@ local adminButton = screen:addButton()
     end)
 
 -- ====================== UPDATE LOOP ======================
--- Tracks the previous *signal* state (not just night) so the gearshift only
--- rotates on an actual on/off transition -- whether caused by dusk/dawn or by
--- flipping the admin override -- not on every poll. Starts as nil so the very
--- first update always rotates once, syncing the gearshift's physical position to
--- the computed state (handy after a restart, in case they'd drifted out of sync).
+-- Tracks the previous *signal* state so the gearshift only rotates on an actual
+-- transition, not every poll. nil at start -> first update always syncs it once.
 local lastSignal = nil
 
 function update()
     local time = os.time("ingame")
     local night = isNight(time)
-    -- Admin override forces the signal on; otherwise the timer decides, as usual.
     local signalOn = adminOverride or night
 
+    clockLabel:setText(formatTime(time))
     setSignal(signalOn)
 
     if GEARSHIFT_ENABLED and signalOn ~= lastSignal then
         rotateGearshift(signalOn)
     end
     lastSignal = signalOn
-
-    clockLabel:setText(formatTime(time))
 
     local statusText
     if adminOverride then

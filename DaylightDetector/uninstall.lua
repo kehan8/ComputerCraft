@@ -1,5 +1,4 @@
--- uninstall.lua: removes the files installed by install.lua/update.lua.
--- Handy for a clean reinstall (e.g. wget run .../install.lua) instead of deleting files by hand.
+-- Removes the files installed by install.lua/update.lua. Handy for a clean reinstall.
 
 local FILES = { "startup.lua", "update.lua", "update_full.lua", "install.lua" }
 
