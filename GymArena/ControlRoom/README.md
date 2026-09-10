@@ -37,6 +37,7 @@ Before running, open `config.lua` and set the values to match your build:
 
 ```lua
 MODEM_NAME = "back",   -- wireless modem used to talk to the other computers
+MODEM_ENABLED = true,  -- ControlRoom needs a modem; startup.lua errors if set to false
 
 MONITOR_NAME = nil,    -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
 MONITOR_SCALE = 0.5,   -- text scale on the monitor
@@ -46,6 +47,8 @@ MAX_DEVICES = 8,       -- how many device rows to pre-draw (raise if you add mor
 ```
 
 If you're not sure what your modem/monitor is named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
+
+> Updating from an older install? `update.lua` never touches `config.lua`, so the new `MODEM_ENABLED` field won't appear on its own — run `update_full` (see below) or add the line yourself.
 
 ### Sizing the monitor
 

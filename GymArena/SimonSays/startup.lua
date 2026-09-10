@@ -19,6 +19,7 @@ local NEXT_ROUND_DELAY = config.NEXT_ROUND_DELAY
 local CLICK_FLASH_TIME = config.CLICK_FLASH_TIME
 local WRONG_FLASH_TIME = config.WRONG_FLASH_TIME
 local MODEM_NAME = config.MODEM_NAME
+local MODEM_ENABLED = config.MODEM_ENABLED
 -- ======================================================
 
 -- Protocol used to report status to, and accept a remote "Reset" from, the
@@ -59,10 +60,12 @@ local function setDoorSignal(on)
     relay.setOutput(REDSTONE_SIDE, on)
 end
 
-if not peripheral.isPresent(MODEM_NAME) then
-    error("Could not find modem '" .. MODEM_NAME .. "'. Check the wireless modem is attached and named correctly.")
+if MODEM_ENABLED then
+    if not peripheral.isPresent(MODEM_NAME) then
+        error("Could not find modem '" .. MODEM_NAME .. "'. Check the wireless modem is attached and named correctly.")
+    end
+    rednet.open(MODEM_NAME)
 end
-rednet.open(MODEM_NAME)
 
 math.randomseed(os.time())
 
@@ -269,12 +272,9 @@ startButton = screen:addButton()
     :setForeground(colors.white)
     :onClick(onStartButtonClick)
 
--- Reports status to, and accepts a remote "Reset" from, the ControlRoom computer.
--- Resets via goIdle() (not beginGame()) -- it safely stops/closes the door and
--- returns to "Press Start", rather than blindly launching a fresh round.
--- Runs through `parallel` (not basalt.schedule) because Basalt only resumes its
--- own scheduled coroutines on events it recognizes (clicks, timers, ...), not on
--- "rednet_message" -- a schedule()-based listener would never actually fire.
+-- Reports status to, and accepts remote "Reset" from, ControlRoom. Resets via
+-- goIdle() (safely closes door) not beginGame(). Runs via `parallel`, not
+-- basalt.schedule(), since Basalt won't resume on "rednet_message".
 local function reportStatus()
     while true do
         rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = lastStatusText }, PROTOCOL)
@@ -291,4 +291,8 @@ local function listenForCommands()
     end
 end
 
-parallel.waitForAny(function() basalt.run() end, reportStatus, listenForCommands)
+if MODEM_ENABLED then
+    parallel.waitForAny(function() basalt.run() end, reportStatus, listenForCommands)
+else
+    basalt.run()
+end

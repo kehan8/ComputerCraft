@@ -55,13 +55,14 @@ TOAST_TITLE = "NO ACCESS",
 TOAST_MESSAGE = "You are not authorized to enter.",
 
 MODEM_NAME = "back", -- wireless modem used to report status to ControlRoom
+MODEM_ENABLED = false, -- set true if you have a wireless modem attached
 ```
 
 If you're not sure what your peripherals are named, run `peripheral.getNames()` from the Lua prompt to list them. The Chat Box shows up as `chat_box_N` on MC 1.21.1+ and `chatBox_N` on older versions.
 
 If you have more than one AdminDoor and want [ControlRoom](../ControlRoom) to tell them apart, give each a label: `label set AdminDoor-Achterdeur`.
 
-> Updating from an older install? `update.lua` never touches `config.lua`, so the new `MODEM_NAME` field won't appear on its own — run `update_full` (see below) or add the line yourself.
+> Updating from an older install? `update.lua` never touches `config.lua`, so new fields like `MODEM_ENABLED` won't appear on their own — run `update_full` (see below) or add the lines yourself.
 
 ## Run
 

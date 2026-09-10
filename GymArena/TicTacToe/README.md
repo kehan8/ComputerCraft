@@ -43,11 +43,12 @@ REDSTONE_RELAY_NAME = "redstone_relay_0", -- name of your Redstone Relay periphe
 REDSTONE_SIDE = "front",                   -- side of the relay that goes high once the player wins
 
 MODEM_NAME = "back", -- wireless modem used to talk to ControlRoom
+MODEM_ENABLED = false, -- set true if you have a wireless modem attached
 ```
 
 If you're not sure what your relay/monitor is named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
 
-> Updating from an older install? `update.lua` never touches `config.lua`, so the new `MODEM_NAME` field won't appear on its own — run `update_full` (see below) or add the line yourself.
+> Updating from an older install? `update.lua` never touches `config.lua`, so new fields like `MODEM_ENABLED` won't appear on their own — run `update_full` (see below) or add the lines yourself.
 
 ## Run
 

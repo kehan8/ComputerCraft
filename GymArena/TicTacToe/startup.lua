@@ -10,6 +10,7 @@ local MONITOR_SCALE = config.MONITOR_SCALE
 local REDSTONE_RELAY_NAME = config.REDSTONE_RELAY_NAME
 local REDSTONE_SIDE = config.REDSTONE_SIDE
 local MODEM_NAME = config.MODEM_NAME
+local MODEM_ENABLED = config.MODEM_ENABLED
 -- ======================================================
 
 -- Protocol used to report status to, and accept a remote "Reset" from, the
@@ -52,10 +53,12 @@ local function setDoorSignal(on)
     relay.setOutput(REDSTONE_SIDE, on)
 end
 
-if not peripheral.isPresent(MODEM_NAME) then
-    error("Could not find modem '" .. MODEM_NAME .. "'. Check the wireless modem is attached and named correctly.")
+if MODEM_ENABLED then
+    if not peripheral.isPresent(MODEM_NAME) then
+        error("Could not find modem '" .. MODEM_NAME .. "'. Check the wireless modem is attached and named correctly.")
+    end
+    rednet.open(MODEM_NAME)
 end
-rednet.open(MODEM_NAME)
 
 math.randomseed(os.time())
 
@@ -274,10 +277,8 @@ screen:addButton()
     :setForeground(colors.white)
     :onClick(resetGame)
 
--- Reports status to, and accepts a remote "Reset" from, the ControlRoom computer.
--- Runs through `parallel` (not basalt.schedule) because Basalt only resumes its
--- own scheduled coroutines on events it recognizes (clicks, timers, ...), not on
--- "rednet_message" -- a schedule()-based listener would never actually fire.
+-- Reports status to, and accepts remote "Reset" from, ControlRoom. Runs via
+-- `parallel`, not basalt.schedule(), since Basalt won't resume on "rednet_message".
 local function reportStatus()
     while true do
         rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = lastStatusText }, PROTOCOL)
@@ -295,4 +296,8 @@ local function listenForCommands()
 end
 
 resetGame()
-parallel.waitForAny(function() basalt.run() end, reportStatus, listenForCommands)
+if MODEM_ENABLED then
+    parallel.waitForAny(function() basalt.run() end, reportStatus, listenForCommands)
+else
+    basalt.run()
+end

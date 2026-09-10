@@ -8,6 +8,7 @@ return {
     REDSTONE_RELAY_NAME = "redstone_relay_0", -- name of your Redstone Relay peripheral
     REDSTONE_SIDE = "front",                   -- side of the relay that goes high once the player wins
 
-    -- Wireless modem used to report status to the ControlRoom computer (see ../ControlRoom).
+    -- Wireless modem to report status to ControlRoom. False if no modem.
     MODEM_NAME = "back",
+    MODEM_ENABLED = false,
 }

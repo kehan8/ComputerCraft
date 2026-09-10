@@ -66,6 +66,7 @@ DOOR_RELAY_NAME_2 = "redstone_relay_3",
 DOOR_SIDE_2 = "front",
 
 MODEM_NAME = "back",       -- wireless modem used to report status to ControlRoom
+MODEM_ENABLED = false,     -- set true if you have a wireless modem attached
 HEARTBEAT_INTERVAL = 3,    -- seconds between status broadcasts, even without a change
 
 GATE_ENABLED = true,                     -- set to false if you don't have the Player Detector below
@@ -76,7 +77,7 @@ GATE_POLL_INTERVAL = 0.5,                -- seconds between checks (no "in range
 
 If you're not sure what your relays are named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
 
-> Updating from an older install? `update.lua` never touches `config.lua`, so the new `MODEM_NAME`/`HEARTBEAT_INTERVAL` fields won't appear on their own — run `update_full` (see below) or add the lines yourself.
+> Updating from an older install? `update.lua` never touches `config.lua`, so new fields like `MODEM_ENABLED` won't appear on their own — run `update_full` (see below) or add the lines yourself.
 
 ## Run
 

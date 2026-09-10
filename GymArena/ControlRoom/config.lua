@@ -4,6 +4,7 @@
 
 return {
     MODEM_NAME = "back",  -- wireless modem used to talk to the other computers
+    MODEM_ENABLED = true, -- ControlRoom needs a modem; this is here for consistency, not optional
 
     MONITOR_NAME = nil,   -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect
     MONITOR_SCALE = 0.5,  -- text scale on the monitor

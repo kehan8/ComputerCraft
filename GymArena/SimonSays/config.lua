@@ -16,6 +16,7 @@ return {
     CLICK_FLASH_TIME = 0.15,   -- how long a pad stays lit when the player taps it
     WRONG_FLASH_TIME = 0.2,    -- on/off timing for the red "wrong" flash
 
-    -- Wireless modem used to report status to the ControlRoom computer (see ../ControlRoom).
+    -- Wireless modem to report status to ControlRoom. False if no modem.
     MODEM_NAME = "back",
+    MODEM_ENABLED = false,
 }

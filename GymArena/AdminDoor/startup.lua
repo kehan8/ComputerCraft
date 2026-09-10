@@ -17,6 +17,7 @@ local CHATBOX_NAME = config.CHATBOX_NAME
 local TOAST_TITLE = config.TOAST_TITLE
 local TOAST_MESSAGE = config.TOAST_MESSAGE
 local MODEM_NAME = config.MODEM_NAME
+local MODEM_ENABLED = config.MODEM_ENABLED
 -- ======================================================
 
 -- Protocol used to report status to the ControlRoom computer (see ../ControlRoom).
@@ -41,10 +42,12 @@ local detector = wrapPeripheral(DETECTOR_NAME, "Player Detector")
 local doorRelay = wrapPeripheral(DOOR_RELAY_NAME, "redstone relay")
 local chatBox = wrapPeripheral(CHATBOX_NAME, "Chat Box")
 
-if not peripheral.isPresent(MODEM_NAME) then
-    error("Could not find modem '" .. MODEM_NAME .. "'. Check the wireless modem is attached and named correctly.")
+if MODEM_ENABLED then
+    if not peripheral.isPresent(MODEM_NAME) then
+        error("Could not find modem '" .. MODEM_NAME .. "'. Check the wireless modem is attached and named correctly.")
+    end
+    rednet.open(MODEM_NAME)
 end
-rednet.open(MODEM_NAME)
 
 local adminSet = {}
 for _, name in ipairs(ADMIN_NAMES) do
@@ -128,7 +131,9 @@ local function update()
     end
     lastIntruder = intruder
 
-    rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText }, PROTOCOL)
+    if MODEM_ENABLED then
+        rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText }, PROTOCOL)
+    end
 end
 
 basalt.schedule(function()

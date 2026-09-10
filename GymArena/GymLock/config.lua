@@ -9,32 +9,24 @@ return {
     TICTACTOE_RELAY_NAME = "redstone_relay_1", -- relay wired to the TicTacToe computer's door signal
     TICTACTOE_SIDE = "front",                   -- side of that relay carrying the signal
 
-    -- Admin override: a lever wired through its own relay. When on, forces the main
-    -- door open regardless of the puzzles -- it does NOT touch the puzzle computers
-    -- themselves, so their own state/signal is unaffected. When off, the door goes
-    -- back to normal puzzle-controlled behavior.
+    -- Admin override lever: forces the main door open, doesn't touch the puzzles.
     ADMIN_RELAY_NAME = "redstone_relay_4",
     ADMIN_SIDE = "front",
 
-    -- Outputs: drives the main piston door once BOTH puzzles are solved, OR the
-    -- admin override above is on.
-    -- Two relays because the piston door needs signal on two sides/pistons.
+    -- Outputs: main piston door, once both puzzles (or admin override) are on.
+    -- Two relays since the piston door needs signal on two sides.
     DOOR_RELAY_NAME_1 = "redstone_relay_2",
     DOOR_SIDE_1 = "front",
     DOOR_RELAY_NAME_2 = "redstone_relay_3",
     DOOR_SIDE_2 = "front",
 
-    -- Wireless modem used to report status to the ControlRoom computer (see ../ControlRoom).
+    -- Wireless modem to report status to ControlRoom. False if no modem.
     MODEM_NAME = "back",
+    MODEM_ENABLED = false,
     HEARTBEAT_INTERVAL = 3, -- seconds between status broadcasts, even if nothing changed
 
-    -- Anti-cheat gate: a Player Detector placed between GymLock's exit and the next
-    -- puzzle's entrance. Anyone spotted there (e.g. walking back through a warp plate)
-    -- immediately closes the main door and resets Simon Says + Tic Tac Toe, so the
-    -- puzzles can't be cheesed by sneaking back for another look. Ignored while the
-    -- admin lever is on, since you're deliberately holding the door open then.
-    -- Optional -- set GATE_ENABLED to false if you don't have this Player Detector
-    -- (e.g. you're just using this repo's code without the full physical build).
+    -- Anti-cheat gate: Player Detector at the exit, resets puzzles if someone
+    -- sneaks back through. Set false if you don't have this detector.
     GATE_ENABLED = true,
     GATE_DETECTOR_NAME = "player_detector_0", -- name of your Player Detector peripheral
     GATE_DETECT_RANGE = 3,                   -- blocks; keep tight so it only covers the choke point
