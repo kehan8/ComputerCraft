@@ -1,8 +1,9 @@
 -- DaylightDetector
 -- Tracks the in-game clock, flips a redstone signal at dusk/dawn. Drives it via
 -- computer side, Redstone Relay, and/or Create Sequenced Gearshift (toggle each
--- in config.lua). Shows a live clock + status on screen. AUTO/ON/OFF buttons
--- force the signal for testing; timer runs signal in AUTO.
+-- in config.lua). Clock and signal/gearshift logic run on separate loops, so a
+-- slow gearshift rotation never freezes the clock. AUTO button = timer control,
+-- ON/OFF button = manual override (toggles, previews live value while in AUTO).
 
 -- ====================== CONFIG ======================
 local config = require("config")
@@ -101,10 +102,11 @@ local function formatTime(time)
     return string.format("%02d:%02d", hours, minutes)
 end
 
--- Admin override: AUTO (timer decides), ON (force on), OFF (force off).
+-- adminMode: "AUTO" (timer decides) or "MANUAL" (manualState decides).
 local adminMode = "AUTO"
-local update -- forward-declared so the admin buttons can force an immediate refresh
-local updating = false -- true while update() is mid-run; blocks re-entry (e.g. scheduled tick + a click landing together)
+local manualState = false
+local lastSignal = nil -- last applied combined signal; gearshift only rotates on change
+local dirty = true -- true = recompute now (startup + button clicks); skips waiting for POLL_INTERVAL
 local nextClickAt = 0 -- os.epoch("utc") ms timestamp; buttons ignored before this
 
 -- ====================== UI ======================
@@ -130,95 +132,102 @@ local statusLabel = screen:addLabel()
     :setSize(w - 2, 1)
     :setForeground(colors.lightGray)
 
--- 3 separate buttons, each sets adminMode directly (no cycling). Active one is
--- colored, the other two go dim. Calls update() for an instant refresh.
-local ADMIN_COLOR = { AUTO = colors.gray, ON = colors.orange, OFF = colors.red }
-local BUTTON_W = math.floor((w - 4) / 3)
-local adminButtons = {}
-local function addAdminButton(mode, x)
-    adminButtons[mode] = screen:addButton()
-        :setText(mode)
-        :setPosition(x, 7)
-        :setSize(BUTTON_W, 1)
-        :onClick(function()
-            if updating or os.epoch("utc") < nextClickAt then return end -- busy/cooldown: ignore rapid clicks
-            adminMode = mode
-            update()
-            nextClickAt = os.epoch("utc") + BUTTON_COOLDOWN
-        end)
-end
-addAdminButton("AUTO", 2)
-addAdminButton("ON", 2 + BUTTON_W + 1)
-addAdminButton("OFF", 2 + 2 * (BUTTON_W + 1))
-
--- ====================== UPDATE LOOP ======================
--- Tracks the previous *signal* state so the gearshift only rotates on an actual
--- transition, not every poll. nil at start -> first update always syncs it once.
-local lastSignal = nil
-
--- Re-entry guarded: a scheduled tick and a button click can land at the same
--- time, and two overlapping rotateGearshift() calls is what was corrupting the
--- gearshift. pcall so a peripheral error can't leave `updating` stuck true.
-function update()
-    if updating then return end
-    updating = true
-
-    local ok, err = pcall(function()
-        local time = os.time("ingame")
-        local night = isNight(time)
-        local signalOn
-        if adminMode == "ON" then
-            signalOn = true
-        elseif adminMode == "OFF" then
-            signalOn = false
-        else
-            signalOn = night
-        end
-
-        clockLabel:setText(formatTime(time))
-        setSignal(signalOn)
-
-        if GEARSHIFT_ENABLED and signalOn ~= lastSignal then
-            statusLabel:setText("Gearshift: rotating..."):setForeground(colors.yellow)
-            rotateGearshift(signalOn)
-        end
-        lastSignal = signalOn
-
-        local statusText
-        if adminMode ~= "AUTO" then
-            statusText = "Signal: " .. (signalOn and "ON" or "off") .. " (admin override)"
-        else
-            statusText = night and "Signal: ON (night)" or "Signal: off (day)"
-        end
-        if GEARSHIFT_ENABLED then
-            statusText = statusText .. (signalOn and " | Gearshift: open" or " | Gearshift: closed")
-        end
-        statusLabel
-            :setText(statusText)
-            :setForeground(signalOn and colors.lime or colors.lightGray)
-
-        for mode, button in pairs(adminButtons) do
-            if mode == adminMode then
-                button:setBackground(ADMIN_COLOR[mode]):setForeground(colors.white)
-            else
-                button:setBackground(colors.black):setForeground(colors.lightGray)
-            end
-        end
-
-        if MODEM_ENABLED then
-            rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText }, PROTOCOL)
-        end
+-- AUTO button + one ON/OFF toggle button. Toggle always shows the live signal
+-- value (previews the timer's value while in AUTO); clicking it flips that
+-- value and switches to MANUAL. Cooldown blocks rapid double-clicks so the
+-- gearshift never gets a second rotate() command mid-rotation.
+local BUTTON_W = math.floor((w - 3) / 2)
+local autoButton = screen:addButton()
+    :setText("AUTO")
+    :setPosition(2, 7)
+    :setSize(BUTTON_W, 1)
+    :onClick(function()
+        if os.epoch("utc") < nextClickAt then return end
+        adminMode = "AUTO"
+        dirty = true
+        nextClickAt = os.epoch("utc") + BUTTON_COOLDOWN
     end)
 
-    updating = false
-    if not ok then
-        statusLabel:setText("Error: " .. tostring(err)):setForeground(colors.red)
+local toggleButton = screen:addButton()
+    :setText("OFF")
+    :setPosition(2 + BUTTON_W + 1, 7)
+    :setSize(BUTTON_W, 1)
+    :onClick(function()
+        if os.epoch("utc") < nextClickAt then return end
+        manualState = not lastSignal
+        adminMode = "MANUAL"
+        dirty = true
+        nextClickAt = os.epoch("utc") + BUTTON_COOLDOWN
+    end)
+
+-- ====================== SIGNAL LOOP ======================
+-- Runs the timer/manual decision, drives the outputs and rotates the gearshift.
+-- Separate coroutine from the clock loop below -- a slow/blocked gearshift only
+-- stalls this loop, never the on-screen clock. pcall so a peripheral error
+-- shows on screen instead of killing the loop.
+local function computeAndApply()
+    local time = os.time("ingame")
+    local night = isNight(time)
+    local signalOn = night
+    if adminMode == "MANUAL" then
+        signalOn = manualState -- explicit if: "manualState and x or y" breaks when manualState is false
+    end
+
+    setSignal(signalOn)
+
+    if GEARSHIFT_ENABLED and signalOn ~= lastSignal then
+        statusLabel:setText("Gearshift: rotating..."):setForeground(colors.yellow)
+        rotateGearshift(signalOn)
+    end
+    lastSignal = signalOn
+
+    local statusText
+    if adminMode == "MANUAL" then
+        statusText = "Signal: " .. (signalOn and "ON" or "off") .. " (admin override)"
+    else
+        statusText = night and "Signal: ON (night)" or "Signal: off (day)"
+    end
+    if GEARSHIFT_ENABLED then
+        statusText = statusText .. (signalOn and " | Gearshift: open" or " | Gearshift: closed")
+    end
+    statusLabel
+        :setText(statusText)
+        :setForeground(signalOn and colors.lime or colors.lightGray)
+
+    autoButton
+        :setBackground(adminMode == "AUTO" and colors.gray or colors.black)
+        :setForeground(adminMode == "AUTO" and colors.white or colors.lightGray)
+    toggleButton
+        :setText(signalOn and "ON" or "OFF")
+        :setBackground(signalOn and colors.orange or colors.red)
+        :setForeground(adminMode == "MANUAL" and colors.white or colors.lightGray)
+
+    if MODEM_ENABLED then
+        rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText }, PROTOCOL)
     end
 end
 
 basalt.schedule(function()
+    local waited = POLL_INTERVAL -- run once immediately on startup
     while true do
-        update()
+        if dirty or waited >= POLL_INTERVAL then
+            local ok, err = pcall(computeAndApply)
+            if not ok then
+                statusLabel:setText("Error: " .. tostring(err)):setForeground(colors.red)
+            end
+            dirty = false
+            waited = 0
+        end
+        os.sleep(0.2)
+        waited = waited + 0.2
+    end
+end)
+
+-- ====================== CLOCK LOOP ======================
+-- Own coroutine, no peripheral/gearshift calls -- always ticks, never freezes.
+basalt.schedule(function()
+    while true do
+        clockLabel:setText(formatTime(os.time("ingame")))
         os.sleep(POLL_INTERVAL)
     end
 end)

@@ -11,9 +11,9 @@ Tracks the in-game clock and flips a redstone signal at dusk/dawn -- no physical
   - **`COMPUTER_ENABLED`** -- this computer's own redstone side (`COMPUTER_SIDE`).
   - **`REDSTONE_RELAY_ENABLED`** -- through a Redstone Relay peripheral (`REDSTONE_RELAY_NAME` / `REDSTONE_SIDE`), for a Wired Modem setup.
   - **`GEARSHIFT_ENABLED`** -- through a Create **Sequenced Gearshift** on `GEARSHIFT_SIDE` (direct side, not a network name), rotating a switch (e.g. HV Switch, ~100A) for when redstone's ~16A cap is too low. Rotates `GEARSHIFT_ANGLE`° at `GEARSHIFT_SPEED` on dusk, back on dawn, only on an actual transition.
-- Live in-game clock (`HH:MM`) on screen, one fixed line, no scrolling spam.
+- Live in-game clock (`HH:MM`) on screen, one fixed line, no scrolling spam. Runs on its own loop, so it never freezes even mid gearshift-rotation.
 - Status line (ON/off + day/night) under the clock.
-- **AUTO / ON / OFF** buttons force-test the signal (relay/gearshift wiring) without waiting for day or night. Active mode is highlighted. Timer runs the signal in AUTO. Rapid clicks are ignored (short cooldown) so the gearshift never gets two rotate commands at once.
+- **AUTO** + **ON/OFF** buttons: AUTO lets the timer decide (default). The ON/OFF button always shows the live signal value and toggles it -- click it to force that value and switch to manual; click AUTO to hand control back to the timer. Rapid clicks are ignored (short cooldown) so the gearshift never gets two rotate commands at once.
 - Broadcasts status over rednet to [ControlRoom](../ControlRoom) if `MODEM_ENABLED`.
 
 ## Requirements
