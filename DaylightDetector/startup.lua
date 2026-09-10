@@ -1,8 +1,8 @@
 -- DaylightDetector
 -- Tracks the in-game clock, flips a redstone signal at dusk/dawn. Drives it via
 -- computer side, Redstone Relay, and/or Create Sequenced Gearshift (toggle each
--- in config.lua). Shows a live clock + status on screen. Admin button forces
--- the signal ON for testing; timer keeps priority whenever it's off.
+-- in config.lua). Shows a live clock + status on screen. Admin button cycles
+-- AUTO/ON/OFF to force the signal for testing; timer runs signal in AUTO.
 
 -- ====================== CONFIG ======================
 local config = require("config")
@@ -100,8 +100,8 @@ local function formatTime(time)
     return string.format("%02d:%02d", hours, minutes)
 end
 
--- Admin override: forces the signal ON for testing. Timer keeps priority when off.
-local adminOverride = false
+-- Admin override: AUTO (timer decides), ON (force on), OFF (force off). Cycles on click.
+local adminMode = "AUTO"
 local update -- forward-declared so the admin button can force an immediate refresh
 
 -- ====================== UI ======================
@@ -127,15 +127,17 @@ local statusLabel = screen:addLabel()
     :setSize(w - 2, 1)
     :setForeground(colors.lightGray)
 
--- Forces the signal ON while active. Calls update() for an instant refresh.
+-- Cycles AUTO -> ON -> OFF -> AUTO. Calls update() for an instant refresh.
+local ADMIN_NEXT = { AUTO = "ON", ON = "OFF", OFF = "AUTO" }
+local ADMIN_COLOR = { AUTO = colors.gray, ON = colors.orange, OFF = colors.red }
 local adminButton = screen:addButton()
-    :setText("Admin: OFF")
+    :setText("Admin: AUTO")
     :setPosition(2, 7)
     :setSize(12, 1)
     :setBackground(colors.gray)
     :setForeground(colors.white)
     :onClick(function()
-        adminOverride = not adminOverride
+        adminMode = ADMIN_NEXT[adminMode]
         update()
     end)
 
@@ -147,7 +149,14 @@ local lastSignal = nil
 function update()
     local time = os.time("ingame")
     local night = isNight(time)
-    local signalOn = adminOverride or night
+    local signalOn
+    if adminMode == "ON" then
+        signalOn = true
+    elseif adminMode == "OFF" then
+        signalOn = false
+    else
+        signalOn = night
+    end
 
     clockLabel:setText(formatTime(time))
     setSignal(signalOn)
@@ -158,8 +167,8 @@ function update()
     lastSignal = signalOn
 
     local statusText
-    if adminOverride then
-        statusText = "Signal: ON (admin override)"
+    if adminMode ~= "AUTO" then
+        statusText = "Signal: " .. (signalOn and "ON" or "off") .. " (admin override)"
     else
         statusText = night and "Signal: ON (night)" or "Signal: off (day)"
     end
@@ -171,8 +180,8 @@ function update()
         :setForeground(signalOn and colors.lime or colors.lightGray)
 
     adminButton
-        :setText(adminOverride and "Admin: ON" or "Admin: OFF")
-        :setBackground(adminOverride and colors.orange or colors.gray)
+        :setText("Admin: " .. adminMode)
+        :setBackground(ADMIN_COLOR[adminMode])
 
     if MODEM_ENABLED then
         rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText }, PROTOCOL)
