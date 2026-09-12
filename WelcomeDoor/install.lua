@@ -1,0 +1,37 @@
+-- Downloads all files from GitHub (incl. config.lua defaults) and installs Basalt.
+
+local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/WelcomeDoor/"
+
+local FILES = { "config.lua", "startup.lua", "update.lua", "update_full.lua", "uninstall.lua" }
+
+local function downloadFile(name)
+    -- Cache-bust: raw.githubusercontent.com caches for a few minutes.
+    local request = http.get(REPO_URL .. name .. "?t=" .. os.epoch("utc"))
+    if not request then
+        print("Failed to download " .. name)
+        return false
+    end
+    local contents = request.readAll()
+    request.close()
+
+    local file = fs.open(name, "w")
+    file.write(contents)
+    file.close()
+    return true
+end
+
+if not fs.exists("basalt") and not fs.exists("basalt.lua") then
+    shell.run("wget run https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
+end
+
+for _, name in ipairs(FILES) do
+    print("Downloading " .. name .. "...")
+    downloadFile(name)
+end
+
+-- Label for ControlRoom; never overwrites one you already set.
+if not os.getComputerLabel() then
+    os.setComputerLabel("WelcomeDoor")
+end
+
+print("Done. Run 'startup' to play.")

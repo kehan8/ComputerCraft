@@ -15,9 +15,7 @@ return {
 
     POLL_INTERVAL = 1, -- seconds between detector scans
 
-    -- Chat Box peripheral used to send the unauthorized player an in-game toast
-    -- popup. On MC 1.21.1+ this shows up as "chat_box_N"; on older versions it's
-    -- "chatBox_N" -- check with peripheral.getNames() if unsure.
+    -- Chat Box peripheral used to send the unauthorized player an in-game toast popup. 
     CHATBOX_NAME = "chat_box_0",
     TOAST_TITLE = "NO ACCESS",
     TOAST_MESSAGE = "You are not authorized to enter.",
