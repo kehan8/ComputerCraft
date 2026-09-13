@@ -25,16 +25,25 @@ local MODEM_ENABLED = config.MODEM_ENABLED
 
 -- Local coordinates: locations.lua (not touched by update.lua).
 local locations = require("locations")
-local DOOR_MIN = locations.DOOR_MIN
-local DOOR_MAX = locations.DOOR_MAX
-local BUILDING_MIN = locations.BUILDING_MIN
-local BUILDING_MAX = locations.BUILDING_MAX
+
+-- Sorts each axis so MIN <= MAX, no matter which corner the user typed first.
+local function normalizeBox(min, max)
+    local nmin, nmax = {}, {}
+    for _, axis in ipairs({ "x", "y", "z" }) do
+        nmin[axis] = math.min(min[axis], max[axis])
+        nmax[axis] = math.max(min[axis], max[axis])
+    end
+    return nmin, nmax
+end
+
+local DOOR_MIN, DOOR_MAX = normalizeBox(locations.DOOR_MIN, locations.DOOR_MAX)
+local BUILDING_MIN, BUILDING_MAX = normalizeBox(locations.BUILDING_MIN, locations.BUILDING_MAX)
 -- ======================================================
 
 -- Door box must fit inside the building box, or welcome+goodbye spam every tick.
 local function boxContains(outerMin, outerMax, innerMin, innerMax)
     for _, axis in ipairs({ "x", "y", "z" }) do
-        if innerMin[axis] < outerMin[axis] or innerMax[axis] > outerMax[axis] then
+        if innerMin[axis] <= outerMin[axis] or innerMax[axis] >= outerMax[axis] then
             return false
         end
     end
