@@ -11,7 +11,7 @@ A live status monitor for Cobblemon's **Fossil Analyzer** / **Restoration Tank**
 - A live progress bar + percentage, driven by the block's `OrganicContent` value (0-128 scale).
 - A countdown while analyzing (`TimeLeft`), and a separate countdown once a Pokemon is ready (`ProtectedTimeLeft` — the claim window).
 - Keeps its own log of completed restorations (species + time) in `fossil_history.txt`, since the block itself forgets which species it made the moment you claim it.
-- Broadcasts its status over rednet so a [ControlRoom](../GymArena/ControlRoom) computer can show it alongside the other gym devices. There's nothing to reset here (no game state, just a live readout), so it doesn't get a Reset button on ControlRoom.
+- Broadcasts its status over rednet so a [ControlRoom](../ControlRoom) computer can show it alongside the other gym devices. There's nothing to reset here (no game state, just a live readout), so it doesn't get a Reset button on ControlRoom.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ A live status monitor for Cobblemon's **Fossil Analyzer** / **Restoration Tank**
 - **Advanced Peripherals** — specifically a **Block Reader**, placed directly against the Fossil Analyzer (or the Restoration Tank — they share the same underlying data, so one Block Reader on either block is enough). Mind the Block Reader's arrow: it only reads the block its front face points at, not whatever it's mounted on.
 - A computer (a plain Computer is enough — nothing on screen is clickable)
 - A **Monitor** for the public display — a plain Monitor is fine, no touch support needed
-- A **wireless modem**, only if you want it reporting to [ControlRoom](../GymArena/ControlRoom)
+- A **wireless modem**, only if you want it reporting to [ControlRoom](../ControlRoom)
 - [Basalt2](https://github.com/Pyroxenium/Basalt2) — installed automatically on first run if it's missing
 
 ## Install

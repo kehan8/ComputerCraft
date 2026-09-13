@@ -1,17 +1,18 @@
 # ControlRoom (CC:Tweaked)
 
-The main overview computer for [AdminDoor](../AdminDoor), [GymLock](../GymLock), [Tic Tac Toe](../TicTacToe) and [Simon Says](../SimonSays): shows live status for all of them on one monitor, and lets you remotely reset Tic Tac Toe / Simon Says so you don't have to walk over and press "New game"/"Start" yourself.
+The main overview computer for every other project in this repo: [AdminDoor](../AdminDoor), [GymLock](../GymArena/GymLock), [Tic Tac Toe](../GymArena/TicTacToe), [Simon Says](../GymArena/SimonSays), [WelcomeDoor](../WelcomeDoor), [FossilLab](../FossilLab) and [DaylightDetector](../DaylightDetector). Shows live status for all of them on one monitor, and lets you remotely reset Tic Tac Toe / Simon Says or toggle WelcomeDoor's ACTIVE/INACTIVE state, so you don't have to walk over and press the button yourself.
 
 ![status](https://img.shields.io/badge/status-working-brightgreen)
 
 ## What it does
 
-- Listens on a wireless [rednet](https://tweaked.cc/module/rednet.html) modem for status broadcasts from every other computer in this repo (each of the other four projects broadcasts its own status every few seconds once you've applied their ControlRoom update).
+- Listens on a wireless [rednet](https://tweaked.cc/module/rednet.html) modem for status broadcasts from every other computer in this repo (each of the other projects broadcasts its own status every few seconds once you've applied their ControlRoom update).
 - A row appears **automatically** the first time a device broadcasts — nothing to register or configure per device, no IDs to keep in sync between computers. Devices keep their place in that list (and therefore their page/row) for as long as ControlRoom keeps running, whether they're online or offline.
 - Each row is a small card: device name + an **ONLINE**/**OFFLINE** badge on the first line, and on the line below it, the exact same status text that device shows on its own screen (e.g. "Access granted: Steve", "Simon Says: SOLVED | ..."). A device that's gone quiet for `HEARTBEAT_TIMEOUT` seconds flips to OFFLINE, but keeps showing its last known status (dimmed) instead of disappearing.
 - `ROWS_PER_PAGE` rows are pre-drawn (blank) at startup and get filled in as devices check in. Once more devices check in than fit on one page, a **"< Prev" / "Next >"** bar appears below the rows with a **"Page X/Y"** counter — click through to see the rest instead of needing a bigger monitor. Devices beyond `ROWS_PER_PAGE` just land on page 2, 3, ... in the order they first checked in.
 - Tic Tac Toe and Simon Says rows get a **Reset** button — it tells that computer to run the exact same reset its own "New game"/"Start" button would (board/pattern cleared, door closed), just from here instead of walking over.
-- AdminDoor and GymLock are read-only here — no controls, matching how they work locally.
+- WelcomeDoor's row gets an **ACTIVE**/**INACTIVE** button instead — same colors and text as its own on-screen button, and clicking it sends the exact same toggle, so you can open/close it remotely.
+- AdminDoor, GymLock, FossilLab, and DaylightDetector are read-only here — no controls, matching how they work locally.
 
 ## Requirements
 
@@ -19,14 +20,14 @@ The main overview computer for [AdminDoor](../AdminDoor), [GymLock](../GymLock),
 - A **Computer** with a **wireless modem** attached
 - An **Advanced Monitor** recommended (regular Monitor works too, just no touch needed since Reset is the only button) — optional; falls back to the computer's own screen if none is found
 - [Basalt2](https://github.com/Pyroxenium/Basalt2) for the UI — installed automatically on first run
-- Every device you want to see here (AdminDoor x2, GymLock, TicTacToe, SimonSays) also needs its own **wireless modem** and the ControlRoom-aware version of its `startup.lua`/`config.lua` (i.e. update those projects too)
+- Every device you want to see here (AdminDoor, GymLock, TicTacToe, SimonSays, WelcomeDoor, FossilLab, DaylightDetector) also needs its own **wireless modem** and the ControlRoom-aware version of its `startup.lua`/`config.lua` (i.e. update those projects too)
 
 ## Install
 
 On a fresh CC:Tweaked computer:
 
 ```
-wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/ControlRoom/install.lua install
+wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/ControlRoom/install.lua install
 install
 ```
 
@@ -59,7 +60,7 @@ Each device takes 2 lines (name/badge line + status line), plus one extra "< Pre
 - **Status text cut off** (a row is too narrow) → make the monitor **wider**.
 - **Rows (or the Prev/Next bar) running off the bottom** → make the monitor **taller**, or lower `ROWS_PER_PAGE` in `config.lua` so fewer rows are drawn per page — extra devices beyond `ROWS_PER_PAGE` are still reachable, just on page 2, 3, ... via the Prev/Next buttons instead of scrolling off-screen.
 
-A 3x6 (width x height) Advanced Monitor at the default `MONITOR_SCALE` comfortably fits all five devices from this repo (well under the default `ROWS_PER_PAGE = 8`) with room to spare, including the Prev/Next bar.
+A 3x6 (width x height) Advanced Monitor at the default `MONITOR_SCALE` comfortably fits all seven devices from this repo (well under the default `ROWS_PER_PAGE = 8`) with room to spare, including the Prev/Next bar.
 
 ### More devices than fit on one page
 
@@ -100,7 +101,7 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 | File | Purpose |
 |---|---|
 | `config.lua` | Your local settings (modem, monitor, offline timeout) — not touched by `update.lua` |
-| `startup.lua` | UI (Basalt2), rednet listener, Reset command sender |
+| `startup.lua` | UI (Basalt2), rednet listener, Reset/toggle command sender |
 | `install.lua` | First-time setup |
 | `update.lua` | Re-downloads the code, keeps your `config.lua` |
 | `update_full.lua` | Re-downloads everything, including `config.lua` |

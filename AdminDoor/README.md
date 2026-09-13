@@ -30,7 +30,7 @@ An admin-only door: a **Player Detector** peripheral scans a box at the door, an
 On a fresh CC:Tweaked computer:
 
 ```
-wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/AdminDoor/install.lua install
+wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/AdminDoor/install.lua install
 install
 ```
 

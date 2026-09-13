@@ -1,6 +1,6 @@
 # WelcomeDoor (CC:Tweaked)
 
-A welcome door for everyone (no whitelist, unlike [AdminDoor](../GymArena/AdminDoor)): a **Player Detector** at the door opens it and sends whoever just showed up a friendly "Welcome to `<building>`" toast. The same detector also scans a box around the whole building and notices when a welcomed player drops out of it again -- however that happens (walked out, teleported away, disconnected) -- and sends them a goodbye toast.
+A welcome door for everyone (no whitelist, unlike [AdminDoor](../AdminDoor)): a **Player Detector** at the door opens it and sends whoever just showed up a friendly "Welcome to `<building>`" toast. The same detector also scans a box around the whole building and notices when a welcomed player drops out of it again -- however that happens (walked out, teleported away, disconnected) -- and sends them a goodbye toast.
 
 ![status](https://img.shields.io/badge/status-working-brightgreen)
 
@@ -16,7 +16,7 @@ A welcome door for everyone (no whitelist, unlike [AdminDoor](../GymArena/AdminD
 - Because welcome only ever adds to the "inside" list and goodbye only ever removes from it, a name can never get a goodbye before its welcome. Unlike a "toggle on crossing a zone" approach, this also survives teleports: a player who gets `/tp`'d away and later `/tp`'d back is just re-checked against the current box contents each tick, never against "did they cross a line."
 - A screen button toggles the whole system **ACTIVE / INACTIVE**. Switching to INACTIVE closes the door, stops welcome/goodbye toasts, and sends everyone currently "inside" a one-time "We are closed" toast. While INACTIVE, anyone new who shows up at the door box also gets a "We are closed" toast (repeats once per visit, not every tick they stand there). Switching back to ACTIVE just resumes quietly.
 - Status (who's inside, last welcome/goodbye, active state) is shown as plain text on the computer's own screen -- no monitor needed.
-- Broadcasts that same status over rednet so a [ControlRoom](../GymArena/ControlRoom) computer can show it remotely (read-only -- no controls for this device).
+- Broadcasts that same status over rednet, and accepts a remote toggle of the ACTIVE/INACTIVE button, so a [ControlRoom](../ControlRoom) computer can show/toggle it without you walking over.
 
 ## Requirements
 
@@ -26,7 +26,7 @@ A welcome door for everyone (no whitelist, unlike [AdminDoor](../GymArena/AdminD
 - A **Player Detector** peripheral, either placed directly against the computer (uses a redstone side, e.g. `"left"`) or connected via a Wired Modem + Networking Cable (uses a network name, e.g. `"player_detector_0"`) -- both work the same way, see Configure below. It scans both the door box and the building box, so one is enough regardless of building size.
 - A **Chat Box** peripheral, connected the same way (sends the welcome/goodbye/closed toasts)
 - A way to drive the door: this computer's own redstone side, and/or a **Redstone Relay** connected the same way -- enable whichever (or both) in `config.lua`
-- A **wireless modem** attached, for reporting status to [ControlRoom](../GymArena/ControlRoom)
+- A **wireless modem** attached, for reporting status to [ControlRoom](../ControlRoom)
 - [Basalt2](https://github.com/Pyroxenium/Basalt2) for the UI -- installed automatically on first run
 
 ## Install
@@ -103,7 +103,7 @@ Feel free to add/remove/edit entries in `WELCOME_MESSAGES` / `BYE_MESSAGES` -- a
 
 ### Naming this device
 
-`install` asks you to name this device the first time you run it -- press Enter or type `SKIP` to auto-generate a unique name from the computer's ID instead. If you have more than one WelcomeDoor, this is what lets [ControlRoom](../GymArena/ControlRoom) tell them apart. Rename it later anytime, without reinstalling, with `rename`.
+`install` asks you to name this device the first time you run it -- press Enter or type `SKIP` to auto-generate a unique name from the computer's ID instead. If you have more than one WelcomeDoor, this is what lets [ControlRoom](../ControlRoom) tell them apart. Rename it later anytime, without reinstalling, with `rename`.
 
 > Updating from an older install? `update.lua` never touches `config.lua` or `locations.lua`, so new fields won't appear on their own -- run `update_full` (see below) or add the lines yourself.
 

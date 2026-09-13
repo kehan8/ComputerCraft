@@ -1,6 +1,6 @@
 -- update.lua: redownloads the code files, leaves config.lua alone.
 
-local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/AdminDoor/"
+local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/AdminDoor/"
 
 local FILES = { "startup.lua", "rename.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
 

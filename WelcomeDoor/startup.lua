@@ -51,7 +51,7 @@ if not boxContains(BUILDING_MIN, BUILDING_MAX, DOOR_MIN, DOOR_MAX) then
     error("locations.lua: DOOR_MIN/DOOR_MAX must fit entirely inside BUILDING_MIN/BUILDING_MAX.")
 end
 
--- Reports status to ControlRoom (see ../GymArena/ControlRoom).
+-- Reports status to ControlRoom (see ../ControlRoom).
 local PROTOCOL = "controlroom"
 local DEVICE_TYPE = "WelcomeDoor"
 
@@ -201,7 +201,8 @@ local function refreshUI()
         :setForeground(active and colors.black or colors.white)
 end
 
-activeButton:onClick(function()
+-- also called remotely from ControlRoom (cmd = "toggle_active")
+local function toggleActive()
     active = not active
     if not active then
         setDoor(false)
@@ -210,7 +211,9 @@ activeButton:onClick(function()
         closedNotifiedSet = {} -- fresh start so a later close re-notifies everyone
     end
     refreshUI()
-end)
+end
+
+activeButton:onClick(toggleActive)
 
 refreshUI()
 
@@ -272,7 +275,7 @@ local function update()
         else
             statusText = "Inside: " .. table.concat(insideNames(), ", ")
         end
-        rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText }, PROTOCOL)
+        rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText, active = active }, PROTOCOL)
     end
 end
 
@@ -283,4 +286,18 @@ basalt.schedule(function()
     end
 end)
 
-basalt.run()
+-- parallel (not basalt.schedule) since Basalt won't resume on rednet_message
+local function listenForCommands()
+    while true do
+        local _, msg = rednet.receive(PROTOCOL)
+        if msg and msg.cmd == "toggle_active" then
+            toggleActive()
+        end
+    end
+end
+
+if MODEM_ENABLED then
+    parallel.waitForAny(function() basalt.run() end, listenForCommands)
+else
+    basalt.run()
+end

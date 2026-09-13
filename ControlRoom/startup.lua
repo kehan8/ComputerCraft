@@ -1,6 +1,6 @@
--- ControlRoom: shows live status from AdminDoor/GymLock/TicTacToe/SimonSays.
+-- ControlRoom: shows live status from every other project's broadcasts.
 -- Devices claim a row on first broadcast, spilling onto extra pages once full.
--- TicTacToe/SimonSays get a Reset button.
+-- TicTacToe/SimonSays get a Reset button, WelcomeDoor gets an ACTIVE/INACTIVE toggle.
 
 -- ====================== CONFIG ======================
 local config = require("config")
@@ -23,7 +23,7 @@ print("ControlRoom is running")
 
 -- protocol every satellite broadcasts/listens on
 local PROTOCOL = "controlroom"
-local CONTROLLABLE_TYPES = { TicTacToe = true, SimonSays = true }
+local CONTROL_KIND = { TicTacToe = "reset", SimonSays = "reset", WelcomeDoor = "toggle" }
 
 local mon = MONITOR_NAME and peripheral.wrap(MONITOR_NAME) or peripheral.find("monitor")
 if MONITOR_NAME and not mon then
@@ -87,8 +87,9 @@ for i = 1, ROWS_PER_PAGE do
         :setForeground(colors.white)
         :onClick(function()
             -- reads whichever device this row currently shows (refilled per page)
-            if slot.device and slot.device.controllable and slot.device.senderId then
-                rednet.send(slot.device.senderId, { cmd = "new_game" }, PROTOCOL)
+            if slot.device and slot.device.controlKind and slot.device.senderId then
+                local cmd = slot.device.controlKind == "toggle" and "toggle_active" or "new_game"
+                rednet.send(slot.device.senderId, { cmd = cmd }, PROTOCOL)
             end
         end)
 
@@ -137,13 +138,14 @@ local function totalPages()
 end
 
 -- adds a never-seen device; returns nil once MAX_DEVICES is reached
-local function registerDevice(senderId, controllable)
+local function registerDevice(senderId, controlKind)
     if #deviceList >= MAX_DEVICES then
         return nil
     end
     local device = {
         senderId = senderId,
-        controllable = controllable,
+        controlKind = controlKind,
+        active = nil,
         online = false,
         label = "",
         status = "",
@@ -172,10 +174,15 @@ local function renderPage(n)
             slot.statusLabel
                 :setText(device.status or "")
                 :setForeground(device.online and colors.lime or colors.gray)
-            if device.controllable then
-                slot.button:setText("Reset"):setBackground(colors.green)
+            if device.controlKind == "reset" then
+                slot.button:setText("Reset"):setBackground(colors.green):setForeground(colors.white)
+            elseif device.controlKind == "toggle" then
+                slot.button
+                    :setText(device.active and "ACTIVE" or "INACTIVE")
+                    :setBackground(device.active and colors.green or colors.red)
+                    :setForeground(device.active and colors.black or colors.white)
             else
-                slot.button:setText(""):setBackground(colors.black)
+                slot.button:setText(""):setBackground(colors.black):setForeground(colors.white)
             end
         else
             slot.nameLabel:setText("")
@@ -201,10 +208,11 @@ local function listenForStatus()
         if msg and msg.status then
             local label = msg.label or ("Computer " .. senderId) -- unlabeled fallback
             local device = deviceIndex[senderId] and deviceList[deviceIndex[senderId]]
-                or registerDevice(senderId, CONTROLLABLE_TYPES[msg.type] == true)
+                or registerDevice(senderId, CONTROL_KIND[msg.type])
             if device then
                 device.label = label
                 device.status = msg.status
+                device.active = msg.active
                 device.online = true
                 device.lastSeen = os.epoch("utc")
                 renderPage(currentPage)

@@ -1,6 +1,6 @@
 -- install.lua: downloads all game files from GitHub (including your config.lua defaults)
 
-local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/AdminDoor/"
+local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/AdminDoor/"
 
 local FILES = { "config.lua", "locations.lua", "startup.lua", "rename.lua", "update.lua", "update_full.lua", "uninstall.lua" }
 
@@ -27,7 +27,7 @@ end
 
 -- name this device, never overwrites an existing label
 if not os.getComputerLabel() then
-    local defaultLabel = "AdminDoor-" .. os.getComputerID()
+    local defaultLabel = "AdminDoor_" .. os.getComputerID()
     print("Name this device? (Enter or SKIP = '" .. defaultLabel .. "')")
     io.write("> ")
     local input = read() or ""

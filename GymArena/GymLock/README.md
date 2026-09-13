@@ -23,7 +23,7 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
   Main door:   closed
   ```
 
-- Also broadcasts that same status over rednet every `HEARTBEAT_INTERVAL` seconds (and on every change) so a [ControlRoom](../ControlRoom) computer can show it remotely (read-only — no controls for this device).
+- Also broadcasts that same status over rednet every `HEARTBEAT_INTERVAL` seconds (and on every change) so a [ControlRoom](../../ControlRoom) computer can show it remotely (read-only — no controls for this device).
 
 ## Requirements
 
@@ -34,7 +34,7 @@ The "brain" computer for the gym: watches the door-signal relays from the [Simon
   - 1 as an **input** — wired to an admin lever (force-opens the door, independent of the puzzles)
   - 2 as **outputs** — wired to your piston door
 - Optional: a **Player Detector** ([Advanced Peripherals(CurseForge)](https://www.curseforge.com/minecraft/mc-mods/advanced-peripherals) / [Advanced Peripherals(Modrinth)](https://modrinth.com/mod/advancedperipherals)) for the anti-cheat gate, placed at the choke point between GymLock's exit and the next puzzle's entrance. Don't have one? Set `GATE_ENABLED = false` in `config.lua` and skip it entirely.
-- A **wireless modem** attached, for reporting status to [ControlRoom](../ControlRoom) and broadcasting the puzzle-reset command
+- A **wireless modem** attached, for reporting status to [ControlRoom](../../ControlRoom) and broadcasting the puzzle-reset command
 
 ## Install
 

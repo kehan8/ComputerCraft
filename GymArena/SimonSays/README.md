@@ -12,7 +12,7 @@ A Simon Says memory puzzle for [CC:Tweaked](https://tweaked.cc/), built with the
 - Each round adds one step. Reach a pattern of `WIN_LENGTH` steps (default 6) without a mistake and the door opens.
 - Tap the wrong pad at any point and the whole board flashes red twice, then the puzzle resets to a fresh 1-step pattern.
 - Once a game is running, the **Start** button turns into **New game**. Tap it anytime — mid-round or after solving — to stop and return to the idle "press Start" state. Note that solving the puzzle does *not* automatically turn the door signal back off; hit **New game** first if you want to reset it.
-- Broadcasts its status over rednet, and accepts a remote **Reset** command (the same as pressing "New game" locally), so a [ControlRoom](../ControlRoom) computer can show/reset it without you walking over.
+- Broadcasts its status over rednet, and accepts a remote **Reset** command (the same as pressing "New game" locally), so a [ControlRoom](../../ControlRoom) computer can show/reset it without you walking over.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ A Simon Says memory puzzle for [CC:Tweaked](https://tweaked.cc/), built with the
 - An **Advanced Computer** (needs color + touch support)
 - An **Advanced Monitor** — regular Monitors don't send touch/click events. Multiple monitors placed adjacent to each other auto-merge into one screen, so a multi-block monitor wall works too.
 - A **Redstone Relay**, connected to the computer with a Wired Modem + Networking Cable, wired to whatever the redstone signal should control (a door, dropper, etc.)
-- A **wireless modem** attached, for reporting status to / accepting Reset from [ControlRoom](../ControlRoom)
+- A **wireless modem** attached, for reporting status to / accepting Reset from [ControlRoom](../../ControlRoom)
 - [Basalt2](https://github.com/Pyroxenium/Basalt2) — installed automatically on first run if it's missing.
 
 ## Install

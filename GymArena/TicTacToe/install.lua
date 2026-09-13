@@ -31,7 +31,7 @@ end
 
 -- name this device, never overwrites an existing label
 if not os.getComputerLabel() then
-    local defaultLabel = "TicTacToe-" .. os.getComputerID()
+    local defaultLabel = "TicTacToe_" .. os.getComputerID()
     print("Name this device? (Enter or SKIP = '" .. defaultLabel .. "')")
     io.write("> ")
     local input = read() or ""
