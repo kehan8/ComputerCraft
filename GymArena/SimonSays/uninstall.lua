@@ -1,7 +1,7 @@
 -- uninstall.lua: removes the files installed by install.lua/update.lua.
 -- Handy for a clean reinstall (e.g. wget run .../install.lua) instead of deleting files by hand.
 
-local FILES = { "startup.lua", "simon.lua", "update.lua", "update_full.lua", "install.lua" }
+local FILES = { "startup.lua", "rename.lua", "simon.lua", "update.lua", "update_full.lua", "install.lua" }
 
 print("This will remove: " .. table.concat(FILES, ", "))
 io.write("Also remove config.lua (your monitor/relay/timing settings)? (y/N): ")

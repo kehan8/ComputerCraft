@@ -30,7 +30,7 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymA
 install
 ```
 
-This downloads `config.lua`, `startup.lua`, `board.lua`, `ai.lua`, `update.lua`, `update_full.lua`, `uninstall.lua`, and installs Basalt2 if it isn't already present.
+This downloads `config.lua`, `startup.lua`, `rename.lua`, `board.lua`, `ai.lua`, `update.lua`, `update_full.lua`, `uninstall.lua`, and installs Basalt2 if it isn't already present.
 
 ## Configure
 
@@ -47,6 +47,10 @@ MODEM_ENABLED = false, -- set true if you have a wireless modem attached
 ```
 
 If you're not sure what your relay/monitor is named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
+
+### Naming this device
+
+`install` asks you to name this device the first time you run it — press Enter or type `SKIP` to auto-generate a unique name from the computer's ID instead. This is the name ControlRoom shows for it. Rename it later anytime, without reinstalling, with `rename`.
 
 > Updating from an older install? `update.lua` never touches `config.lua`, so new fields like `MODEM_ENABLED` won't appear on their own — run `update_full` (see below) or add the lines yourself.
 
@@ -85,6 +89,7 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 | `board.lua` | Board state and win detection |
 | `ai.lua` | Minimax AI |
 | `install.lua` | First-time setup |
+| `rename.lua` | Change this device's label later without reinstalling |
 | `update.lua` | Re-downloads the code, keeps your `config.lua` |
 | `update_full.lua` | Re-downloads everything, including `config.lua` |
 | `uninstall.lua` | Removes the installed files |

@@ -5,7 +5,7 @@
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/AdminDoor/"
 
-local FILES = { "config.lua", "locations.lua", "startup.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
+local FILES = { "config.lua", "locations.lua", "startup.lua", "rename.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
 
 local function downloadFile(name)
     -- Cache-busting query param: raw.githubusercontent.com caches for a few

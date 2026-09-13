@@ -45,7 +45,7 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymA
 install
 ```
 
-This downloads `config.lua`, `startup.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
+This downloads `config.lua`, `startup.lua`, `rename.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
 
 ## Configure
 
@@ -76,6 +76,10 @@ GATE_POLL_INTERVAL = 0.5,                -- seconds between checks (no "in range
 ```
 
 If you're not sure what your relays are named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
+
+### Naming this device
+
+`install` asks you to name this device the first time you run it — press Enter or type `SKIP` to auto-generate a unique name from the computer's ID instead. This is the name ControlRoom shows for it. Rename it later anytime, without reinstalling, with `rename`.
 
 > Updating from an older install? `update.lua` never touches `config.lua`, so new fields like `MODEM_ENABLED` won't appear on their own — run `update_full` (see below) or add the lines yourself.
 
@@ -112,6 +116,7 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 | `config.lua` | Your local settings (relay names/sides, gate detector) — not touched by `update.lua` |
 | `startup.lua` | Reads the puzzle signals, drives the main door, watches the anti-cheat gate, prints status |
 | `install.lua` | First-time setup |
+| `rename.lua` | Change this device's label later without reinstalling |
 | `update.lua` | Re-downloads the code, keeps your `config.lua` |
 | `update_full.lua` | Re-downloads everything, including `config.lua` |
 | `uninstall.lua` | Removes the installed files |

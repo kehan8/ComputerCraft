@@ -38,7 +38,7 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/Welc
 install
 ```
 
-This downloads `config.lua`, `locations.lua`, `startup.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
+This downloads `config.lua`, `locations.lua`, `startup.lua`, `rename.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
 
 ## Configure
 
@@ -101,7 +101,9 @@ MODEM_ENABLED = false, -- set true if you have a wireless modem attached
 
 Feel free to add/remove/edit entries in `WELCOME_MESSAGES` / `BYE_MESSAGES` -- any number of lines works, one is picked at random each time.
 
-If you have more than one WelcomeDoor and want [ControlRoom](../GymArena/ControlRoom) to tell them apart, give each a label: `label set WelcomeDoor-Voordeur`.
+### Naming this device
+
+`install` asks you to name this device the first time you run it -- press Enter or type `SKIP` to auto-generate a unique name from the computer's ID instead. If you have more than one WelcomeDoor, this is what lets [ControlRoom](../GymArena/ControlRoom) tell them apart. Rename it later anytime, without reinstalling, with `rename`.
 
 > Updating from an older install? `update.lua` never touches `config.lua` or `locations.lua`, so new fields won't appear on their own -- run `update_full` (see below) or add the lines yourself.
 
@@ -145,6 +147,7 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 | `locations.lua` | Your local coordinates (door box, building box) -- not touched by `update.lua` |
 | `startup.lua` | Scans the Player Detector for both boxes, drives the door, shows status, sends the welcome/goodbye/closed toasts |
 | `install.lua` | First-time setup |
+| `rename.lua` | Change this device's label later without reinstalling |
 | `update.lua` | Re-downloads the code, keeps your `config.lua`/`locations.lua` |
 | `update_full.lua` | Re-downloads everything, including `config.lua`/`locations.lua` |
 | `uninstall.lua` | Removes the installed files |

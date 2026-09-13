@@ -67,11 +67,7 @@ Once more devices check in than `ROWS_PER_PAGE`, a "< Prev" / "Next >" bar with 
 
 ### Telling devices apart
 
-Each device reports the label CC:Tweaked gives it (`os.getComputerLabel()`). If you have two of the same puzzle (e.g. 2x AdminDoor), rename one so you can tell the rows apart — on that computer, run:
-
-```
-label set AdminDoor-Achterdeur
-```
+Each device reports the label CC:Tweaked gives it (`os.getComputerLabel()`). On every other project in this repo, `install` now asks you to name the device the first time you run it (press Enter or type `SKIP` to auto-generate a unique name from the computer's ID instead), so this is normally already handled by the time it shows up here. If you have two of the same puzzle (e.g. 2x AdminDoor) and want to rename one so you can tell the rows apart, run `rename` on that computer — no reinstalling needed.
 
 ## Run
 

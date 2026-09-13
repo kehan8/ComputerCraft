@@ -34,7 +34,7 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/Dayl
 install
 ```
 
-This downloads `config.lua`, `startup.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
+This downloads `config.lua`, `startup.lua`, `rename.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
 
 ## Configure
 
@@ -71,6 +71,10 @@ POLL_INTERVAL = 1, -- seconds between clock/signal updates
 
 If you're not sure what your peripherals are named, run `peripheral.getNames()` from the Lua prompt to list them.
 
+### Naming this device
+
+`install` asks you to name this device the first time you run it -- press Enter or type `SKIP` to auto-generate a unique name from the computer's ID instead. This is the name ControlRoom shows for it, handy if you ever run more than one. Rename it later anytime, without reinstalling, with `rename`.
+
 > Updating from an older install? `update.lua` never touches `config.lua`, so any new fields won't appear on their own -- run `update_full` (see below) or add the lines yourself.
 
 ## Run
@@ -106,6 +110,7 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 | `config.lua` | Your local settings (signal sources, relay/gearshift side, modem, dusk/dawn times) -- not touched by `update.lua` |
 | `startup.lua` | Reads the in-game clock, drives the redstone signal, shows the clock/status on screen |
 | `install.lua` | First-time setup |
+| `rename.lua` | Change this device's label later without reinstalling |
 | `update.lua` | Re-downloads the code, keeps your `config.lua` |
 | `update_full.lua` | Re-downloads everything, including `config.lua` |
 | `uninstall.lua` | Removes the installed files |

@@ -3,7 +3,7 @@
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/TicTacToe/"
 
-local FILES = { "config.lua", "startup.lua", "board.lua", "ai.lua", "update.lua", "update_full.lua", "uninstall.lua" }
+local FILES = { "config.lua", "startup.lua", "rename.lua", "board.lua", "ai.lua", "update.lua", "update_full.lua", "uninstall.lua" }
 
 local function downloadFile(name)
     -- Cache-busting query param: raw.githubusercontent.com caches for a few
@@ -34,7 +34,15 @@ end
 -- Gives the ControlRoom computer something readable to show for this device;
 -- never overwrites a label you already set yourself.
 if not os.getComputerLabel() then
-    os.setComputerLabel("TicTacToe")
+    local defaultLabel = "TicTacToe-" .. os.getComputerID()
+    print("Name this device? (Enter or SKIP = '" .. defaultLabel .. "')")
+    io.write("> ")
+    local input = read() or ""
+    if input == "" or input:lower() == "skip" then
+        os.setComputerLabel(defaultLabel)
+    else
+        os.setComputerLabel(input)
+    end
 end
 
 print("Done. Run 'startup' to play.")

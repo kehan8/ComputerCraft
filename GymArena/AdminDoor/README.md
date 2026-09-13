@@ -34,7 +34,7 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymA
 install
 ```
 
-This downloads `config.lua`, `locations.lua`, `startup.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
+This downloads `config.lua`, `locations.lua`, `startup.lua`, `rename.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
 
 ## Configure
 
@@ -87,7 +87,9 @@ BOXES = {
 
 **1 or more boxes:** `startup.lua` checks every box in `BOXES` and merges the results (a player only counts once, even if boxes overlap). Got a wide door, or a second separate detection zone? Just add another `{ min = ..., max = ... }` entry to the list — 1 box or many both work with no errors. `BOXES` must have at least one entry, or `startup.lua` refuses to start.
 
-If you have more than one AdminDoor and want [ControlRoom](../ControlRoom) to tell them apart, give each a label: `label set AdminDoor-Achterdeur`.
+### Naming this device
+
+`install` asks you to name this device the first time you run it — press Enter or type `SKIP` to auto-generate a unique name from the computer's ID instead. If you have more than one AdminDoor, this is what lets [ControlRoom](../ControlRoom) tell them apart. Rename it later anytime, without reinstalling, with `rename`.
 
 > Updating from an older install? `update.lua` never touches `config.lua`, so new fields like `MODEM_ENABLED` won't appear on their own — run `update_full` (see below) or add the lines yourself.
 
@@ -125,6 +127,7 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 | `locations.lua` | Door box coordinates — not touched by `update.lua` |
 | `startup.lua` | Scans the door box, drives the door, shows status, sends the "NO ACCESS" toast |
 | `install.lua` | First-time setup |
+| `rename.lua` | Change this device's label later without reinstalling |
 | `update.lua` | Re-downloads the code, keeps your `config.lua` |
 | `update_full.lua` | Re-downloads everything, including `config.lua`/`locations.lua` |
 | `uninstall.lua` | Removes the installed files |

@@ -1,6 +1,6 @@
 -- Removes the files installed by install.lua/update.lua.
 
-local FILES = { "startup.lua", "update.lua", "update_full.lua", "install.lua" }
+local FILES = { "startup.lua", "rename.lua", "update.lua", "update_full.lua", "install.lua" }
 
 print("This will remove: " .. table.concat(FILES, ", "))
 io.write("Also remove config.lua and locations.lua (your local settings)? (y/N): ")
