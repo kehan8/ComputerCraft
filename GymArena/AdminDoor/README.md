@@ -1,12 +1,12 @@
 # AdminDoor (CC:Tweaked)
 
-An admin-only door: a **Player Detector** peripheral scans for nearby players, and the door only opens for names on an admin whitelist. Anyone else gets a real in-game "NO ACCESS" toast popup (via a **Chat Box** peripheral) and the door stays shut.
+An admin-only door: a **Player Detector** peripheral scans a box at the door, and the door only opens for names on an admin whitelist. Anyone else gets a real in-game "NO ACCESS" toast popup (via a **Chat Box** peripheral) and the door stays shut.
 
 ![status](https://img.shields.io/badge/status-working-brightgreen)
 
 ## What it does
 
-- Every `POLL_INTERVAL` seconds, scans for players within `DETECT_RANGE` blocks of the Player Detector.
+- Every `POLL_INTERVAL` seconds, scans for players inside the door box (set in `locations.lua`) with the Player Detector.
 - If any detected player is on the `ADMIN_NAMES` whitelist, opens the door (one relay output) and shows "Access granted: `<name>`".
 - If a detected player is **not** on the whitelist, the door stays closed and that player gets an in-game toast popup (title `TOAST_TITLE`, message `TOAST_MESSAGE`) sent straight to their screen via the Chat Box.
 - The toast only re-sends when the unauthorized player actually changes — it won't spam the same person with a toast every single poll while they just stand there.
@@ -33,15 +33,14 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymA
 install
 ```
 
-This downloads `config.lua`, `startup.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
+This downloads `config.lua`, `locations.lua`, `startup.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
 
 ## Configure
 
 Before running, open `config.lua` and set the values to match your build:
 
 ```lua
-DETECTOR_NAME = "player_detector_0", -- name of your Player Detector peripheral
-DETECT_RANGE = 3,                    -- max range (blocks) the detector scans for nearby players
+DETECTOR_NAME = "player_detector_0", -- name of your Player Detector peripheral, checks the door box (see locations.lua)
 
 DOOR_RELAY_NAME = "redstone_relay_0", -- relay wired to the door
 DOOR_SIDE = "front",                   -- side of that relay driving the door
@@ -60,6 +59,12 @@ MODEM_ENABLED = false, -- set true if you have a wireless modem attached
 
 If you're not sure what your peripherals are named, run `peripheral.getNames()` from the Lua prompt to list them. The Chat Box shows up as `chat_box_N` on MC 1.21.1+ and `chatBox_N` on older versions.
 
+### Coordinates: locations.lua
+
+Open `locations.lua` and set `DOOR_MIN`/`DOOR_MAX` to two opposite corners of a box covering the door. Stand at each corner and read the coordinates with F3 — order doesn't matter, `startup.lua` sorts them for you.
+
+> Known limitation: keep at least 2-3 blocks of margin on each axis. A box only 1 block thick on an axis can miss players standing right at the edge.
+
 If you have more than one AdminDoor and want [ControlRoom](../ControlRoom) to tell them apart, give each a label: `label set AdminDoor-Achterdeur`.
 
 > Updating from an older install? `update.lua` never touches `config.lua`, so new fields like `MODEM_ENABLED` won't appear on their own — run `update_full` (see below) or add the lines yourself.
@@ -76,7 +81,7 @@ To pull the latest version later:
 update
 ```
 
-`update` re-downloads the code but **leaves `config.lua` alone**, so your relay/admin settings survive. If you ever want `config.lua` itself reset back to the repo defaults (e.g. it got corrupted, or a new version adds new settings), run:
+`update` re-downloads the code but **leaves `config.lua`/`locations.lua` alone**, so your relay/admin/door settings survive. If you ever want those reset back to the repo defaults (e.g. it got corrupted, or a new version adds new settings), run:
 
 ```
 update_full
@@ -88,15 +93,16 @@ update_full
 uninstall
 ```
 
-Removes everything `install.lua` put on the computer (optionally including `config.lua`). Useful for a clean slate before reinstalling.
+Removes everything `install.lua` put on the computer (optionally including `config.lua`/`locations.lua`). Useful for a clean slate before reinstalling.
 
 ## Files
 
 | File | Purpose |
 |---|---|
 | `config.lua` | Your local settings (detector/relay/chat box names, admin whitelist, toast text) — not touched by `update.lua` |
-| `startup.lua` | Scans for nearby players, drives the door, shows status, sends the "NO ACCESS" toast |
+| `locations.lua` | Door box coordinates — not touched by `update.lua` |
+| `startup.lua` | Scans the door box, drives the door, shows status, sends the "NO ACCESS" toast |
 | `install.lua` | First-time setup |
 | `update.lua` | Re-downloads the code, keeps your `config.lua` |
-| `update_full.lua` | Re-downloads everything, including `config.lua` |
+| `update_full.lua` | Re-downloads everything, including `config.lua`/`locations.lua` |
 | `uninstall.lua` | Removes the installed files |

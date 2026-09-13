@@ -1,14 +1,13 @@
 -- AdminDoor
--- Reads nearby player names from a Player Detector. If a detected player is on the
--- admin whitelist, opens the door (one relay output). Anyone else detected nearby
--- keeps the door closed and gets a "NO ACCESS" toast popup in-game via a Chat Box.
+-- Reads player names inside the door box (see locations.lua) via a Player Detector.
+-- Admin whitelist -> door opens. Anyone else -> door stays shut + "NO ACCESS" toast via a Chat Box.
 -- Plain status text lives on the computer's own screen -- no monitor needed.
 
 -- ====================== CONFIG ======================
 -- Your local settings live in config.lua (not touched by update.lua).
 local config = require("config")
+local locations = require("locations")
 local DETECTOR_NAME = config.DETECTOR_NAME
-local DETECT_RANGE = config.DETECT_RANGE
 local DOOR_RELAY_NAME = config.DOOR_RELAY_NAME
 local DOOR_SIDE = config.DOOR_SIDE
 local ADMIN_NAMES = config.ADMIN_NAMES
@@ -18,6 +17,18 @@ local TOAST_TITLE = config.TOAST_TITLE
 local TOAST_MESSAGE = config.TOAST_MESSAGE
 local MODEM_NAME = config.MODEM_NAME
 local MODEM_ENABLED = config.MODEM_ENABLED
+
+-- Sorts min/max per axis so it doesn't matter which F3 corner you typed first.
+local function normalizeBox(min, max)
+    local nmin, nmax = {}, {}
+    for _, axis in ipairs({ "x", "y", "z" }) do
+        nmin[axis] = math.min(min[axis], max[axis])
+        nmax[axis] = math.max(min[axis], max[axis])
+    end
+    return nmin, nmax
+end
+
+local DOOR_MIN, DOOR_MAX = normalizeBox(locations.DOOR_MIN, locations.DOOR_MAX)
 -- ======================================================
 
 -- Protocol used to report status to the ControlRoom computer (see ../ControlRoom).
@@ -95,10 +106,10 @@ local statusLabel = screen:addLabel()
 local lastIntruder = nil
 
 local function update()
-    local playersInRange = detector.getPlayersInRange(DETECT_RANGE)
+    local playersAtDoor = detector.getPlayersInCoords(DOOR_MIN, DOOR_MAX)
 
     local admin, intruder = nil, nil
-    for _, name in ipairs(playersInRange) do
+    for _, name in ipairs(playersAtDoor) do
         if isAdmin(name) then
             admin = admin or name
         else
@@ -108,10 +119,10 @@ local function update()
 
     setDoor(admin ~= nil)
 
-    if #playersInRange == 0 then
+    if #playersAtDoor == 0 then
         nearbyLabel:setText("No one nearby.")
     else
-        nearbyLabel:setText("Nearby: " .. table.concat(playersInRange, ", "))
+        nearbyLabel:setText("Nearby: " .. table.concat(playersAtDoor, ", "))
     end
 
     local statusText

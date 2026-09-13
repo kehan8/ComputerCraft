@@ -3,8 +3,7 @@
 -- Run update_full.lua instead if you ever want this file reset back to the repo defaults.
 
 return {
-    DETECTOR_NAME = "player_detector_0", -- name of your Player Detector peripheral
-    DETECT_RANGE = 3,                    -- max range (blocks) the detector scans for nearby players
+    DETECTOR_NAME = "player_detector_0", -- name of your Player Detector peripheral, checks the door box (see locations.lua)
 
     DOOR_RELAY_NAME = "redstone_relay_0", -- relay wired to the door
     DOOR_SIDE = "front",                   -- side of that relay driving the door

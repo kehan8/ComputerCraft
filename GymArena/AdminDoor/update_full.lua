@@ -1,11 +1,11 @@
--- update_full.lua: redownloads EVERYTHING from GitHub, including config.lua.
--- Use this instead of update.lua if config.lua ever gets corrupted/deleted, or you
+-- update_full.lua: redownloads EVERYTHING from GitHub, including config.lua/locations.lua.
+-- Use this instead of update.lua if those ever get corrupted/deleted, or you
 -- want to wipe your local settings back to the repo defaults after a fresh pull.
--- Your DETECTOR_NAME / DOOR_RELAY_NAME / ADMIN_NAMES / etc. edits in config.lua WILL be lost.
+-- Your DETECTOR_NAME / DOOR_RELAY_NAME / ADMIN_NAMES / door coords etc. WILL be lost.
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/AdminDoor/"
 
-local FILES = { "config.lua", "startup.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
+local FILES = { "config.lua", "locations.lua", "startup.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
 
 local function downloadFile(name)
     -- Cache-busting query param: raw.githubusercontent.com caches for a few
@@ -24,10 +24,10 @@ local function downloadFile(name)
     return true
 end
 
-print("This will also overwrite config.lua with the repo defaults.")
+print("This will also overwrite config.lua/locations.lua with the repo defaults.")
 for _, name in ipairs(FILES) do
     print("Updating " .. name .. "...")
     downloadFile(name)
 end
 
-print("Done. Re-edit config.lua if needed, then run 'startup' (or reboot) to play.")
+print("Done. Re-edit config.lua/locations.lua if needed, then run 'startup' (or reboot) to play.")
