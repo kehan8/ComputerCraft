@@ -43,7 +43,7 @@ local BUILDING_MIN, BUILDING_MAX = normalizeBox(locations.BUILDING_MIN, location
 -- Door box must fit inside the building box, or welcome+goodbye spam every tick.
 local function boxContains(outerMin, outerMax, innerMin, innerMax)
     for _, axis in ipairs({ "x", "y", "z" }) do
-        if innerMin[axis] <= outerMin[axis] or innerMax[axis] >= outerMax[axis] then
+        if innerMin[axis] < outerMin[axis] or innerMax[axis] > outerMax[axis] then
             return false
         end
     end
