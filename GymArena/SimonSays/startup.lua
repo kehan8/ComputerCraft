@@ -1,10 +1,7 @@
--- Simon Says puzzle
--- UI with Basalt2 (https://basalt.madefor.cc/); simon.lua holds the pattern state.
--- Repeat the growing color pattern correctly enough times in a row and a redstone signal
--- goes high; wiring that to a door is up to you.
+-- Simon Says puzzle: repeat the growing color pattern; solving it raises a
+-- redstone signal. simon.lua holds the pattern state.
 
 -- ====================== CONFIG ======================
--- Your local settings live in config.lua (not touched by update.lua).
 local config = require("config")
 local MONITOR_NAME = config.MONITOR_NAME
 local MONITOR_SCALE = config.MONITOR_SCALE
@@ -22,8 +19,7 @@ local MODEM_NAME = config.MODEM_NAME
 local MODEM_ENABLED = config.MODEM_ENABLED
 -- ======================================================
 
--- Protocol used to report status to, and accept a remote "Reset" from, the
--- ControlRoom computer (see ../ControlRoom).
+-- reports status to, and accepts a remote reset from, ControlRoom
 local PROTOCOL = "controlroom"
 local DEVICE_TYPE = "SimonSays"
 local HEARTBEAT_INTERVAL = 2
@@ -102,9 +98,7 @@ local function setStatus(text, color)
     statusLabel:setText(text):setForeground(color or colors.white)
 end
 
--- Plays back the current pattern (flash, pause, flash, ...), then hands control to the player.
--- myToken must still match the live `token` after every wait, otherwise a newer
--- reset/round has started and this stale coroutine should just stop.
+-- plays back the pattern, then hands control to the player; bails if token is stale
 local function playDemo(myToken)
     isPlayerTurn = false
     setStatus("Watch the pattern...", colors.white)
@@ -158,7 +152,7 @@ local function onWrong()
     end)
 end
 
--- Stops any running/won game and returns to the idle "press Start" state.
+-- stops the game, returns to the idle "press Start" state
 local function goIdle()
     token = token + 1
     mode = "idle"
@@ -174,7 +168,7 @@ local function goIdle()
     startButton:setText("Start")
 end
 
--- Starts a fresh game from the idle state.
+-- starts a fresh game
 local function beginGame()
     token = token + 1
     local myToken = token
@@ -232,8 +226,7 @@ local function onPadClick(i)
     end
 end
 
--- Layout: status label on top, a 2x2 grid of large color pads filling the rest,
--- a Start/Reset button on the last row.
+-- layout: status label, 2x2 pad grid, Start/Reset button on the last row
 local w, h = screen:getSize()
 local startY = 3
 local usableH = math.max(2, h - startY - 1) -- leave the last row for the Start button
@@ -272,9 +265,7 @@ startButton = screen:addButton()
     :setForeground(colors.white)
     :onClick(onStartButtonClick)
 
--- Reports status to, and accepts remote "Reset" from, ControlRoom. Resets via
--- goIdle() (safely closes door) not beginGame(). Runs via `parallel`, not
--- basalt.schedule(), since Basalt won't resume on "rednet_message".
+-- parallel (not basalt.schedule) since Basalt won't resume on rednet_message
 local function reportStatus()
     while true do
         rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = lastStatusText }, PROTOCOL)

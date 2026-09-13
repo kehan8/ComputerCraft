@@ -10,9 +10,7 @@ return {
     REDSTONE_SIDE = "front",
     REDSTONE_RELAY_ENABLED = false,
 
-    -- Create Sequenced Gearshift, attached directly to a side (not a wired
-    -- network name). Rotates a switch (e.g. HV Switch 100A) at dusk/dawn,
-    -- for when redstone's ~16A cap is too low.
+    -- Create Sequenced Gearshift, attached directly to a side.
     GEARSHIFT_SIDE = "back",
     GEARSHIFT_ENABLED = false,
     GEARSHIFT_ANGLE = 180,  -- degrees per rotation
@@ -22,8 +20,7 @@ return {
     MODEM_NAME = "back",
     MODEM_ENABLED = false,
 
-    -- Dusk/dawn clock (HH:MM). Signal is ON from dusk until dawn.
-    -- In-game clock, NOT real time (1 day ~= 20 IRL min).
+    -- Dusk/dawn clock (HH:MM, in-game time). Signal is ON from dusk until dawn.
     DUSK_HOUR = 18,
     DUSK_MINUTE = 32,
     DAWN_HOUR = 5,

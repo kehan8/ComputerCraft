@@ -1,20 +1,14 @@
--- AdminDoor
--- Reads player names inside the door box (see locations.lua) via a Player Detector.
--- Admin whitelist -> door opens. Anyone else -> door stays shut + "NO ACCESS" toast via a Chat Box.
--- Plain status text lives on the computer's own screen -- no monitor needed.
+-- AdminDoor: Player Detector at the door box -> admin whitelist opens it,
+-- anyone else gets a "NO ACCESS" toast via Chat Box.
 
 -- ====================== CONFIG ======================
--- Your local settings live in config.lua (not touched by update.lua).
 local config = require("config")
 local locations = require("locations")
 local DETECTOR_NAME = config.DETECTOR_NAME
 local DOOR_RELAY_NAME = config.DOOR_RELAY_NAME
 local DOOR_SIDE = config.DOOR_SIDE
 local ADMIN_NAMES = config.ADMIN_NAMES
--- Older config.lua files (from before this setting existed) won't have this
--- field at all -- nil defaults to true, so the whitelist stays enforced
--- exactly like before unless you explicitly set ADMIN_ENABLED = false.
-local ADMIN_ENABLED = config.ADMIN_ENABLED
+local ADMIN_ENABLED = config.ADMIN_ENABLED -- nil (old config) defaults to true
 if ADMIN_ENABLED == nil then
     ADMIN_ENABLED = true
 end
@@ -25,7 +19,7 @@ local TOAST_MESSAGE = config.TOAST_MESSAGE
 local MODEM_NAME = config.MODEM_NAME
 local MODEM_ENABLED = config.MODEM_ENABLED
 
--- Sorts min/max per axis so it doesn't matter which F3 corner you typed first.
+-- normalizes min/max per axis regardless of corner order
 local function normalizeBox(min, max)
     local nmin, nmax = {}, {}
     for _, axis in ipairs({ "x", "y", "z" }) do
@@ -35,9 +29,7 @@ local function normalizeBox(min, max)
     return nmin, nmax
 end
 
--- Accepts either 1 value or a list of values, so config.lua never needs special
--- syntax for "just one relay" -- a bare string and a { ... } list both work.
--- Everything downstream loops with ipairs() either way, so 1 or many never errors.
+-- normalizes 1 value or a list of values into a list
 local function toList(v)
     if type(v) == "table" then
         return v
@@ -46,8 +38,7 @@ local function toList(v)
     end
 end
 
--- locations.BOXES is a list of { min = {...}, max = {...} } boxes. 1 box or
--- many both work -- startup.lua checks all of them and merges the results.
+-- locations.BOXES: 1 or more { min = {...}, max = {...} } boxes
 if not locations.BOXES or #locations.BOXES == 0 then
     error("locations.lua must define BOXES with at least one { min = ..., max = ... } box.")
 end
@@ -79,8 +70,7 @@ end
 local detector = wrapPeripheral(DETECTOR_NAME, "Player Detector")
 local chatBox = wrapPeripheral(CHATBOX_NAME, "Chat Box")
 
--- DOOR_RELAY_NAME may be a single string or a { "name1", "name2", ... } list --
--- toList() normalizes either into a list, so 1 relay or many both work with no errors.
+-- 1 relay or many, via toList()
 local doorRelays = {}
 for i, name in ipairs(toList(DOOR_RELAY_NAME)) do
     doorRelays[i] = wrapPeripheral(name, "redstone relay")
@@ -100,7 +90,7 @@ end
 
 local function isAdmin(name)
     if not ADMIN_ENABLED then
-        return true -- whitelist check disabled: everyone detected counts as admin
+        return true -- whitelist disabled
     end
     return adminSet[name:lower()] == true
 end
@@ -111,7 +101,7 @@ local function setDoor(open)
     end
 end
 
--- Sends the intruder an in-game toast popup warning them they have no access.
+-- sends the intruder a "NO ACCESS" toast
 local function warnIntruder(name)
     chatBox.sendToastToPlayer(TOAST_MESSAGE, TOAST_TITLE, name)
 end
@@ -139,14 +129,10 @@ local statusLabel = screen:addLabel()
     :setForeground(colors.white)
 
 -- ====================== DETECTION LOOP ======================
--- Only re-sends the toast when the intruder actually changes, so it doesn't
--- spam the same unauthorized player with a toast every single poll.
-local lastIntruder = nil
+local lastIntruder = nil -- re-sends toast only when the intruder changes
 
 local function update()
-    -- Scans every box in doorBoxes (1 by default, more if locations.BOXES is
-    -- set) and dedupes -- a player standing where two boxes overlap should only
-    -- count once, not trigger the toast/admin logic twice.
+    -- scans all doorBoxes, deduped across overlaps
     local seen = {}
     local playersAtDoor = {}
     for _, box in ipairs(doorBoxes) do

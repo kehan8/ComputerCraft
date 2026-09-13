@@ -54,6 +54,30 @@ HEARTBEAT_INTERVAL = 2,   -- seconds between status broadcasts to ControlRoom
 
 If you're not sure what your Block Reader/monitor is named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
 
+### NBT reference
+
+`fossildata.lua` reads this confirmed NBT shape off the Block Reader (live-tested 2026-09):
+
+```
+Formed                               -- 1 once the multiblock is fully assembled
+MultiblockStore.OrganicContent       -- 0-128 progress scale during analysis
+MultiblockStore.TimeLeft             -- ticks left in the analysis, -1 if none running
+MultiblockStore.ProtectedTimeLeft    -- ticks left to claim a created Pokemon, -1 if n/a
+MultiblockStore.HasCreatedPokemon    -- 0/1, 1 once a Pokemon exists (until claimed)
+MultiblockStore.InsertedFossil       -- species id string, only present once created
+MultiblockStore.InsertedFossilStacks -- { {id=, count=}, ... } fossils currently inserted
+MultiblockStore.ConnectorDirection
+```
+
+Observed state machine (4 phases):
+
+```
+idle      -- nothing inserted, nothing to claim
+analyzing -- fossil(s) inserted, OrganicContent climbing 0->128, TimeLeft counting down
+ready     -- HasCreatedPokemon=1, InsertedFossil set, ProtectedTimeLeft counting down
+unformed  -- Formed ~= 1, multiblock isn't fully built right now
+```
+
 ### Naming this device
 
 `install` asks you to name this device the first time you run it — press Enter or type `SKIP` to auto-generate a unique name from the computer's ID instead. This is the name ControlRoom shows for it, handy if you ever run more than one. Rename it later anytime, without reinstalling, with `rename`.

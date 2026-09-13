@@ -1,10 +1,7 @@
--- GymLock
--- Opens the main door once Simon Says + Tic Tac Toe are both solved. Admin lever
--- force-opens everything; Player Detector gate resets puzzles if someone sneaks back.
--- No UI -- status is printed on this computer.
+-- GymLock: opens the main door once Simon Says + Tic Tac Toe are both solved.
+-- Admin lever force-opens everything; gate detector resets puzzles on sneak-back.
 
 -- ====================== CONFIG ======================
--- Your local settings live in config.lua (not touched by update.lua).
 local config = require("config")
 local SIMON_RELAY_NAME = config.SIMON_RELAY_NAME
 local SIMON_SIDE = config.SIMON_SIDE
@@ -25,7 +22,7 @@ local GATE_DETECT_RANGE = config.GATE_DETECT_RANGE
 local GATE_POLL_INTERVAL = config.GATE_POLL_INTERVAL
 -- ======================================================
 
--- Protocol used to report status to the ControlRoom computer (see ../ControlRoom).
+-- reports status to ControlRoom
 local PROTOCOL = "controlroom"
 local DEVICE_TYPE = "GymLock"
 
@@ -79,7 +76,7 @@ local function isSomeoneAtGate()
     return #gateDetector.getPlayersInRange(GATE_DETECT_RANGE) > 0
 end
 
--- Force-closes the door and resets both puzzles via broadcast.
+-- force-closes the door, resets both puzzles via broadcast
 local function triggerGateLockdown()
     print("Gate crossing detected -- closing door and resetting puzzles")
     setMainDoor(false)
@@ -100,7 +97,7 @@ local function printStatus(simonSolved, tictactoeSolved, adminOverride, doorOpen
     print("Main door:   " .. (doorOpen and "OPEN" or "closed"))
 end
 
--- Same wording as printStatus(), one line for ControlRoom.
+-- printStatus(), one line, for ControlRoom
 local function statusLine(simonSolved, tictactoeSolved, adminOverride, doorOpen)
     return "Simon Says: " .. (simonSolved and "SOLVED" or "locked")
         .. " | Tic Tac Toe: " .. (tictactoeSolved and "SOLVED" or "locked")
@@ -108,11 +105,8 @@ local function statusLine(simonSolved, tictactoeSolved, adminOverride, doorOpen)
         .. " | Main door: " .. (doorOpen and "OPEN" or "closed")
 end
 
--- Only re-draws/re-writes the relays when something actually changed.
-local lastState = nil
-
--- Tracked separately so the reset-on-handoff fires once per admin OFF transition.
-local lastAdminOverride = false
+local lastState = nil -- skips re-writes when nothing changed
+local lastAdminOverride = false -- fires reset once per admin OFF transition
 
 local function update()
     local simonSolved = isSimonSolved()
@@ -120,7 +114,7 @@ local function update()
     local adminOverride = isAdminOverride()
     local doorOpen = adminOverride or (simonSolved and tictactoeSolved)
 
-    -- Admin lever off: reset puzzles so their own logic closes the doors again.
+    -- admin lever off: reset puzzles
     if lastAdminOverride and not adminOverride and MODEM_ENABLED then
         rednet.broadcast({ cmd = "new_game" }, PROTOCOL)
     end
@@ -140,7 +134,7 @@ local function update()
 
     setMainDoor(doorOpen)
 
-    -- Admin override also force-opens both puzzle doors (same relay/side as input).
+    -- admin override also force-opens both puzzle doors
     if adminOverride then
         simonRelay.setOutput(SIMON_SIDE, true)
         tictactoeRelay.setOutput(TICTACTOE_SIDE, true)
@@ -164,7 +158,7 @@ parallel.waitForAny(
         end
     end,
     function()
-        -- Keeps looping even when disabled, so parallel.waitForAny doesn't exit early.
+        -- keeps looping even when disabled
         local wasAtGate = false
         while true do
             os.sleep(GATE_POLL_INTERVAL)

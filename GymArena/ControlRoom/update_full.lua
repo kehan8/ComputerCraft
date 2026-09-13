@@ -1,15 +1,11 @@
--- update_full.lua: redownloads EVERYTHING from GitHub, including config.lua.
--- Use this instead of update.lua if config.lua ever gets corrupted/deleted, or you
--- want to wipe your local settings back to the repo defaults after a fresh pull.
--- Your MODEM_NAME / MONITOR_NAME / etc. edits in config.lua WILL be lost.
+-- update_full.lua: redownloads EVERYTHING, including config.lua.
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/ControlRoom/"
 
 local FILES = { "config.lua", "startup.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
 
 local function downloadFile(name)
-    -- Cache-busting query param: raw.githubusercontent.com caches for a few
-    -- minutes, so without this, a fresh push might not show up right away.
+    -- cache-busting
     local request = http.get(REPO_URL .. name .. "?t=" .. os.epoch("utc"))
     if not request then
         print("Failed to download " .. name)

@@ -1,5 +1,4 @@
--- Redownloads EVERYTHING from GitHub, including config.lua. Use if config.lua
--- gets corrupted, or to wipe local settings back to repo defaults. 
+-- update_full.lua: redownloads EVERYTHING, including config.lua.
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/FossilLab/"
 

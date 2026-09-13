@@ -1,9 +1,5 @@
--- DaylightDetector
--- Tracks the in-game clock, flips a redstone signal at dusk/dawn. Drives it via
--- computer side, Redstone Relay, and/or Create Sequenced Gearshift (toggle each
--- in config.lua). Clock and signal/gearshift logic run on separate loops, so a
--- slow gearshift rotation never freezes the clock. AUTO button = timer control,
--- ON/OFF button = manual override (toggles, previews live value while in AUTO).
+-- DaylightDetector: flips a redstone signal at dusk/dawn via computer side,
+-- Redstone Relay and/or Sequenced Gearshift. AUTO = timer, ON/OFF = manual override.
 
 -- ====================== CONFIG ======================
 local config = require("config")
@@ -20,8 +16,7 @@ local MODEM_NAME = config.MODEM_NAME
 local MODEM_ENABLED = config.MODEM_ENABLED
 local POLL_INTERVAL = config.POLL_INTERVAL
 
--- Convert config.lua's plain HOUR/MINUTE into the fractional hour os.time("ingame")
--- uses. In-game clock, NOT real time.
+-- HOUR/MINUTE -> fractional hour for os.time("ingame")
 local DUSK_TIME = config.DUSK_HOUR + config.DUSK_MINUTE / 60
 local DAWN_TIME = config.DAWN_HOUR + config.DAWN_MINUTE / 60
 -- ======================================================
@@ -80,9 +75,7 @@ local function setSignal(on)
     end
 end
 
--- Rotates the gearshift on state transitions only (not every poll), forward when
--- the signal turns on, back when it turns off. Blocks until done, capped by
--- GEARSHIFT_TIMEOUT so a stuck/misidentified peripheral can't freeze the UI.
+-- rotates on state transitions, capped by GEARSHIFT_TIMEOUT
 local GEARSHIFT_TIMEOUT = 3 -- seconds
 local function rotateGearshift(forward)
     local speed = forward and GEARSHIFT_SPEED or -GEARSHIFT_SPEED
@@ -131,10 +124,7 @@ local statusLabel = screen:addLabel()
     :setSize(w - 2, 1)
     :setForeground(colors.lightGray)
 
--- AUTO button + one ON/OFF toggle button. Toggle always shows the live signal
--- value (previews the timer's value while in AUTO); clicking it flips that
--- value and switches to MANUAL. Cooldown blocks rapid double-clicks so the
--- gearshift never gets a second rotate() command mid-rotation.
+-- AUTO + ON/OFF toggle buttons, with a click cooldown
 local BUTTON_COOLDOWN = 1500 -- ms
 local function withCooldown(button, action)
     button:onClick(function()
@@ -165,10 +155,7 @@ withCooldown(toggleButton, function()
 end)
 
 -- ====================== SIGNAL LOOP ======================
--- Runs the timer/manual decision, drives the outputs and rotates the gearshift.
--- Separate coroutine from the clock loop below -- a slow/blocked gearshift only
--- stalls this loop, never the on-screen clock. pcall so a peripheral error
--- shows on screen instead of killing the loop.
+-- own coroutine, separate from the clock loop below
 local function computeAndApply()
     local time = os.time("ingame")
     local night = isNight(time)
@@ -228,7 +215,6 @@ basalt.schedule(function()
 end)
 
 -- ====================== CLOCK LOOP ======================
--- Own coroutine, no peripheral/gearshift calls -- always ticks, never freezes.
 basalt.schedule(function()
     while true do
         clockLabel:setText(formatTime(os.time("ingame")))

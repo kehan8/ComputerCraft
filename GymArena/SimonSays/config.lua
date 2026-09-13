@@ -1,6 +1,4 @@
--- config.lua: your local settings for this puzzle.
--- update.lua does NOT touch this file, so your changes survive a normal update.
--- Run update_full.lua instead if you ever want this file reset back to the repo defaults.
+-- config.lua: local settings, not touched by update.lua (see README).
 
 return {
     MONITOR_NAME = nil,        -- e.g. "monitor_0" to force a specific monitor; nil = auto-detect

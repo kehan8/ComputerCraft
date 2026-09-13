@@ -1,9 +1,7 @@
--- WelcomeDoor
--- Opens the door + welcomes players at the door box, says goodbye when they
--- leave the building box. Not admin gated.
+-- WelcomeDoor: opens the door + welcomes players at the door box, says
+-- goodbye when they leave the building box. Not admin gated.
 
 -- ====================== CONFIG ======================
--- Local settings: config.lua (not touched by update.lua).
 local config = require("config")
 local BUILDING_NAME = config.BUILDING_NAME
 local DETECTOR_NAME = config.DETECTOR_NAME
@@ -23,10 +21,9 @@ local POLL_INTERVAL = config.POLL_INTERVAL
 local MODEM_NAME = config.MODEM_NAME
 local MODEM_ENABLED = config.MODEM_ENABLED
 
--- Local coordinates: locations.lua (not touched by update.lua).
 local locations = require("locations")
 
--- Sorts each axis so MIN <= MAX, no matter which corner the user typed first.
+-- normalizes each axis so MIN <= MAX
 local function normalizeBox(min, max)
     local nmin, nmax = {}, {}
     for _, axis in ipairs({ "x", "y", "z" }) do

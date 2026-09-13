@@ -5,7 +5,6 @@ return {
     BUILDING_NAME = "Your Building",
 
     -- Player Detector, checks both boxes from locations.lua.
-    -- Side name or network name; see peripheral.getNames().
     DETECTOR_NAME = "player_detector_0",
 
     -- Drives the door: computer redstone, a Redstone Relay, or both.

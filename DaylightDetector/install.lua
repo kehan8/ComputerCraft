@@ -29,8 +29,7 @@ for _, name in ipairs(FILES) do
     downloadFile(name)
 end
 
--- Gives the ControlRoom computer something readable to show for this device;
--- never overwrites a label you already set yourself.
+-- name this device, never overwrites an existing label
 if not os.getComputerLabel() then
     local defaultLabel = "DaylightDetector-" .. os.getComputerID()
     print("Name this device? (Enter or SKIP = '" .. defaultLabel .. "')")

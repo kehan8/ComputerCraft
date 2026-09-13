@@ -1,14 +1,11 @@
--- update.lua: redownloads the game files from GitHub.
--- Leaves config.lua alone so your local settings (modem, monitor, ...) survive the update.
--- Run update_full.lua instead if you want config.lua reset to the repo defaults too.
+-- update.lua: redownloads the code files, leaves config.lua alone.
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymArena/ControlRoom/"
 
 local FILES = { "startup.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
 
 local function downloadFile(name)
-    -- Cache-busting query param: raw.githubusercontent.com caches for a few
-    -- minutes, so without this, a fresh push might not show up right away.
+    -- cache-busting
     local request = http.get(REPO_URL .. name .. "?t=" .. os.epoch("utc"))
     if not request then
         print("Failed to download " .. name)

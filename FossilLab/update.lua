@@ -1,5 +1,4 @@
--- Redownloads the code from GitHub. Leaves config.lua alone -- run update_full.lua
--- instead if you want config.lua reset to the repo defaults too.
+-- update.lua: redownloads the code files, leaves config.lua alone.
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/FossilLab/"
 

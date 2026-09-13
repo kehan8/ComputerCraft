@@ -1,14 +1,7 @@
--- FossilLab
--- Live status monitor for Cobblemon's Fossil Analyzer / Restoration Tank
--- multiblock, read via an Advanced Peripherals Block Reader placed against the
--- Analyzer (see test_blockreader.lua for how this was confirmed in-game --
--- no coordinates, no Command Computer/OP needed). fossildata.lua interprets
--- the raw NBT into a clean state; fossilhistory.lua remembers past
--- restorations across reboots (the multiblock forgets InsertedFossil itself
--- the moment the Pokemon is claimed).
+-- FossilLab: live status monitor for Cobblemon's Fossil Analyzer /
+-- Restoration Tank, read via an Advanced Peripherals Block Reader.
 
 -- ====================== CONFIG ======================
--- Your local settings live in config.lua (not touched by update.lua).
 local config = require("config")
 local BLOCKREADER_NAME = config.BLOCKREADER_NAME
 local POLL_INTERVAL = config.POLL_INTERVAL
@@ -20,10 +13,7 @@ local MODEM_ENABLED = config.MODEM_ENABLED
 local HEARTBEAT_INTERVAL = config.HEARTBEAT_INTERVAL
 -- ======================================================
 
--- Protocol used to report status to the ControlRoom computer (see
--- ../GymArena/ControlRoom). FossilLab isn't "controllable" -- there's no
--- reset/new-game concept for a fossil machine -- so it only ever broadcasts,
--- it never listens for commands.
+-- reports status to ControlRoom, broadcast-only (nothing to reset here)
 local PROTOCOL = "controlroom"
 local DEVICE_TYPE = "FossilLab"
 
@@ -58,8 +48,7 @@ if MODEM_ENABLED then
     rednet.open(MODEM_NAME)
 end
 
--- Not fatal if missing -- unlike the monitor/modem, a Block Reader can be
--- placed/replaced later. The UI just shows "NO SIGNAL" until it's found.
+-- not fatal if missing, UI shows "NO SIGNAL" until found
 local reader = fossildata.findReader(BLOCKREADER_NAME)
 if BLOCKREADER_NAME and not reader then
     print("Warning: could not find Block Reader '" .. BLOCKREADER_NAME .. "'. Check the cable/name.")
@@ -68,10 +57,7 @@ end
 local history = fossilhistory.load()
 
 -- ====================== UI ======================
--- Colored blocks (progress bar, phase badge) are built from Buttons, not
--- Labels -- Basalt2 Label backgrounds don't render in this setup, only text
--- does (see TicTacToe's icontest.lua finding). Nothing here is clickable;
--- Buttons are used purely for their background color.
+-- colored blocks use Buttons, not Labels (Label backgrounds don't render)
 local w, h = screen:getSize()
 
 screen:addLabel()
@@ -134,8 +120,7 @@ screen:addLabel()
     :setSize(w - 2, 1)
     :setForeground(colors.lightGray)
 
--- All history rows pre-drawn blank here (same reasoning as ControlRoom's device
--- rows) -- only :setText() runs on them below this point.
+-- history rows pre-drawn blank, only :setText() runs on them below
 local HISTORY_START_Y = 13
 local historyLabels = {}
 for i = 1, math.max(0, h - HISTORY_START_Y + 1) do
@@ -147,8 +132,7 @@ for i = 1, math.max(0, h - HISTORY_START_Y + 1) do
 end
 
 -- ====================== RENDER ======================
--- Short species name only ("Omanyte" not "cobblemon:omanyte") -- the
--- namespace prefix is just noise on a small monitor.
+-- "Omanyte" not "cobblemon:omanyte"
 local function shortSpecies(id)
     if not id then return "--" end
     local short = id:match(":(.+)$") or id
@@ -213,9 +197,7 @@ end
 renderHistory()
 
 -- ====================== POLL LOOP ======================
--- HasCreatedPokemon flips 0 -> 1 the instant the analysis finishes; edge-detect
--- that (not just "phase == ready" every tick) so it's logged exactly once, and
--- a restart mid-"ready" state doesn't re-log the same find.
+-- edge-detects the ready transition so a find is logged exactly once
 local wasReady = false
 
 local function poll()
@@ -242,10 +224,7 @@ local function poll()
     renderState(state)
 end
 
--- Background loops started immediately (not via basalt.schedule -- that only
--- reliably resumes coroutines registered from inside an existing Basalt event,
--- not ones fired off cold at script start; parallel.waitForAny is the proven
--- pattern for that, same as ControlRoom's listenForStatus/watchForStaleDevices).
+-- parallel.waitForAny, not basalt.schedule (needs to run from cold start)
 local function pollLoop()
     while true do
         poll()

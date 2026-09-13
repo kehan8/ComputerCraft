@@ -6,8 +6,7 @@ return {
     DOOR_MIN = { x = 0, y = 0, z = 0 },
     DOOR_MAX = { x = 0, y = 0, z = 0 },
 
-    -- Box covering the building. Leaving it triggers goodbye.
-    -- Must fit fully inside this box (checked on startup).
+    -- Box covering the building. Leaving it triggers goodbye. DOOR box must fit inside.
     BUILDING_MIN = { x = 0, y = 0, z = 0 },
     BUILDING_MAX = { x = 0, y = 0, z = 0 },
 }

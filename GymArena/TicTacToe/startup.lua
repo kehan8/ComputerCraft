@@ -1,9 +1,7 @@
--- Tic Tac Toe puzzle
--- UI with Basalt2 (https://basalt.madefor.cc/); board.lua and ai.lua hold the game logic.
--- When the player (X) wins, a redstone signal goes high; wiring that to a door is up to you.
+-- Tic Tac Toe puzzle: board.lua/ai.lua hold the game logic. Player (X)
+-- winning raises a redstone signal.
 
 -- ====================== CONFIG ======================
--- Your local settings live in config.lua (not touched by update.lua).
 local config = require("config")
 local MONITOR_NAME = config.MONITOR_NAME
 local MONITOR_SCALE = config.MONITOR_SCALE
@@ -13,8 +11,7 @@ local MODEM_NAME = config.MODEM_NAME
 local MODEM_ENABLED = config.MODEM_ENABLED
 -- ======================================================
 
--- Protocol used to report status to, and accept a remote "Reset" from, the
--- ControlRoom computer (see ../ControlRoom).
+-- reports status to, and accepts a remote reset from, ControlRoom
 local PROTOCOL = "controlroom"
 local DEVICE_TYPE = "TicTacToe"
 local HEARTBEAT_INTERVAL = 2
@@ -191,7 +188,7 @@ local function onCellClick(r, c)
     setStatus("Your turn (X)")
 end
 
--- Layout: 3x3 grid of buttons, centered on the screen.
+-- layout: 3x3 grid of buttons, centered
 local CHAR_ASPECT = 1.5
 local LINE_THICKNESS = 2
 local w, h = screen:getSize()
@@ -209,7 +206,7 @@ statusLabel = screen:addLabel()
     :setBackground(colors.black)
     :setForeground(colors.white)
 
--- Button size leaves a LINE_THICKNESS-wide gap after each cell for the grid line
+-- leaves a LINE_THICKNESS-wide gap after each cell for the grid line
 local btnW = cellW - LINE_THICKNESS
 local btnH = cellH - LINE_THICKNESS
 
@@ -262,7 +259,7 @@ for r = 1, 3 do
     end
 end
 
--- White grid lines between the cells
+-- grid lines between the cells
 local LINE_COLOR = colors.white
 for i = 1, 2 do
     screen:addButton():setText(""):setPosition(startX + i * cellW - LINE_THICKNESS, startY):setSize(LINE_THICKNESS, cellH * 3 - LINE_THICKNESS):setBackground(LINE_COLOR)
@@ -277,8 +274,7 @@ screen:addButton()
     :setForeground(colors.white)
     :onClick(resetGame)
 
--- Reports status to, and accepts remote "Reset" from, ControlRoom. Runs via
--- `parallel`, not basalt.schedule(), since Basalt won't resume on "rednet_message".
+-- parallel (not basalt.schedule) since Basalt won't resume on rednet_message
 local function reportStatus()
     while true do
         rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = lastStatusText }, PROTOCOL)
