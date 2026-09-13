@@ -7,8 +7,9 @@ The main overview computer for [AdminDoor](../AdminDoor), [GymLock](../GymLock),
 ## What it does
 
 - Listens on a wireless [rednet](https://tweaked.cc/module/rednet.html) modem for status broadcasts from every other computer in this repo (each of the other four projects broadcasts its own status every few seconds once you've applied their ControlRoom update).
-- A row appears **automatically** the first time a device broadcasts — nothing to register or configure per device, no IDs to keep in sync between computers. Up to `MAX_DEVICES` rows are pre-drawn (blank) at startup and get claimed as devices check in.
+- A row appears **automatically** the first time a device broadcasts — nothing to register or configure per device, no IDs to keep in sync between computers. Devices keep their place in that list (and therefore their page/row) for as long as ControlRoom keeps running, whether they're online or offline.
 - Each row is a small card: device name + an **ONLINE**/**OFFLINE** badge on the first line, and on the line below it, the exact same status text that device shows on its own screen (e.g. "Access granted: Steve", "Simon Says: SOLVED | ..."). A device that's gone quiet for `HEARTBEAT_TIMEOUT` seconds flips to OFFLINE, but keeps showing its last known status (dimmed) instead of disappearing.
+- `ROWS_PER_PAGE` rows are pre-drawn (blank) at startup and get filled in as devices check in. Once more devices check in than fit on one page, a **"< Prev" / "Next >"** bar appears below the rows with a **"Page X/Y"** counter — click through to see the rest instead of needing a bigger monitor. Devices beyond `ROWS_PER_PAGE` just land on page 2, 3, ... in the order they first checked in.
 - Tic Tac Toe and Simon Says rows get a **Reset** button — it tells that computer to run the exact same reset its own "New game"/"Start" button would (board/pattern cleared, door closed), just from here instead of walking over.
 - AdminDoor and GymLock are read-only here — no controls, matching how they work locally.
 
@@ -43,21 +44,26 @@ MONITOR_NAME = nil,    -- e.g. "monitor_0" to force a specific monitor; nil = au
 MONITOR_SCALE = 0.5,   -- text scale on the monitor
 
 HEARTBEAT_TIMEOUT = 8, -- seconds without a broadcast before a device shows "offline"
-MAX_DEVICES = 8,       -- how many device rows to pre-draw (raise if you add more devices)
+ROWS_PER_PAGE = 8,     -- how many device rows to pre-draw per page (raise/lower to fit your monitor)
+MAX_DEVICES = 32,      -- safety cap on the TOTAL number of devices tracked, across all pages
 ```
 
 If you're not sure what your modem/monitor is named, run `peripheral.getNames()` from the Lua prompt to list connected peripherals.
 
-> Updating from an older install? `update.lua` never touches `config.lua`, so the new `MODEM_ENABLED` field won't appear on its own — run `update_full` (see below) or add the line yourself.
+> Updating from an older install? `update.lua` never touches `config.lua`, so new fields (`MODEM_ENABLED`, and as of the pagination update, `ROWS_PER_PAGE`) won't appear on their own — run `update_full` (see below) or add the line(s) yourself. Older configs also have a `MAX_DEVICES` with the *old* meaning ("rows to pre-draw"); the new meaning is "total devices tracked across all pages" — `startup.lua` falls back to sane defaults if either field is missing, but running `update_full` once is the clean way to pick up the new field and meaning together.
 
 ### Sizing the monitor
 
-Each device takes 2 lines (name/badge line + status line). If a device's status text gets cut off on a small monitor, that's a monitor-size problem, not a bug:
+Each device takes 2 lines (name/badge line + status line), plus one extra "< Prev / Page X/Y / Next >" line always drawn right below the last device row. If a device's status text gets cut off on a small monitor, that's a monitor-size problem, not a bug:
 
 - **Status text cut off** (a row is too narrow) → make the monitor **wider**.
-- **Rows running off the bottom** (you have several devices) → make the monitor **taller**.
+- **Rows (or the Prev/Next bar) running off the bottom** → make the monitor **taller**, or lower `ROWS_PER_PAGE` in `config.lua` so fewer rows are drawn per page — extra devices beyond `ROWS_PER_PAGE` are still reachable, just on page 2, 3, ... via the Prev/Next buttons instead of scrolling off-screen.
 
-A 3x6 (width x height) Advanced Monitor at the default `MONITOR_SCALE` comfortably fits all five devices from this repo with room to spare.
+A 3x6 (width x height) Advanced Monitor at the default `MONITOR_SCALE` comfortably fits all five devices from this repo (well under the default `ROWS_PER_PAGE = 8`) with room to spare, including the Prev/Next bar.
+
+### More devices than fit on one page
+
+Once more devices check in than `ROWS_PER_PAGE`, a "< Prev" / "Next >" bar with a "Page X/Y" counter appears below the rows automatically — no config needed for this part, it just shows up. Devices are assigned to pages in the order they first broadcast, and keep that same page/row for as long as ControlRoom keeps running (even while offline), so the layout doesn't shuffle around while you're looking at it. If you plan on ever having more than `MAX_DEVICES` devices in total (across all pages), raise that value in `config.lua` too — it's a safety cap on the internal tracking list, separate from `ROWS_PER_PAGE` (which only controls how many rows are visible per page).
 
 ### Telling devices apart
 

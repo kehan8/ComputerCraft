@@ -1,6 +1,8 @@
 -- ControlRoom
 -- Shows live status from AdminDoor/GymLock/TicTacToe/SimonSays. Devices claim a
--- row automatically on first broadcast. TicTacToe/SimonSays get a Reset button.
+-- row automatically on first broadcast, spilling onto extra pages (Prev/Next
+-- buttons) once there are more devices than fit on one screen. TicTacToe/
+-- SimonSays get a Reset button.
 
 -- ====================== CONFIG ======================
 -- Your local settings live in config.lua (not touched by update.lua).
@@ -10,7 +12,13 @@ local MODEM_ENABLED = config.MODEM_ENABLED
 local MONITOR_NAME = config.MONITOR_NAME
 local MONITOR_SCALE = config.MONITOR_SCALE
 local HEARTBEAT_TIMEOUT = config.HEARTBEAT_TIMEOUT
-local MAX_DEVICES = config.MAX_DEVICES
+-- Fall back to sane defaults if you're updating from an older config.lua that
+-- predates pagination (update.lua never rewrites config.lua) -- ROWS_PER_PAGE
+-- didn't exist yet, and MAX_DEVICES used to mean "rows to pre-draw" (a much
+-- smaller number than its new meaning, "total devices tracked"), so an old
+-- value there is still safe to reuse as ROWS_PER_PAGE's fallback too.
+local ROWS_PER_PAGE = config.ROWS_PER_PAGE or config.MAX_DEVICES or 8
+local MAX_DEVICES = config.MAX_DEVICES or 32
 -- ======================================================
 
 if not fs.exists("basalt") and not fs.exists("basalt.lua") then
@@ -57,15 +65,17 @@ screen:addLabel()
 
 -- ====================== DEVICE ROWS ======================
 -- All rows pre-drawn blank here -- Basalt won't reliably draw widgets added
--- after basalt.run() starts, so only :setText() runs below this point.
+-- after basalt.run() starts, so only :setText() runs below this point. These
+-- rows are one PAGE worth of slots and get reused/refilled as you flip pages --
+-- a row is no longer permanently tied to one device.
 -- Each row: name + ONLINE/OFFLINE badge + Reset button, status text below.
 local ROW_HEIGHT = 3 -- name/badge/button line, status line, blank spacer
 local NAME_WIDTH = math.max(1, w - 21)
 
 local slots = {}
-for i = 1, MAX_DEVICES do
+for i = 1, ROWS_PER_PAGE do
     local y = 3 + (i - 1) * ROW_HEIGHT
-    local slot = { senderId = nil, controllable = false, online = false, label = "", status = "" }
+    local slot = { device = nil }
 
     slot.nameLabel = screen:addLabel()
         :setText("")
@@ -87,8 +97,10 @@ for i = 1, MAX_DEVICES do
         :setBackground(colors.black)
         :setForeground(colors.white)
         :onClick(function()
-            if slot.controllable and slot.senderId then
-                rednet.send(slot.senderId, { cmd = "new_game" }, PROTOCOL)
+            -- Reads whichever device this row currently shows, not a fixed one --
+            -- the row gets refilled every time the page changes.
+            if slot.device and slot.device.controllable and slot.device.senderId then
+                rednet.send(slot.device.senderId, { cmd = "new_game" }, PROTOCOL)
             end
         end)
 
@@ -101,47 +113,113 @@ for i = 1, MAX_DEVICES do
     slots[i] = slot
 end
 
--- Keyed by rednet computer ID (always unique, assigned by CC:Tweaked -- no manual
--- device IDs to keep in sync between this config and each satellite's config).
-local deviceSlot = {}
-local nextFreeSlot = 1
+-- ====================== PAGINATION BAR ======================
+-- One extra row below the device rows: "< Prev" / "Next >" buttons plus a
+-- "Page X/Y" label. Always drawn, even with a single page -- clicking Prev/Next
+-- when there's nothing else to show is a harmless no-op (see renderPage below).
+local pagerY = 3 + ROWS_PER_PAGE * ROW_HEIGHT
 
-local function claimSlot(senderId, controllable)
-    if nextFreeSlot > MAX_DEVICES then
-        return nil -- out of rows; raise MAX_DEVICES in config.lua
-    end
-    local slot = slots[nextFreeSlot]
-    nextFreeSlot = nextFreeSlot + 1
+local prevButton = screen:addButton()
+    :setText("< Prev")
+    :setPosition(2, pagerY)
+    :setSize(8, 1)
+    :setBackground(colors.gray)
+    :setForeground(colors.white)
 
-    slot.senderId = senderId
-    slot.controllable = controllable
-    if controllable then
-        slot.button:setText("Reset"):setBackground(colors.green)
-    end
+local nextButton = screen:addButton()
+    :setText("Next >")
+    :setPosition(w - 9, pagerY)
+    :setSize(8, 1)
+    :setBackground(colors.gray)
+    :setForeground(colors.white)
 
-    deviceSlot[senderId] = slot
-    return slot
+local pageLabel = screen:addLabel()
+    :setText("")
+    :setPosition(11, pagerY)
+    :setSize(math.max(1, w - 20), 1)
+    :setForeground(colors.white)
+
+-- ====================== DEVICE TRACKING ======================
+-- Ordered by first-seen (append-only) and keyed by rednet computer ID (always
+-- unique, assigned by CC:Tweaked -- no manual device IDs to keep in sync between
+-- this config and each satellite's config). A device keeps its place in this
+-- list -- and therefore its page and row -- for as long as ControlRoom runs,
+-- whether it's online or offline.
+local deviceList = {}
+local deviceIndex = {} -- senderId -> index into deviceList
+local currentPage = 1
+
+local function totalPages()
+    return math.max(1, math.ceil(#deviceList / ROWS_PER_PAGE))
 end
 
-local function refreshRow(slot)
-    slot.nameLabel:setText(slot.label)
-
-    slot.badge
-        :setText(slot.online and "ONLINE" or "OFFLINE")
-        :setBackground(slot.online and colors.green or colors.gray)
-        :setForeground(slot.online and colors.black or colors.white)
-
-    -- Same wording the device shows itself; stays visible (dimmed) while offline.
-    slot.statusLabel
-        :setText(slot.status or "")
-        :setForeground(slot.online and colors.lime or colors.gray)
+-- Appends a never-seen-before device to the tracking list. Returns nil (and the
+-- broadcast is silently dropped) once MAX_DEVICES total devices are tracked.
+local function registerDevice(senderId, controllable)
+    if #deviceList >= MAX_DEVICES then
+        return nil -- out of tracking slots; raise MAX_DEVICES in config.lua
+    end
+    local device = {
+        senderId = senderId,
+        controllable = controllable,
+        online = false,
+        label = "",
+        status = "",
+        lastSeen = 0,
+    }
+    table.insert(deviceList, device)
+    deviceIndex[senderId] = #deviceList
+    return device
 end
+
+-- Fills the on-screen rows with whichever page's worth of devices belongs
+-- there, and refreshes the "Page X/Y" bar. Safe to call repeatedly (e.g. on
+-- every status update) -- it just redraws the current page.
+local function renderPage(n)
+    currentPage = math.min(math.max(n, 1), totalPages())
+    local firstIndex = (currentPage - 1) * ROWS_PER_PAGE
+
+    for i, slot in ipairs(slots) do
+        local device = deviceList[firstIndex + i]
+        slot.device = device
+
+        if device then
+            slot.nameLabel:setText(device.label)
+            slot.badge
+                :setText(device.online and "ONLINE" or "OFFLINE")
+                :setBackground(device.online and colors.green or colors.gray)
+                :setForeground(device.online and colors.black or colors.white)
+            -- Same wording the device shows itself; stays visible (dimmed) while offline.
+            slot.statusLabel
+                :setText(device.status or "")
+                :setForeground(device.online and colors.lime or colors.gray)
+            if device.controllable then
+                slot.button:setText("Reset"):setBackground(colors.green)
+            else
+                slot.button:setText(""):setBackground(colors.black)
+            end
+        else
+            -- Past the end of the device list on this page -- blank row.
+            slot.nameLabel:setText("")
+            slot.badge:setText(""):setBackground(colors.black):setForeground(colors.white)
+            slot.statusLabel:setText("")
+            slot.button:setText(""):setBackground(colors.black)
+        end
+    end
+
+    -- Always shown, even with a single page -- clicking Prev/Next on page 1/1
+    -- just re-renders the same page (clamped above), so there's nothing to hide.
+    pageLabel:setText("Page " .. currentPage .. "/" .. totalPages())
+end
+
+prevButton:onClick(function() renderPage(currentPage - 1) end)
+nextButton:onClick(function() renderPage(currentPage + 1) end)
 
 -- ====================== BACKGROUND TASKS ======================
 -- basalt.schedule() doesn't resume on "rednet_message" -- these run via
 -- `parallel` alongside basalt.run() instead.
 
--- Listens for status broadcasts and claims/updates a row per device the first
+-- Listens for status broadcasts and registers/updates a device the first
 -- time it hears from it.
 local function listenForStatus()
     while true do
@@ -149,13 +227,14 @@ local function listenForStatus()
         if msg and msg.status then
             -- Falls back to "Computer <ID>" if never labeled via os.setComputerLabel().
             local label = msg.label or ("Computer " .. senderId)
-            local slot = deviceSlot[senderId] or claimSlot(senderId, CONTROLLABLE_TYPES[msg.type] == true)
-            if slot then
-                slot.label = label
-                slot.status = msg.status
-                slot.online = true
-                slot.lastSeen = os.epoch("utc")
-                refreshRow(slot)
+            local device = deviceIndex[senderId] and deviceList[deviceIndex[senderId]]
+                or registerDevice(senderId, CONTROLLABLE_TYPES[msg.type] == true)
+            if device then
+                device.label = label
+                device.status = msg.status
+                device.online = true
+                device.lastSeen = os.epoch("utc")
+                renderPage(currentPage)
             end
         end
     end
@@ -165,13 +244,18 @@ end
 local function watchForStaleDevices()
     while true do
         os.sleep(1)
-        for _, slot in pairs(deviceSlot) do
-            if slot.online and os.epoch("utc") - slot.lastSeen > HEARTBEAT_TIMEOUT * 1000 then
-                slot.online = false
-                refreshRow(slot)
+        local changed = false
+        for _, device in ipairs(deviceList) do
+            if device.online and os.epoch("utc") - device.lastSeen > HEARTBEAT_TIMEOUT * 1000 then
+                device.online = false
+                changed = true
             end
+        end
+        if changed then
+            renderPage(currentPage)
         end
     end
 end
 
+renderPage(1)
 parallel.waitForAny(function() basalt.run() end, listenForStatus, watchForStaleDevices)

@@ -12,8 +12,14 @@ return {
     -- Seconds without a status broadcast from a device before it's shown as "offline".
     HEARTBEAT_TIMEOUT = 8,
 
-    -- How many device rows to draw on the monitor. All rows are created up front
-    -- (blank) at startup and filled in as devices broadcast -- Basalt doesn't
-    -- reliably draw widgets added after basalt.run() has started.
-    MAX_DEVICES = 8,
+    -- How many device rows fit on ONE page of the monitor. All rows for a page
+    -- are created up front (blank) at startup and filled in as devices broadcast
+    -- -- Basalt doesn't reliably draw widgets added after basalt.run() has started.
+    ROWS_PER_PAGE = 8,
+
+    -- Safety cap on the total number of *distinct* devices ControlRoom will ever
+    -- track, across ALL pages combined. Raise this if you have more devices than
+    -- this in total -- extra devices beyond ROWS_PER_PAGE just land on page 2, 3, ...
+    -- reachable via the "< Prev" / "Next >" buttons, no monitor resize needed.
+    MAX_DEVICES = 32,
 }
