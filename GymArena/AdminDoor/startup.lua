@@ -39,12 +39,13 @@ local function toList(v)
     end
 end
 
--- Supports either the classic single DOOR_MIN/DOOR_MAX box, or an optional
--- locations.BOXES list for multiple detection zones. Falls back to the single
--- box when BOXES isn't set, so existing locations.lua files keep working untouched.
-local rawBoxes = locations.BOXES or { { min = locations.DOOR_MIN, max = locations.DOOR_MAX } }
+-- locations.BOXES is a list of { min = {...}, max = {...} } boxes. 1 box or
+-- many both work -- startup.lua checks all of them and merges the results.
+if not locations.BOXES or #locations.BOXES == 0 then
+    error("locations.lua must define BOXES with at least one { min = ..., max = ... } box.")
+end
 local doorBoxes = {}
-for i, box in ipairs(rawBoxes) do
+for i, box in ipairs(locations.BOXES) do
     local nmin, nmax = normalizeBox(box.min, box.max)
     doorBoxes[i] = { min = nmin, max = nmax }
 end

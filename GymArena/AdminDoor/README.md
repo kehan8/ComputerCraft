@@ -72,11 +72,18 @@ Use a list if your door needs redstone driven from more than one side/block. `DO
 
 ### Coordinates: locations.lua
 
-Open `locations.lua` and set `DOOR_MIN`/`DOOR_MAX` to two opposite corners of a box covering the door. Stand at each corner and read the coordinates with F3 — order doesn't matter, `startup.lua` sorts them for you.
+Open `locations.lua` and set `BOXES` to a list of one or more boxes, each with two opposite corners covering the door. Stand at each corner and read the coordinates with F3 — order doesn't matter within a box, `startup.lua` sorts min/max for you.
+
+```lua
+BOXES = {
+    { min = { x = 0, y = 0, z = 0 }, max = { x = 0, y = 0, z = 0 } },
+    -- { min = { x = 10, y = 0, z = 0 }, max = { x = 10, y = 0, z = 0 } },  -- optional 2nd box
+},
+```
 
 > Known limitation: keep at least 2-3 blocks of margin on each axis. A box only 1 block thick on an axis can miss players standing right at the edge.
 
-**1 or more boxes:** by default `startup.lua` only checks the single `DOOR_MIN`/`DOOR_MAX` box above. If your door is wide enough to need two separate detection zones (or you want a second box elsewhere), uncomment the `BOXES` list in `locations.lua` instead — `startup.lua` checks every box in it and merges the results (a player only counts once, even if boxes overlap). 1 box or many both work with no errors; `BOXES`, when set, takes priority over `DOOR_MIN`/`DOOR_MAX`.
+**1 or more boxes:** `startup.lua` checks every box in `BOXES` and merges the results (a player only counts once, even if boxes overlap). Got a wide door, or a second separate detection zone? Just add another `{ min = ..., max = ... }` entry to the list — 1 box or many both work with no errors. `BOXES` must have at least one entry, or `startup.lua` refuses to start.
 
 If you have more than one AdminDoor and want [ControlRoom](../ControlRoom) to tell them apart, give each a label: `label set AdminDoor-Achterdeur`.
 
