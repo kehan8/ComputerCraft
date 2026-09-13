@@ -15,7 +15,7 @@
 -- zien die oploopt/verandert. Druk op een toets om te stoppen.
 
 local INTERVAL = 0.5
-local SIDES = { "top", "bottom", "north", "south", "east", "west" }
+local SIDES = { "top", "bottom", "front", "back", "right", "left" }
 
 local LOG_FILE = "test_redstone_output.txt"
 local logLines = {}
