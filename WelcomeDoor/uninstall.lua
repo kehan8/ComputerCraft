@@ -3,10 +3,11 @@
 local FILES = { "startup.lua", "update.lua", "update_full.lua", "install.lua" }
 
 print("This will remove: " .. table.concat(FILES, ", "))
-io.write("Also remove config.lua (your monitor/relay settings)? (y/N): ")
+io.write("Also remove config.lua and locations.lua (your local settings)? (y/N): ")
 local removeConfig = (read() or ""):lower() == "y"
 if removeConfig then
     table.insert(FILES, "config.lua")
+    table.insert(FILES, "locations.lua")
 end
 
 for _, name in ipairs(FILES) do

@@ -1,6 +1,6 @@
 -- WelcomeDoor
 -- Door detector opens the door + welcomes new players. Building detector notices
--- when a welcomed player drops out of range and sends a goodbye + resets them.
+-- when a welcomed player drops out of the building box and sends a goodbye + resets them.
 -- Not admin gated -- everyone gets the same treatment.
 
 -- ====================== CONFIG ======================
@@ -8,10 +8,8 @@
 local config = require("config")
 local BUILDING_NAME = config.BUILDING_NAME
 local DETECTOR_NAME = config.DETECTOR_NAME
-local DETECT_RANGE = config.DETECT_RANGE
 local BUILDING_DETECTOR_ENABLED = config.BUILDING_DETECTOR_ENABLED
 local BUILDING_DETECTOR_NAME = config.BUILDING_DETECTOR_NAME
-local BUILDING_DETECT_RANGE = config.BUILDING_DETECT_RANGE
 local COMPUTER_SIDE = config.COMPUTER_SIDE
 local COMPUTER_ENABLED = config.COMPUTER_ENABLED
 local DOOR_RELAY_NAME = config.DOOR_RELAY_NAME
@@ -27,6 +25,13 @@ local CLOSED_MESSAGE = config.CLOSED_MESSAGE
 local POLL_INTERVAL = config.POLL_INTERVAL
 local MODEM_NAME = config.MODEM_NAME
 local MODEM_ENABLED = config.MODEM_ENABLED
+
+-- Your local coordinates live in locations.lua (not touched by update.lua).
+local locations = require("locations")
+local DOOR_MIN = locations.DOOR_MIN
+local DOOR_MAX = locations.DOOR_MAX
+local BUILDING_MIN = locations.BUILDING_MIN
+local BUILDING_MAX = locations.BUILDING_MAX
 -- ======================================================
 
 -- Protocol used to report status to the ControlRoom computer (see ../GymArena/ControlRoom).
@@ -186,10 +191,13 @@ refreshUI()
 
 -- ====================== DETECTION LOOP ======================
 local function update()
-    local doorPlayers = doorDetector.getPlayersInRange(DETECT_RANGE)
-    local buildingPlayers = nil
+    local doorPlayers = doorDetector.getPlayersInCoords(DOOR_MIN, DOOR_MAX)
+    local buildingPlayers
     if BUILDING_DETECTOR_ENABLED then
-        buildingPlayers = buildingDetector.getPlayersInRange(BUILDING_DETECT_RANGE)
+        buildingPlayers = buildingDetector.getPlayersInCoords(BUILDING_MIN, BUILDING_MAX)
+    else
+        -- No 2nd detector: the door detector reads the building box itself instead.
+        buildingPlayers = doorDetector.getPlayersInCoords(BUILDING_MIN, BUILDING_MAX)
     end
 
     if active then
@@ -205,9 +213,8 @@ local function update()
         end
 
         -- Goodbye: anyone who was inside but dropped out of the watched area.
-        -- Falls back to the door detector alone if no 2nd detector is enabled.
         local stillPresent = {}
-        for _, name in ipairs(BUILDING_DETECTOR_ENABLED and buildingPlayers or doorPlayers) do
+        for _, name in ipairs(buildingPlayers) do
             stillPresent[name] = true
         end
 

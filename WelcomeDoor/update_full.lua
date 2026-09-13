@@ -1,10 +1,10 @@
--- Redownloads EVERYTHING from GitHub, including config.lua. Use if config.lua
--- gets corrupted, or to wipe local settings back to repo defaults. Your
--- REDSTONE_RELAY_NAME / GEARSHIFT_SIDE / etc. edits WILL be lost.
+-- Redownloads EVERYTHING from GitHub, including config.lua and locations.lua. Use if
+-- they get corrupted, or to wipe local settings back to repo defaults. Your
+-- DETECTOR_NAME / coordinates / etc. edits WILL be lost.
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/WelcomeDoor/"
 
-local FILES = { "config.lua", "startup.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
+local FILES = { "config.lua", "locations.lua", "startup.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
 
 local function downloadFile(name)
     -- Cache-bust: raw.githubusercontent.com caches for a few minutes.
@@ -22,10 +22,10 @@ local function downloadFile(name)
     return true
 end
 
-print("This will also overwrite config.lua with the repo defaults.")
+print("This will also overwrite config.lua and locations.lua with the repo defaults.")
 for _, name in ipairs(FILES) do
     print("Updating " .. name .. "...")
     downloadFile(name)
 end
 
-print("Done. Re-edit config.lua if needed, then run 'startup' (or reboot) to play.")
+print("Done. Re-edit config.lua/locations.lua if needed, then run 'startup' (or reboot) to play.")
