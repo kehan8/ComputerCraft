@@ -59,11 +59,24 @@ MODEM_ENABLED = false, -- set true if you have a wireless modem attached
 
 If you're not sure what your peripherals are named, run `peripheral.getNames()` from the Lua prompt to list them. The Chat Box shows up as `chat_box_N` on MC 1.21.1+ and `chatBox_N` on older versions.
 
+### 1 or more relays
+
+`DOOR_RELAY_NAME` accepts either a single name or a list — both work with no errors:
+
+```lua
+DOOR_RELAY_NAME = "redstone_relay_0",                              -- 1 relay
+DOOR_RELAY_NAME = { "redstone_relay_0", "redstone_relay_1" },      -- 2+ relays
+```
+
+Use a list if your door needs redstone driven from more than one side/block. `DOOR_SIDE` applies to every relay in the list.
+
 ### Coordinates: locations.lua
 
 Open `locations.lua` and set `DOOR_MIN`/`DOOR_MAX` to two opposite corners of a box covering the door. Stand at each corner and read the coordinates with F3 — order doesn't matter, `startup.lua` sorts them for you.
 
 > Known limitation: keep at least 2-3 blocks of margin on each axis. A box only 1 block thick on an axis can miss players standing right at the edge.
+
+**1 or more boxes:** by default `startup.lua` only checks the single `DOOR_MIN`/`DOOR_MAX` box above. If your door is wide enough to need two separate detection zones (or you want a second box elsewhere), uncomment the `BOXES` list in `locations.lua` instead — `startup.lua` checks every box in it and merges the results (a player only counts once, even if boxes overlap). 1 box or many both work with no errors; `BOXES`, when set, takes priority over `DOOR_MIN`/`DOOR_MAX`.
 
 If you have more than one AdminDoor and want [ControlRoom](../ControlRoom) to tell them apart, give each a label: `label set AdminDoor-Achterdeur`.
 

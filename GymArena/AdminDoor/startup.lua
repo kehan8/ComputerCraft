@@ -28,7 +28,26 @@ local function normalizeBox(min, max)
     return nmin, nmax
 end
 
-local DOOR_MIN, DOOR_MAX = normalizeBox(locations.DOOR_MIN, locations.DOOR_MAX)
+-- Accepts either 1 value or a list of values, so config.lua never needs special
+-- syntax for "just one relay" -- a bare string and a { ... } list both work.
+-- Everything downstream loops with ipairs() either way, so 1 or many never errors.
+local function toList(v)
+    if type(v) == "table" then
+        return v
+    else
+        return { v }
+    end
+end
+
+-- Supports either the classic single DOOR_MIN/DOOR_MAX box, or an optional
+-- locations.BOXES list for multiple detection zones. Falls back to the single
+-- box when BOXES isn't set, so existing locations.lua files keep working untouched.
+local rawBoxes = locations.BOXES or { { min = locations.DOOR_MIN, max = locations.DOOR_MAX } }
+local doorBoxes = {}
+for i, box in ipairs(rawBoxes) do
+    local nmin, nmax = normalizeBox(box.min, box.max)
+    doorBoxes[i] = { min = nmin, max = nmax }
+end
 -- ======================================================
 
 -- Protocol used to report status to the ControlRoom computer (see ../ControlRoom).
@@ -50,8 +69,14 @@ local function wrapPeripheral(name, label)
 end
 
 local detector = wrapPeripheral(DETECTOR_NAME, "Player Detector")
-local doorRelay = wrapPeripheral(DOOR_RELAY_NAME, "redstone relay")
 local chatBox = wrapPeripheral(CHATBOX_NAME, "Chat Box")
+
+-- DOOR_RELAY_NAME may be a single string or a { "name1", "name2", ... } list --
+-- toList() normalizes either into a list, so 1 relay or many both work with no errors.
+local doorRelays = {}
+for i, name in ipairs(toList(DOOR_RELAY_NAME)) do
+    doorRelays[i] = wrapPeripheral(name, "redstone relay")
+end
 
 if MODEM_ENABLED then
     if not peripheral.isPresent(MODEM_NAME) then
@@ -70,7 +95,9 @@ local function isAdmin(name)
 end
 
 local function setDoor(open)
-    doorRelay.setOutput(DOOR_SIDE, open)
+    for _, relay in ipairs(doorRelays) do
+        relay.setOutput(DOOR_SIDE, open)
+    end
 end
 
 -- Sends the intruder an in-game toast popup warning them they have no access.
@@ -106,7 +133,19 @@ local statusLabel = screen:addLabel()
 local lastIntruder = nil
 
 local function update()
-    local playersAtDoor = detector.getPlayersInCoords(DOOR_MIN, DOOR_MAX)
+    -- Scans every box in doorBoxes (1 by default, more if locations.BOXES is
+    -- set) and dedupes -- a player standing where two boxes overlap should only
+    -- count once, not trigger the toast/admin logic twice.
+    local seen = {}
+    local playersAtDoor = {}
+    for _, box in ipairs(doorBoxes) do
+        for _, name in ipairs(detector.getPlayersInCoords(box.min, box.max)) do
+            if not seen[name] then
+                seen[name] = true
+                playersAtDoor[#playersAtDoor + 1] = name
+            end
+        end
+    end
 
     local admin, intruder = nil, nil
     for _, name in ipairs(playersAtDoor) do
