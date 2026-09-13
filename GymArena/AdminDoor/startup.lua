@@ -11,6 +11,13 @@ local DETECTOR_NAME = config.DETECTOR_NAME
 local DOOR_RELAY_NAME = config.DOOR_RELAY_NAME
 local DOOR_SIDE = config.DOOR_SIDE
 local ADMIN_NAMES = config.ADMIN_NAMES
+-- Older config.lua files (from before this setting existed) won't have this
+-- field at all -- nil defaults to true, so the whitelist stays enforced
+-- exactly like before unless you explicitly set ADMIN_ENABLED = false.
+local ADMIN_ENABLED = config.ADMIN_ENABLED
+if ADMIN_ENABLED == nil then
+    ADMIN_ENABLED = true
+end
 local POLL_INTERVAL = config.POLL_INTERVAL
 local CHATBOX_NAME = config.CHATBOX_NAME
 local TOAST_TITLE = config.TOAST_TITLE
@@ -92,6 +99,9 @@ for _, name in ipairs(ADMIN_NAMES) do
 end
 
 local function isAdmin(name)
+    if not ADMIN_ENABLED then
+        return true -- whitelist check disabled: everyone detected counts as admin
+    end
     return adminSet[name:lower()] == true
 end
 
@@ -167,7 +177,11 @@ local function update()
 
     local statusText
     if admin then
-        statusText = "Access granted: " .. admin
+        if ADMIN_ENABLED then
+            statusText = "Access granted: " .. admin
+        else
+            statusText = "Open to all (admin check disabled): " .. admin
+        end
         statusLabel:setText(statusText):setForeground(colors.lime)
     elseif intruder then
         statusText = "ACCESS DENIED: " .. intruder

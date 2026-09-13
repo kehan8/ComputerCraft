@@ -12,6 +12,10 @@ return {
     -- gets the "NO ACCESS" toast instead of the door opening.
     ADMIN_NAMES = { "YourAdminName" },
 
+    -- Set false to skip the whitelist check entirely: the door opens for
+    -- anyone detected nearby, no toast ever sent. ADMIN_NAMES is then ignored.
+    ADMIN_ENABLED = true,
+
     POLL_INTERVAL = 1, -- seconds between detector scans
 
     -- Chat Box peripheral used to send the unauthorized player an in-game toast popup. 

@@ -10,6 +10,7 @@ An admin-only door: a **Player Detector** peripheral scans a box at the door, an
 - If any detected player is on the `ADMIN_NAMES` whitelist, opens the door (one relay output) and shows "Access granted: `<name>`".
 - If a detected player is **not** on the whitelist, the door stays closed and that player gets an in-game toast popup (title `TOAST_TITLE`, message `TOAST_MESSAGE`) sent straight to their screen via the Chat Box.
 - The toast only re-sends when the unauthorized player actually changes — it won't spam the same person with a toast every single poll while they just stand there.
+- Set `ADMIN_ENABLED = false` to skip the whitelist entirely: the door opens for anyone detected, no toast is ever sent, and `ADMIN_NAMES` is ignored. Handy for temporarily making the door public without ripping out the whitelist.
 - Status (who's nearby, door state) is shown as plain text on the computer's own screen — no monitor needed.
 - Broadcasts that same status over rednet so a [ControlRoom](../ControlRoom) computer can show it remotely (read-only — no controls for this device).
 
@@ -46,6 +47,7 @@ DOOR_RELAY_NAME = "redstone_relay_0", -- relay wired to the door
 DOOR_SIDE = "front",                   -- side of that relay driving the door
 
 ADMIN_NAMES = { "YourAdminName" },   -- whitelist of players allowed through
+ADMIN_ENABLED = true,                 -- false = skip the whitelist, door opens for anyone detected
 
 POLL_INTERVAL = 1, -- seconds between detector scans
 
