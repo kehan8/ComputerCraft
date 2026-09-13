@@ -1,4 +1,4 @@
--- Downloads all files from GitHub (incl. config.lua defaults) and installs Basalt.
+-- Downloads all files from GitHub and installs Basalt.
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/WelcomeDoor/"
 
@@ -29,7 +29,7 @@ for _, name in ipairs(FILES) do
     downloadFile(name)
 end
 
--- Label for ControlRoom; never overwrites one you already set.
+-- Label for ControlRoom; won't overwrite an existing one.
 if not os.getComputerLabel() then
     os.setComputerLabel("WelcomeDoor")
 end

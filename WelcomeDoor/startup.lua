@@ -1,15 +1,12 @@
 -- WelcomeDoor
--- Door detector opens the door + welcomes new players. Building detector notices
--- when a welcomed player drops out of the building box and sends a goodbye + resets them.
--- Not admin gated -- everyone gets the same treatment.
+-- Opens the door + welcomes players at the door box, says goodbye when they
+-- leave the building box. Not admin gated.
 
 -- ====================== CONFIG ======================
--- Your local settings live in config.lua (not touched by update.lua).
+-- Local settings: config.lua (not touched by update.lua).
 local config = require("config")
 local BUILDING_NAME = config.BUILDING_NAME
 local DETECTOR_NAME = config.DETECTOR_NAME
-local BUILDING_DETECTOR_ENABLED = config.BUILDING_DETECTOR_ENABLED
-local BUILDING_DETECTOR_NAME = config.BUILDING_DETECTOR_NAME
 local COMPUTER_SIDE = config.COMPUTER_SIDE
 local COMPUTER_ENABLED = config.COMPUTER_ENABLED
 local DOOR_RELAY_NAME = config.DOOR_RELAY_NAME
@@ -26,7 +23,7 @@ local POLL_INTERVAL = config.POLL_INTERVAL
 local MODEM_NAME = config.MODEM_NAME
 local MODEM_ENABLED = config.MODEM_ENABLED
 
--- Your local coordinates live in locations.lua (not touched by update.lua).
+-- Local coordinates: locations.lua (not touched by update.lua).
 local locations = require("locations")
 local DOOR_MIN = locations.DOOR_MIN
 local DOOR_MAX = locations.DOOR_MAX
@@ -34,7 +31,21 @@ local BUILDING_MIN = locations.BUILDING_MIN
 local BUILDING_MAX = locations.BUILDING_MAX
 -- ======================================================
 
--- Protocol used to report status to the ControlRoom computer (see ../GymArena/ControlRoom).
+-- Door box must fit inside the building box, or welcome+goodbye spam every tick.
+local function boxContains(outerMin, outerMax, innerMin, innerMax)
+    for _, axis in ipairs({ "x", "y", "z" }) do
+        if innerMin[axis] < outerMin[axis] or innerMax[axis] > outerMax[axis] then
+            return false
+        end
+    end
+    return true
+end
+
+if not boxContains(BUILDING_MIN, BUILDING_MAX, DOOR_MIN, DOOR_MAX) then
+    error("locations.lua: DOOR_MIN/DOOR_MAX must fit entirely inside BUILDING_MIN/BUILDING_MAX.")
+end
+
+-- Reports status to ControlRoom (see ../GymArena/ControlRoom).
 local PROTOCOL = "controlroom"
 local DEVICE_TYPE = "WelcomeDoor"
 
@@ -56,11 +67,7 @@ if not COMPUTER_ENABLED and not DOOR_RELAY_ENABLED then
     error("Enable at least one of COMPUTER_ENABLED or DOOR_RELAY_ENABLED in config.lua.")
 end
 
-local doorDetector = wrapPeripheral(DETECTOR_NAME, "door Player Detector")
-local buildingDetector = nil
-if BUILDING_DETECTOR_ENABLED then
-    buildingDetector = wrapPeripheral(BUILDING_DETECTOR_NAME, "building Player Detector")
-end
+local doorDetector = wrapPeripheral(DETECTOR_NAME, "Player Detector")
 local doorRelay = nil
 if DOOR_RELAY_ENABLED then
     doorRelay = wrapPeripheral(DOOR_RELAY_NAME, "redstone relay")
@@ -75,8 +82,10 @@ if MODEM_ENABLED then
 end
 
 -- ====================== STATE ======================
--- Names currently marked "inside" (welcomed, not yet said goodbye to).
+-- Names currently welcomed, not yet said goodbye to.
 local insideSet = {}
+-- Names already sent the closed toast at the door; cleared when they leave.
+local closedNotifiedSet = {}
 local active = true
 local lastEvent = ""
 
@@ -102,7 +111,7 @@ local function pickMessage(list)
     return list[math.random(#list)]
 end
 
--- pcall-wrapped: player may go offline/teleport away before the toast lands.
+-- pcall: player may leave before the toast lands.
 local function sendWelcome(name)
     pcall(function()
         chatBox.sendToastToPlayer(string.format(pickMessage(WELCOME_MESSAGES), BUILDING_NAME), WELCOME_TITLE, name)
@@ -117,7 +126,7 @@ local function sendBye(name)
     lastEvent = "Bye " .. name
 end
 
--- Sent once to everyone currently "inside" the moment the button flips to INACTIVE.
+-- Sent once to everyone inside when the button flips to INACTIVE.
 local function sendClosedNotice()
     for name in pairs(insideSet) do
         pcall(function()
@@ -125,6 +134,14 @@ local function sendClosedNotice()
         end)
     end
     lastEvent = "Closed notice sent"
+end
+
+-- Sent to new arrivals at the door while INACTIVE.
+local function sendClosedNoticeToPlayer(name)
+    pcall(function()
+        chatBox.sendToastToPlayer(CLOSED_MESSAGE, CLOSED_TITLE, name)
+    end)
+    lastEvent = "Closed notice to " .. name
 end
 
 -- ====================== UI ======================
@@ -183,6 +200,8 @@ activeButton:onClick(function()
     if not active then
         setDoor(false)
         sendClosedNotice()
+    else
+        closedNotifiedSet = {} -- fresh start so a later close re-notifies everyone
     end
     refreshUI()
 end)
@@ -192,19 +211,12 @@ refreshUI()
 -- ====================== DETECTION LOOP ======================
 local function update()
     local doorPlayers = doorDetector.getPlayersInCoords(DOOR_MIN, DOOR_MAX)
-    local buildingPlayers
-    if BUILDING_DETECTOR_ENABLED then
-        buildingPlayers = buildingDetector.getPlayersInCoords(BUILDING_MIN, BUILDING_MAX)
-    else
-        -- No 2nd detector: the door detector reads the building box itself instead.
-        buildingPlayers = doorDetector.getPlayersInCoords(BUILDING_MIN, BUILDING_MAX)
-    end
+    local buildingPlayers = doorDetector.getPlayersInCoords(BUILDING_MIN, BUILDING_MAX)
 
     if active then
         setDoor(#doorPlayers > 0)
 
-        -- Welcome: anyone new showing up at the door. Runs BEFORE the goodbye
-        -- check below, so a name can never get a goodbye before its welcome.
+        -- Welcome new arrivals at the door (runs before the goodbye check).
         for _, name in ipairs(doorPlayers) do
             if not insideSet[name] then
                 insideSet[name] = true
@@ -226,6 +238,21 @@ local function update()
         end
     else
         setDoor(false)
+
+        -- Closed: new arrivals get a toast instead of welcome; cleared when they leave.
+        local atDoor = {}
+        for _, name in ipairs(doorPlayers) do
+            atDoor[name] = true
+            if not closedNotifiedSet[name] then
+                closedNotifiedSet[name] = true
+                sendClosedNoticeToPlayer(name)
+            end
+        end
+        for name in pairs(closedNotifiedSet) do
+            if not atDoor[name] then
+                closedNotifiedSet[name] = nil
+            end
+        end
     end
 
     refreshUI()

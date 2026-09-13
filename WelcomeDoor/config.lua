@@ -1,24 +1,14 @@
--- config.lua: your local settings for this door.
--- update.lua does NOT touch this file, so your changes survive a normal update.
--- Run update_full.lua instead if you ever want this file reset back to the repo defaults.
+-- config.lua: local settings. update.lua won't touch this; update_full.lua resets it.
 
 return {
-    -- Shown in the welcome/goodbye/closed messages via %s.
+    -- Shown in messages via %s.
     BUILDING_NAME = "Your Building",
 
-    -- Door Player Detector. Checks the DOOR_MIN/DOOR_MAX box from locations.lua.
-    -- Value can be a redstone side ("left", "right", ...) if placed directly against
-    -- the computer, or a network name ("player_detector_0") if via Wired Modem.
-    -- Run peripheral.getNames() from the Lua prompt to see what your computer sees.
+    -- Player Detector, checks both boxes from locations.lua.
+    -- Side name or network name; see peripheral.getNames().
     DETECTOR_NAME = "player_detector_0",
 
-    -- Building detector: checks the BUILDING_MIN/BUILDING_MAX box, covering the whole
-    -- building. Sends goodbye + resets the player once they drop out of that box.
-    -- False = door detector reads that same box itself, no 2nd peripheral needed.
-    BUILDING_DETECTOR_ENABLED = false,
-    BUILDING_DETECTOR_NAME = "player_detector_1", -- side or network name, same as above
-
-    -- Drive the door via computer redstone side, a Redstone Relay, or both.
+    -- Drives the door: computer redstone, a Redstone Relay, or both.
     COMPUTER_SIDE = "back",
     COMPUTER_ENABLED = true,
 
@@ -26,8 +16,7 @@ return {
     DOOR_SIDE = "front",                   -- side of that relay driving the door
     DOOR_RELAY_ENABLED = false,
 
-    -- Chat Box peripheral used to send welcome/goodbye/closed toasts to players.
-    -- Side or network name, same rule as DETECTOR_NAME above.
+    -- Chat Box for welcome/goodbye/closed toasts. Side or network name.
     CHATBOX_NAME = "chat_box_0",
 
     WELCOME_TITLE = "Welcome!",
@@ -49,13 +38,13 @@ return {
         "Bye! Hope to see you at %s again.",
     },
 
-    -- Toast to everyone "inside" when the on-screen button flips to INACTIVE.
+    -- Toast while INACTIVE: once on close, plus to new arrivals at the door.
     CLOSED_TITLE = "Closed",
     CLOSED_MESSAGE = "We are closed.",
 
-    POLL_INTERVAL = 1, -- seconds between detector scans
+    POLL_INTERVAL = 1, -- seconds between scans
 
-    -- Wireless modem to report status to ControlRoom. False if no modem.
+    -- Wireless modem for ControlRoom status.
     MODEM_NAME = "back",
     MODEM_ENABLED = false,
 }

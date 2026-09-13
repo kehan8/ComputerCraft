@@ -1,4 +1,4 @@
--- Removes the files installed by install.lua/update.lua. Handy for a clean reinstall.
+-- Removes the files installed by install.lua/update.lua.
 
 local FILES = { "startup.lua", "update.lua", "update_full.lua", "install.lua" }
 

@@ -1,5 +1,4 @@
--- Redownloads the code from GitHub. Leaves config.lua alone -- run update_full.lua
--- instead if you want config.lua reset to the repo defaults too.
+-- Redownloads the code from GitHub. Leaves config.lua alone (use update_full.lua for that).
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/WelcomeDoor/"
 

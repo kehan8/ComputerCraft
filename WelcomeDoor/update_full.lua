@@ -1,6 +1,4 @@
--- Redownloads EVERYTHING from GitHub, including config.lua and locations.lua. Use if
--- they get corrupted, or to wipe local settings back to repo defaults. Your
--- DETECTOR_NAME / coordinates / etc. edits WILL be lost.
+-- Redownloads everything, including config.lua and locations.lua. Local edits will be lost.
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/WelcomeDoor/"
 
