@@ -1,25 +1,19 @@
--- AdminDoor: Player Detector at the door box -> admin whitelist opens it,
--- anyone else gets a "NO ACCESS" toast via Chat Box.
+-- AdminDoor: opens each door independently for whitelisted admins; anyone
+-- else gets a "NO ACCESS" toast. See README for the multi-door design.
 
 -- ====================== CONFIG ======================
 local config = require("config")
-local locations = require("locations")
 local DETECTOR_NAME = config.DETECTOR_NAME
-local DOOR_RELAY_NAME = config.DOOR_RELAY_NAME
-local DOOR_SIDE = config.DOOR_SIDE
-local ADMIN_NAMES = config.ADMIN_NAMES
-local ADMIN_ENABLED = config.ADMIN_ENABLED -- nil (old config) defaults to true
-if ADMIN_ENABLED == nil then
-    ADMIN_ENABLED = true
-end
-local POLL_INTERVAL = config.POLL_INTERVAL
 local CHATBOX_NAME = config.CHATBOX_NAME
 local TOAST_TITLE = config.TOAST_TITLE
 local TOAST_MESSAGE = config.TOAST_MESSAGE
+local POLL_INTERVAL = config.POLL_INTERVAL
 local MODEM_NAME = config.MODEM_NAME
 local MODEM_ENABLED = config.MODEM_ENABLED
 
--- normalizes min/max per axis regardless of corner order
+local locations = require("locations")
+
+-- normalizes each axis so MIN <= MAX
 local function normalizeBox(min, max)
     local nmin, nmax = {}, {}
     for _, axis in ipairs({ "x", "y", "z" }) do
@@ -29,27 +23,48 @@ local function normalizeBox(min, max)
     return nmin, nmax
 end
 
--- normalizes 1 value or a list of values into a list
-local function toList(v)
-    if type(v) == "table" then
-        return v
-    else
-        return { v }
-    end
+if not locations.DOORS or #locations.DOORS == 0 then
+    error("locations.lua must define DOORS with at least one door table (see locations.lua).")
 end
 
--- locations.BOXES: 1 or more { min = {...}, max = {...} } boxes
-if not locations.BOXES or #locations.BOXES == 0 then
-    error("locations.lua must define BOXES with at least one { min = ..., max = ... } box.")
-end
-local doorBoxes = {}
-for i, box in ipairs(locations.BOXES) do
-    local nmin, nmax = normalizeBox(box.min, box.max)
-    doorBoxes[i] = { min = nmin, max = nmax }
+-- self-contained door tables: box + wiring + whitelist together (see README)
+local doors = {}
+for i, raw in ipairs(locations.DOORS) do
+    local name = raw.name or ("Door " .. i)
+
+    if not raw.relay and not raw.computer_side then
+        error("locations.lua: door '" .. name .. "' needs a relay or a computer_side (or both).")
+    end
+    if raw.relay and not raw.relay_side then
+        error("locations.lua: door '" .. name .. "' has a relay but no relay_side.")
+    end
+
+    local nmin, nmax = normalizeBox(raw.min, raw.max)
+
+    -- nil admin_names = whitelist disabled for this door; {} = active with 0 names (locks it)
+    local adminSet = nil
+    if raw.admin_names then
+        adminSet = {}
+        for _, adminName in ipairs(raw.admin_names) do
+            adminSet[adminName:lower()] = true
+        end
+    end
+
+    doors[i] = {
+        name = name,
+        min = nmin,
+        max = nmax,
+        relay = raw.relay,
+        relay_side = raw.relay_side,
+        computer_side = raw.computer_side,
+        adminSet = adminSet,
+        relayPeripheral = nil, -- wrapped below, once peripherals are set up
+        lastIntruder = nil, -- re-sends toast only when the intruder at this door changes
+    }
 end
 -- ======================================================
 
--- Protocol used to report status to the ControlRoom computer (see ../ControlRoom).
+-- Reports status to ControlRoom (see ../ControlRoom).
 local PROTOCOL = "controlroom"
 local DEVICE_TYPE = "AdminDoor"
 
@@ -70,10 +85,11 @@ end
 local detector = wrapPeripheral(DETECTOR_NAME, "Player Detector")
 local chatBox = wrapPeripheral(CHATBOX_NAME, "Chat Box")
 
--- 1 relay or many, via toList()
-local doorRelays = {}
-for i, name in ipairs(toList(DOOR_RELAY_NAME)) do
-    doorRelays[i] = wrapPeripheral(name, "redstone relay")
+-- wrap relays now so a typo fails fast at startup
+for _, door in ipairs(doors) do
+    if door.relay then
+        door.relayPeripheral = wrapPeripheral(door.relay, "redstone relay for door '" .. door.name .. "'")
+    end
 end
 
 if MODEM_ENABLED then
@@ -83,27 +99,27 @@ if MODEM_ENABLED then
     rednet.open(MODEM_NAME)
 end
 
-local adminSet = {}
-for _, name in ipairs(ADMIN_NAMES) do
-    adminSet[name:lower()] = true
-end
-
-local function isAdmin(name)
-    if not ADMIN_ENABLED then
-        return true -- whitelist disabled
+local function isAdmin(door, name)
+    if not door.adminSet then
+        return true -- whitelist disabled for this door
     end
-    return adminSet[name:lower()] == true
+    return door.adminSet[name:lower()] == true
 end
 
-local function setDoor(open)
-    for _, relay in ipairs(doorRelays) do
-        relay.setOutput(DOOR_SIDE, open)
+local function setDoorRelay(door, open)
+    if door.relayPeripheral then
+        door.relayPeripheral.setOutput(door.relay_side, open)
+    end
+    if door.computer_side then
+        redstone.setOutput(door.computer_side, open)
     end
 end
 
--- sends the intruder a "NO ACCESS" toast
+-- pcall: player may leave before the toast lands.
 local function warnIntruder(name)
-    chatBox.sendToastToPlayer(TOAST_MESSAGE, TOAST_TITLE, name)
+    pcall(function()
+        chatBox.sendToastToPlayer(TOAST_MESSAGE, TOAST_TITLE, name)
+    end)
 end
 
 -- ====================== UI ======================
@@ -116,73 +132,60 @@ screen:addLabel()
     :setSize(w - 2, 1)
     :setForeground(colors.white)
 
-local nearbyLabel = screen:addLabel()
-    :setText("No one nearby.")
-    :setPosition(2, 3)
-    :setSize(w - 2, 1)
-    :setForeground(colors.lightGray)
-
-local statusLabel = screen:addLabel()
-    :setText("Door: closed")
-    :setPosition(2, 5)
-    :setSize(w - 2, 1)
-    :setForeground(colors.white)
+-- one status line per door
+local doorLabels = {}
+for i, door in ipairs(doors) do
+    doorLabels[i] = screen:addLabel()
+        :setText(door.name .. ": closed")
+        :setPosition(2, 2 + i)
+        :setSize(w - 2, 1)
+        :setForeground(colors.white)
+end
 
 -- ====================== DETECTION LOOP ======================
-local lastIntruder = nil -- re-sends toast only when the intruder changes
-
 local function update()
-    -- scans all doorBoxes, deduped across overlaps
-    local seen = {}
-    local playersAtDoor = {}
-    for _, box in ipairs(doorBoxes) do
-        for _, name in ipairs(detector.getPlayersInCoords(box.min, box.max)) do
-            if not seen[name] then
-                seen[name] = true
-                playersAtDoor[#playersAtDoor + 1] = name
+    local grantedNames, deniedNames = {}, {}
+
+    for i, door in ipairs(doors) do
+        local playersAtDoor = detector.getPlayersInCoords(door.min, door.max)
+
+        local admin, intruder = nil, nil
+        for _, name in ipairs(playersAtDoor) do
+            if isAdmin(door, name) then
+                admin = admin or name
+            else
+                intruder = intruder or name
             end
         end
-    end
 
-    local admin, intruder = nil, nil
-    for _, name in ipairs(playersAtDoor) do
-        if isAdmin(name) then
-            admin = admin or name
+        setDoorRelay(door, admin ~= nil)
+
+        if admin then
+            local prefix = door.adminSet and "Access granted: " or "Open to all (no whitelist): "
+            doorLabels[i]:setText(door.name .. ": " .. prefix .. admin):setForeground(colors.lime)
+            grantedNames[#grantedNames + 1] = door.name
+        elseif intruder then
+            doorLabels[i]:setText(door.name .. ": ACCESS DENIED: " .. intruder):setForeground(colors.red)
+            deniedNames[#deniedNames + 1] = door.name
         else
-            intruder = intruder or name
+            doorLabels[i]:setText(door.name .. ": closed"):setForeground(colors.white)
         end
-    end
 
-    setDoor(admin ~= nil)
-
-    if #playersAtDoor == 0 then
-        nearbyLabel:setText("No one nearby.")
-    else
-        nearbyLabel:setText("Nearby: " .. table.concat(playersAtDoor, ", "))
-    end
-
-    local statusText
-    if admin then
-        if ADMIN_ENABLED then
-            statusText = "Access granted: " .. admin
-        else
-            statusText = "Open to all (admin check disabled): " .. admin
+        if intruder and intruder ~= door.lastIntruder then
+            warnIntruder(intruder)
         end
-        statusLabel:setText(statusText):setForeground(colors.lime)
-    elseif intruder then
-        statusText = "ACCESS DENIED: " .. intruder
-        statusLabel:setText(statusText):setForeground(colors.red)
-    else
-        statusText = "Door: closed"
-        statusLabel:setText(statusText):setForeground(colors.white)
+        door.lastIntruder = intruder
     end
-
-    if intruder and intruder ~= lastIntruder then
-        warnIntruder(intruder)
-    end
-    lastIntruder = intruder
 
     if MODEM_ENABLED then
+        local parts = {}
+        if #grantedNames > 0 then
+            parts[#parts + 1] = "Granted: " .. table.concat(grantedNames, ", ")
+        end
+        if #deniedNames > 0 then
+            parts[#parts + 1] = "Denied: " .. table.concat(deniedNames, ", ")
+        end
+        local statusText = #parts > 0 and table.concat(parts, " | ") or "All doors closed"
         rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText }, PROTOCOL)
     end
 end

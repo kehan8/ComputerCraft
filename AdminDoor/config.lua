@@ -1,20 +1,14 @@
--- config.lua: local settings, not touched by update.lua (see README).
+-- config.lua: local settings. update.lua won't touch this; update_full.lua resets it.
 
 return {
-    DETECTOR_NAME = "player_detector_0", -- Player Detector peripheral
+    DETECTOR_NAME = "player_detector_0", -- Player Detector, checks every door box from locations.lua
 
-    DOOR_RELAY_NAME = { "redstone_relay_0" }, -- relay wired to the door
-    DOOR_SIDE = "front",                   -- side of that relay driving the door
+    CHATBOX_NAME = "chat_box_0", -- Chat Box for the "NO ACCESS" toast
 
-    ADMIN_NAMES = { "YourAdminName" }, -- whitelist
-
-    ADMIN_ENABLED = true, -- false = open for anyone, no whitelist
-
-    POLL_INTERVAL = 1, -- seconds between detector scans
-
-    CHATBOX_NAME = "chat_box_0", -- Chat Box peripheral
     TOAST_TITLE = "NO ACCESS",
     TOAST_MESSAGE = "You are not authorized to enter.",
+
+    POLL_INTERVAL = 1, -- seconds between detector scans
 
     -- Wireless modem to report status to ControlRoom. False if no modem.
     MODEM_NAME = "back",
