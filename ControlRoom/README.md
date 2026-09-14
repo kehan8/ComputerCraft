@@ -31,7 +31,7 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/Cont
 install
 ```
 
-This downloads `config.lua`, `startup.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`, and installs Basalt2 if it isn't already present.
+This downloads `config.lua`, `startup.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`, and installs Basalt2 if it isn't already present. If `config.lua` already exists (e.g. reinstalling after `uninstall.lua` kept it), it's left untouched -- only the other files are refreshed.
 
 ## Configure
 

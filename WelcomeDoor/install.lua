@@ -24,9 +24,15 @@ if not fs.exists("basalt") and not fs.exists("basalt.lua") then
     shell.run("wget run https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
 end
 
+local CONFIG_FILES = { ["config.lua"] = true, ["locations.lua"] = true }
+
 for _, name in ipairs(FILES) do
-    print("Downloading " .. name .. "...")
-    downloadFile(name)
+    if CONFIG_FILES[name] and fs.exists(name) then
+        print("Keeping existing " .. name .. " (already configured)")
+    else
+        print("Downloading " .. name .. "...")
+        downloadFile(name)
+    end
 end
 
 -- name this device, never overwrites an existing label

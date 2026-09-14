@@ -33,7 +33,7 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/Admi
 install
 ```
 
-This downloads `config.lua`, `locations.lua`, `startup.lua`, `rename.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
+This downloads `config.lua`, `locations.lua`, `startup.lua`, `rename.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`. If `config.lua`/`locations.lua` already exist (e.g. reinstalling after `uninstall.lua` kept them), they're left untouched -- only the other files are refreshed.
 
 ## Configure
 

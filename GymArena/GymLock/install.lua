@@ -20,9 +20,15 @@ local function downloadFile(name)
     return true
 end
 
+local CONFIG_FILES = { ["config.lua"] = true }
+
 for _, name in ipairs(FILES) do
-    print("Downloading " .. name .. "...")
-    downloadFile(name)
+    if CONFIG_FILES[name] and fs.exists(name) then
+        print("Keeping existing " .. name .. " (already configured)")
+    else
+        print("Downloading " .. name .. "...")
+        downloadFile(name)
+    end
 end
 
 -- name this device, never overwrites an existing label

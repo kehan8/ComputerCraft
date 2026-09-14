@@ -45,7 +45,7 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/GymA
 install
 ```
 
-This downloads `config.lua`, `startup.lua`, `rename.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`.
+This downloads `config.lua`, `startup.lua`, `rename.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`. If `config.lua` already exists (e.g. reinstalling after `uninstall.lua` kept it), it's left untouched -- only the other files are refreshed.
 
 ## Configure
 
