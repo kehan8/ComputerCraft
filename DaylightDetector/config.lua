@@ -1,20 +1,22 @@
 -- Your local settings. update.lua leaves this alone; update_full.lua resets it.
 
 return {
-    -- This computer's own redstone side.
-    COMPUTER_SIDE = "back",
-    COMPUTER_ENABLED = true,
+    -- This computer's own redstone output side(s). Empty list = none.
+    COMPUTER_SIDES = { "back" },
 
-    -- Redstone Relay peripheral (Wired Modem setups).
-    REDSTONE_RELAY_NAME = "redstone_relay_0",
-    REDSTONE_SIDE = "front",
-    REDSTONE_RELAY_ENABLED = false,
+    -- Redstone Relay peripherals (Wired Modem setups). Each relay is its own
+    -- self-contained {name, side} pair, so name/side can never get mismatched
+    -- when you add more. Empty list = none.
+    RELAYS = {
+        -- { name = "redstone_relay_0", side = "front" },
+    },
 
-    -- Create Sequenced Gearshift, attached directly to a side.
-    GEARSHIFT_SIDE = "back",
-    GEARSHIFT_ENABLED = false,
-    GEARSHIFT_ANGLE = 180,  -- degrees per rotation
-    GEARSHIFT_SPEED = 1,    -- sign = direction
+    -- Create Sequenced Gearshifts, each attached directly to a side. angle/speed
+    -- live per-gearshift since different contraptions may need different
+    -- rotation amounts. Empty list = none.
+    GEARSHIFTS = {
+        -- { side = "back", angle = 180, speed = 1 },
+    },
 
     -- Wireless modem to report status to ControlRoom. False if no modem.
     MODEM_NAME = "back",

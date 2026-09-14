@@ -7,10 +7,10 @@ Tracks the in-game clock and flips a redstone signal at dusk/dawn -- no physical
 ## What it does
 
 - Every `POLL_INTERVAL` seconds, reads the in-game clock and checks dusk (`DUSK_HOUR`:`DUSK_MINUTE`) to dawn (`DAWN_HOUR`:`DAWN_MINUTE`), wrapping past midnight. In-game clock, not IRL time (~20 min/day).
-- Drives the signal three ways, toggled independently in `config.lua` (at least one must be enabled):
-  - **`COMPUTER_ENABLED`** -- this computer's own redstone side (`COMPUTER_SIDE`).
-  - **`REDSTONE_RELAY_ENABLED`** -- through a Redstone Relay peripheral (`REDSTONE_RELAY_NAME` / `REDSTONE_SIDE`), for a Wired Modem setup.
-  - **`GEARSHIFT_ENABLED`** -- through a Create **Sequenced Gearshift** on `GEARSHIFT_SIDE` (direct side, not a network name), rotating a switch (e.g. HV Switch, ~100A) for when redstone's ~16A cap is too low. Rotates `GEARSHIFT_ANGLE`° at `GEARSHIFT_SPEED` on dusk, back on dawn, only on an actual transition.
+- Drives the signal three ways, each a **list** in `config.lua` so you can wire up as many of each as you need (at least one list must have an entry):
+  - **`COMPUTER_SIDES`** -- this computer's own redstone side(s), e.g. `{ "back", "left" }`.
+  - **`RELAYS`** -- through one or more Redstone Relay peripherals, for a Wired Modem setup. Each entry is a self-contained `{ name, side }` pair, so name/side can never get mismatched when you add more relays.
+  - **`GEARSHIFTS`** -- through one or more Create **Sequenced Gearshifts**, each attached directly to a side (not a network name), rotating a switch (e.g. HV Switch, ~100A) for when redstone's ~16A cap is too low. Each entry is a self-contained `{ side, angle, speed }` table -- angle/speed live per-gearshift since different contraptions may need different rotation amounts. All gearshifts rotate together on dusk, back together on dawn, only on an actual transition.
 - Live in-game clock (`HH:MM`) on screen, one fixed line, no scrolling spam. Runs on its own loop, so it never freezes even mid gearshift-rotation.
 - Status line (ON/off + day/night) under the clock.
 - **AUTO** + **ON/OFF** buttons: AUTO lets the timer decide (default). The ON/OFF button always shows the live signal value and toggles it -- click it to force that value and switch to manual; click AUTO to hand control back to the timer. Rapid clicks are ignored (short cooldown) so the gearshift never gets two rotate commands at once.
@@ -20,8 +20,8 @@ Tracks the in-game clock and flips a redstone signal at dusk/dawn -- no physical
 
 - CC:Tweaked (Minecraft mod)
 - A **Computer** (regular is fine)
-- Optionally, a **Redstone Relay** peripheral on a Wired Modem network (only if `REDSTONE_RELAY_ENABLED`)
-- Optionally, a **Create Sequenced Gearshift** attached directly to a computer side, driving a high-amperage switch (only if `GEARSHIFT_ENABLED`)
+- Optionally, one or more **Redstone Relay** peripherals on a Wired Modem network (only if `RELAYS` has entries)
+- Optionally, one or more **Create Sequenced Gearshifts** attached directly to computer sides, driving high-amperage switches (only if `GEARSHIFTS` has entries)
 - Optionally, a **wireless modem**, for reporting status to [ControlRoom](../ControlRoom) (only if `MODEM_ENABLED`)
 - [Basalt2](https://github.com/Pyroxenium/Basalt2) for the UI -- installed automatically on first run
 
@@ -41,19 +41,25 @@ This downloads `config.lua`, `startup.lua`, `rename.lua`, `update.lua`, `update_
 Before running, open `config.lua` and set the values to match your build:
 
 ```lua
-COMPUTER_SIDE = "back",  -- side of this computer that goes high during the signal
-COMPUTER_ENABLED = true,
+-- This computer's own redstone output side(s). Empty list = none.
+COMPUTER_SIDES = { "back" },
 
-REDSTONE_RELAY_NAME = "redstone_relay_0", -- name of your Redstone Relay peripheral
-REDSTONE_SIDE = "front",                   -- side of the relay that goes high during the signal
-REDSTONE_RELAY_ENABLED = false,
+-- Redstone Relay peripherals (Wired Modem setups). Each relay is its own
+-- self-contained {name, side} pair, so name/side can never get mismatched
+-- when you add more. Empty list = none.
+RELAYS = {
+    { name = "redstone_relay_0", side = "front" },
+    -- { name = "redstone_relay_1", side = "back" },  -- add as many as you need
+},
 
--- Rotates a Create Sequenced Gearshift instead, e.g. to flip a high-amperage
+-- Rotates Create Sequenced Gearshifts instead, e.g. to flip a high-amperage
 -- HV Switch that plain redstone can't drive (typically capped around 16A).
-GEARSHIFT_SIDE = "back",  -- side the Sequenced Gearshift is attached to
-GEARSHIFT_ENABLED = false,
-GEARSHIFT_ANGLE = 180,     -- degrees to rotate on each transition (tested: 180)
-GEARSHIFT_SPEED = 1,       -- rotation speed; sign is direction (tested: 1)
+-- angle/speed live per-gearshift since different contraptions may need
+-- different rotation amounts. Empty list = none.
+GEARSHIFTS = {
+    { side = "back", angle = 180, speed = 1 },  -- tested: angle 180, speed 1
+    -- { side = "top", angle = 90, speed = -1 }, -- add as many as you need
+},
 
 MODEM_NAME = "back",  -- wireless modem used to report status to ControlRoom
 MODEM_ENABLED = false,
@@ -71,11 +77,15 @@ POLL_INTERVAL = 1, -- seconds between clock/signal updates
 
 If you're not sure what your peripherals are named, run `peripheral.getNames()` from the Lua prompt to list them.
 
+An empty list (`{}`) for `COMPUTER_SIDES`, `RELAYS` or `GEARSHIFTS` means that output method is off -- no separate `_ENABLED` flag anymore, since a list can't desync from a boolean the way parallel settings could. At least one of the three lists needs an entry, or `startup` refuses to run. Each relay/gearshift is wrapped as soon as `startup` runs, so a typo'd name or side fails immediately with an error naming exactly which entry (e.g. `RELAYS[2]`) is wrong, instead of crashing later mid-signal-flip.
+
 ### Naming this device
 
 `install` asks you to name this device the first time you run it -- press Enter or type `SKIP` to auto-generate a unique name from the computer's ID instead. This is the name ControlRoom shows for it, handy if you ever run more than one. Rename it later anytime, without reinstalling, with `rename`.
 
 > Updating from an older install? `update.lua` never touches `config.lua`, so any new fields won't appear on their own -- run `update_full` (see below) or add the lines yourself.
+>
+> **Breaking change:** older installs used single-value `COMPUTER_SIDE`/`COMPUTER_ENABLED`, `REDSTONE_RELAY_NAME`/`REDSTONE_SIDE`/`REDSTONE_RELAY_ENABLED` and `GEARSHIFT_SIDE`/`GEARSHIFT_ENABLED`/`GEARSHIFT_ANGLE`/`GEARSHIFT_SPEED` fields. These are now `COMPUTER_SIDES`, `RELAYS` and `GEARSHIFTS` lists (see above), so each output type supports any number of sides/relays/gearshifts. Run `update_full` to pick up the new `config.lua` shape, then re-enter your settings into the new list format.
 
 ## Run
 

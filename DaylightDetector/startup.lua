@@ -1,17 +1,11 @@
--- DaylightDetector: flips a redstone signal at dusk/dawn via computer side,
--- Redstone Relay and/or Sequenced Gearshift. AUTO = timer, ON/OFF = manual override.
+-- DaylightDetector: flips a redstone signal at dusk/dawn via computer side(s),
+-- Redstone Relay(s) and/or Sequenced Gearshift(s). AUTO = timer, ON/OFF = manual override.
 
 -- ====================== CONFIG ======================
 local config = require("config")
-local COMPUTER_SIDE = config.COMPUTER_SIDE
-local COMPUTER_ENABLED = config.COMPUTER_ENABLED
-local REDSTONE_RELAY_NAME = config.REDSTONE_RELAY_NAME
-local REDSTONE_SIDE = config.REDSTONE_SIDE
-local REDSTONE_RELAY_ENABLED = config.REDSTONE_RELAY_ENABLED
-local GEARSHIFT_SIDE = config.GEARSHIFT_SIDE
-local GEARSHIFT_ENABLED = config.GEARSHIFT_ENABLED
-local GEARSHIFT_ANGLE = config.GEARSHIFT_ANGLE
-local GEARSHIFT_SPEED = config.GEARSHIFT_SPEED
+local COMPUTER_SIDES = config.COMPUTER_SIDES or {}
+local RELAYS = config.RELAYS or {}
+local GEARSHIFTS = config.GEARSHIFTS or {}
 local MODEM_NAME = config.MODEM_NAME
 local MODEM_ENABLED = config.MODEM_ENABLED
 local POLL_INTERVAL = config.POLL_INTERVAL
@@ -31,27 +25,37 @@ if not fs.exists("basalt") and not fs.exists("basalt.lua") then
 end
 local basalt = require("basalt")
 
-if not COMPUTER_ENABLED and not REDSTONE_RELAY_ENABLED and not GEARSHIFT_ENABLED then
-    error("Enable at least one of COMPUTER_ENABLED, REDSTONE_RELAY_ENABLED or GEARSHIFT_ENABLED in config.lua.")
+if #COMPUTER_SIDES == 0 and #RELAYS == 0 and #GEARSHIFTS == 0 then
+    error("Add at least one entry to COMPUTER_SIDES, RELAYS or GEARSHIFTS in config.lua.")
 end
 
-local relay = nil
-if REDSTONE_RELAY_ENABLED then
-    relay = peripheral.wrap(REDSTONE_RELAY_NAME)
-    if not relay then
-        error("Could not find redstone relay '" .. REDSTONE_RELAY_NAME .. "'. Check the cable/name.")
+-- Wrap relays immediately -- fail fast with a named error, not a cryptic nil crash later.
+local relays = {}
+for i, r in ipairs(RELAYS) do
+    if not r.name or not r.side then
+        error("RELAYS[" .. i .. "] needs both 'name' and 'side' in config.lua.")
     end
+    local wrapped = peripheral.wrap(r.name)
+    if not wrapped then
+        error("Could not find redstone relay '" .. r.name .. "' (RELAYS[" .. i .. "]). Check the cable/name.")
+    end
+    table.insert(relays, { peripheral = wrapped, side = r.side })
 end
 
-local gearshift = nil
-if GEARSHIFT_ENABLED then
-    gearshift = peripheral.wrap(GEARSHIFT_SIDE)
-    if not gearshift then
-        error("No peripheral on side '" .. GEARSHIFT_SIDE .. "'. Check GEARSHIFT_SIDE in config.lua.")
+-- Wrap gearshifts immediately -- same fail-fast idea.
+local gearshifts = {}
+for i, g in ipairs(GEARSHIFTS) do
+    if not g.side then
+        error("GEARSHIFTS[" .. i .. "] needs a 'side' in config.lua.")
     end
-    if not gearshift.rotate or not gearshift.isRunning then
-        error("Peripheral on side '" .. GEARSHIFT_SIDE .. "' is not a Sequenced Gearshift.")
+    local wrapped = peripheral.wrap(g.side)
+    if not wrapped then
+        error("No peripheral on side '" .. g.side .. "' (GEARSHIFTS[" .. i .. "]). Check the side in config.lua.")
     end
+    if not wrapped.rotate or not wrapped.isRunning then
+        error("Peripheral on side '" .. g.side .. "' (GEARSHIFTS[" .. i .. "]) is not a Sequenced Gearshift.")
+    end
+    table.insert(gearshifts, { peripheral = wrapped, angle = g.angle or 180, speed = g.speed or 1 })
 end
 
 if MODEM_ENABLED then
@@ -67,21 +71,31 @@ local function isNight(time)
 end
 
 local function setSignal(on)
-    if COMPUTER_ENABLED then
-        redstone.setOutput(COMPUTER_SIDE, on)
+    for _, side in ipairs(COMPUTER_SIDES) do
+        redstone.setOutput(side, on)
     end
-    if REDSTONE_RELAY_ENABLED then
-        relay.setOutput(REDSTONE_SIDE, on)
+    for _, r in ipairs(relays) do
+        r.peripheral.setOutput(r.side, on)
     end
 end
 
--- rotates on state transitions, capped by GEARSHIFT_TIMEOUT
+-- rotates all gearshifts together on state transitions, capped by GEARSHIFT_TIMEOUT
 local GEARSHIFT_TIMEOUT = 3 -- seconds
-local function rotateGearshift(forward)
-    local speed = forward and GEARSHIFT_SPEED or -GEARSHIFT_SPEED
-    gearshift.rotate(GEARSHIFT_ANGLE, speed)
+local function rotateGearshifts(forward)
+    for _, g in ipairs(gearshifts) do
+        local speed = forward and g.speed or -g.speed
+        g.peripheral.rotate(g.angle, speed)
+    end
     local waited = 0
-    while gearshift.isRunning() and waited < GEARSHIFT_TIMEOUT do
+    while waited < GEARSHIFT_TIMEOUT do
+        local anyRunning = false
+        for _, g in ipairs(gearshifts) do
+            if g.peripheral.isRunning() then
+                anyRunning = true
+                break
+            end
+        end
+        if not anyRunning then break end
         os.sleep(0.1)
         waited = waited + 0.1
     end
@@ -97,7 +111,7 @@ end
 -- adminMode: "AUTO" (timer decides) or "MANUAL" (manualState decides).
 local adminMode = "AUTO"
 local manualState = false
-local lastSignal = nil -- last applied combined signal; gearshift only rotates on change
+local lastSignal = nil -- last applied combined signal; gearshifts only rotate on change
 local dirty = true -- true = recompute now (startup + button clicks); skips waiting for POLL_INTERVAL
 local nextClickAt = 0 -- os.epoch("utc") ms timestamp; buttons ignored before this
 
@@ -166,9 +180,9 @@ local function computeAndApply()
 
     setSignal(signalOn)
 
-    if GEARSHIFT_ENABLED and signalOn ~= lastSignal then
+    if #gearshifts > 0 and signalOn ~= lastSignal then
         statusLabel:setText("Gearshift: rotating..."):setForeground(colors.yellow)
-        rotateGearshift(signalOn)
+        rotateGearshifts(signalOn)
     end
     lastSignal = signalOn
 
@@ -178,7 +192,7 @@ local function computeAndApply()
     else
         statusText = night and "Signal: ON (night)" or "Signal: off (day)"
     end
-    if GEARSHIFT_ENABLED then
+    if #gearshifts > 0 then
         statusText = statusText .. (signalOn and " | Gearshift: open" or " | Gearshift: closed")
     end
     statusLabel
