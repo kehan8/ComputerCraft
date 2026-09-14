@@ -79,6 +79,8 @@ If you're not sure what your peripherals are named, run `peripheral.getNames()` 
 
 An empty list (`{}`) for `COMPUTER_SIDES`, `RELAYS` or `GEARSHIFTS` means that output method is off -- no separate `_ENABLED` flag anymore, since a list can't desync from a boolean the way parallel settings could. At least one of the three lists needs an entry, or `startup` refuses to run. Each relay/gearshift is wrapped as soon as `startup` runs, so a typo'd name or side fails immediately with an error naming exactly which entry (e.g. `RELAYS[2]`) is wrong, instead of crashing later mid-signal-flip.
 
+**Reversing rotation direction:** the Sequenced Gearshift automatically reverses between "open" (dusk) and "close" (dawn) -- both are derived from the same `speed` number (`+speed` / `-speed`). If a gearshift spins the wrong way for your contraption, just flip the sign of its `speed` in `config.lua` (e.g. `1` -> `-1`); you never need to touch the Motor's own rotation direction in Create, the Sequenced Gearshift compensates for it entirely. With multiple gearshifts, each entry has its own `speed`, so you can flip just one -- e.g. two gearshifts that need to rotate as mirror images of each other.
+
 ### Naming this device
 
 `install` asks you to name this device the first time you run it -- press Enter or type `SKIP` to auto-generate a unique name from the computer's ID instead. This is the name ControlRoom shows for it, handy if you ever run more than one. Rename it later anytime, without reinstalling, with `rename`.
