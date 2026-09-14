@@ -69,14 +69,16 @@ MultiblockStore.InsertedFossilStacks -- { {id=, count=}, ... } fossils currently
 MultiblockStore.ConnectorDirection
 ```
 
-Observed state machine (4 phases):
+Observed state machine (4 phases), checked in this priority order:
 
 ```
-idle      -- nothing inserted, nothing to claim
-analyzing -- fossil(s) inserted, OrganicContent climbing 0->128, TimeLeft counting down
 ready     -- HasCreatedPokemon=1, InsertedFossil set, ProtectedTimeLeft counting down
-unformed  -- Formed ~= 1, multiblock isn't fully built right now
+analyzing -- fossil(s) inserted, OrganicContent climbing 0->128, TimeLeft counting down
+unformed  -- (only if neither of the above) Formed ~= 1, multiblock isn't fully built right now
+idle      -- nothing inserted, nothing to claim, and Formed = 1
 ```
+
+> **Known gotcha:** confirmed in-game (2026-09-14) that Cobblemon's `Formed` flag on the analyzer controller can desync to `false` after a relog/chunk reload even though the structure (tank + `fossil_multiblock` parts) is still intact and actively analyzing -- `OrganicContent` kept climbing all the way to 128/128 while `Formed` read false the entire time. Breaking + replacing the analyzer block re-syncs `Formed` back to `true`, but `fossildata.lua` doesn't rely on that anymore: `ready`/`analyzing` are now checked *before* `unformed`, so live progress data (which can only exist if the machine actually ran) always wins over a possibly-stale `Formed` flag. `unformed` only shows when the machine is genuinely idle **and** `Formed` is false -- worst case there, it self-corrects the moment a fossil is inserted and progress starts.
 
 ### Naming this device
 

@@ -57,12 +57,12 @@ function fossildata.read(reader)
     local stacks = store.InsertedFossilStacks or {}
 
     local phase
-    if not formed then
-        phase = "unformed"
-    elseif hasCreatedPokemon then
+    if hasCreatedPokemon then
         phase = "ready" -- Pokemon created, waiting to be claimed
     elseif timeLeft > 0 or organicContent > 0 or #stacks > 0 then
-        phase = "analyzing"
+        phase = "analyzing" -- real progress data overrides a possibly-stale Formed flag
+    elseif not formed then
+        phase = "unformed"
     else
         phase = "idle"
     end
