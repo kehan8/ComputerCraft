@@ -1,15 +1,10 @@
--- WelcomeDoor: opens the door + welcomes players at the door box, says
--- goodbye when they leave the building box. Not admin gated.
+-- WelcomeDoor: opens each door independently and welcomes/says goodbye to
+-- players; not admin gated. See README for the multi-door design.
 
 -- ====================== CONFIG ======================
 local config = require("config")
 local BUILDING_NAME = config.BUILDING_NAME
 local DETECTOR_NAME = config.DETECTOR_NAME
-local COMPUTER_SIDE = config.COMPUTER_SIDE
-local COMPUTER_ENABLED = config.COMPUTER_ENABLED
-local DOOR_RELAY_NAME = config.DOOR_RELAY_NAME
-local DOOR_SIDE = config.DOOR_SIDE
-local DOOR_RELAY_ENABLED = config.DOOR_RELAY_ENABLED
 local CHATBOX_NAME = config.CHATBOX_NAME
 local WELCOME_TITLE = config.WELCOME_TITLE
 local WELCOME_MESSAGES = config.WELCOME_MESSAGES
@@ -33,11 +28,7 @@ local function normalizeBox(min, max)
     return nmin, nmax
 end
 
-local DOOR_MIN, DOOR_MAX = normalizeBox(locations.DOOR_MIN, locations.DOOR_MAX)
-local BUILDING_MIN, BUILDING_MAX = normalizeBox(locations.BUILDING_MIN, locations.BUILDING_MAX)
--- ======================================================
-
--- Door box must fit inside the building box, or welcome+goodbye spam every tick.
+-- door box must fit inside the building box (see README)
 local function boxContains(outerMin, outerMax, innerMin, innerMax)
     for _, axis in ipairs({ "x", "y", "z" }) do
         if innerMin[axis] < outerMin[axis] or innerMax[axis] > outerMax[axis] then
@@ -47,9 +38,40 @@ local function boxContains(outerMin, outerMax, innerMin, innerMax)
     return true
 end
 
-if not boxContains(BUILDING_MIN, BUILDING_MAX, DOOR_MIN, DOOR_MAX) then
-    error("locations.lua: DOOR_MIN/DOOR_MAX must fit entirely inside BUILDING_MIN/BUILDING_MAX.")
+if not locations.DOORS or #locations.DOORS == 0 then
+    error("locations.lua must define DOORS with at least one door table (see locations.lua).")
 end
+
+local BUILDING_MIN, BUILDING_MAX = normalizeBox(locations.BUILDING_MIN, locations.BUILDING_MAX)
+
+-- self-contained door tables: box + wiring together (see README)
+local doors = {}
+for i, raw in ipairs(locations.DOORS) do
+    local name = raw.name or ("Door " .. i)
+
+    if not raw.relay and not raw.computer_side then
+        error("locations.lua: door '" .. name .. "' needs a relay or a computer_side (or both).")
+    end
+    if raw.relay and not raw.relay_side then
+        error("locations.lua: door '" .. name .. "' has a relay but no relay_side.")
+    end
+
+    local nmin, nmax = normalizeBox(raw.min, raw.max)
+    if not boxContains(BUILDING_MIN, BUILDING_MAX, nmin, nmax) then
+        error("locations.lua: door '" .. name .. "' box must fit entirely inside BUILDING_MIN/BUILDING_MAX.")
+    end
+
+    doors[i] = {
+        name = name,
+        min = nmin,
+        max = nmax,
+        relay = raw.relay,
+        relay_side = raw.relay_side,
+        computer_side = raw.computer_side,
+        relayPeripheral = nil, -- wrapped below, once peripherals are set up
+    }
+end
+-- ======================================================
 
 -- Reports status to ControlRoom (see ../ControlRoom).
 local PROTOCOL = "controlroom"
@@ -69,16 +91,15 @@ local function wrapPeripheral(name, label)
     return p
 end
 
-if not COMPUTER_ENABLED and not DOOR_RELAY_ENABLED then
-    error("Enable at least one of COMPUTER_ENABLED or DOOR_RELAY_ENABLED in config.lua.")
-end
-
 local doorDetector = wrapPeripheral(DETECTOR_NAME, "Player Detector")
-local doorRelay = nil
-if DOOR_RELAY_ENABLED then
-    doorRelay = wrapPeripheral(DOOR_RELAY_NAME, "redstone relay")
-end
 local chatBox = wrapPeripheral(CHATBOX_NAME, "Chat Box")
+
+-- wrap relays now so a typo fails fast at startup
+for _, door in ipairs(doors) do
+    if door.relay then
+        door.relayPeripheral = wrapPeripheral(door.relay, "redstone relay for door '" .. door.name .. "'")
+    end
+end
 
 if MODEM_ENABLED then
     if not peripheral.isPresent(MODEM_NAME) then
@@ -88,9 +109,9 @@ if MODEM_ENABLED then
 end
 
 -- ====================== STATE ======================
--- Names currently welcomed, not yet said goodbye to.
+-- names currently welcomed, not yet said goodbye to (building-wide)
 local insideSet = {}
--- Names already sent the closed toast at the door; cleared when they leave.
+-- Names already sent the closed toast at a door; cleared when they leave.
 local closedNotifiedSet = {}
 local active = true
 local lastEvent = ""
@@ -104,12 +125,18 @@ local function insideNames()
     return list
 end
 
-local function setDoor(open)
-    if COMPUTER_ENABLED then
-        redstone.setOutput(COMPUTER_SIDE, open)
+local function setDoorRelay(door, open)
+    if door.relayPeripheral then
+        door.relayPeripheral.setOutput(door.relay_side, open)
     end
-    if DOOR_RELAY_ENABLED then
-        doorRelay.setOutput(DOOR_SIDE, open)
+    if door.computer_side then
+        redstone.setOutput(door.computer_side, open)
+    end
+end
+
+local function closeAllDoors()
+    for _, door in ipairs(doors) do
+        setDoorRelay(door, false)
     end
 end
 
@@ -142,7 +169,7 @@ local function sendClosedNotice()
     lastEvent = "Closed notice sent"
 end
 
--- Sent to new arrivals at the door while INACTIVE.
+-- Sent to new arrivals at any door while INACTIVE.
 local function sendClosedNoticeToPlayer(name)
     pcall(function()
         chatBox.sendToastToPlayer(CLOSED_MESSAGE, CLOSED_TITLE, name)
@@ -205,7 +232,7 @@ end
 local function toggleActive()
     active = not active
     if not active then
-        setDoor(false)
+        closeAllDoors()
         sendClosedNotice()
     else
         closedNotifiedSet = {} -- fresh start so a later close re-notifies everyone
@@ -219,14 +246,31 @@ refreshUI()
 
 -- ====================== DETECTION LOOP ======================
 local function update()
-    local doorPlayers = doorDetector.getPlayersInCoords(DOOR_MIN, DOOR_MAX)
     local buildingPlayers = doorDetector.getPlayersInCoords(BUILDING_MIN, BUILDING_MAX)
 
-    if active then
-        setDoor(#doorPlayers > 0)
+    -- per-door scan, plus a deduped union for the welcome/closed logic below
+    local unionSeen = {}
+    local unionPlayers = {}
+    local openDoorNames = {}
 
-        -- Welcome new arrivals at the door (runs before the goodbye check).
-        for _, name in ipairs(doorPlayers) do
+    for _, door in ipairs(doors) do
+        local playersHere = doorDetector.getPlayersInCoords(door.min, door.max)
+        local hasPlayers = #playersHere > 0
+        setDoorRelay(door, active and hasPlayers)
+        if active and hasPlayers then
+            openDoorNames[#openDoorNames + 1] = door.name
+        end
+        for _, name in ipairs(playersHere) do
+            if not unionSeen[name] then
+                unionSeen[name] = true
+                unionPlayers[#unionPlayers + 1] = name
+            end
+        end
+    end
+
+    if active then
+        -- Welcome new arrivals at any door (runs before the goodbye check).
+        for _, name in ipairs(unionPlayers) do
             if not insideSet[name] then
                 insideSet[name] = true
                 sendWelcome(name)
@@ -246,11 +290,9 @@ local function update()
             end
         end
     else
-        setDoor(false)
-
         -- Closed: new arrivals get a toast instead of welcome; cleared when they leave.
         local atDoor = {}
-        for _, name in ipairs(doorPlayers) do
+        for _, name in ipairs(unionPlayers) do
             atDoor[name] = true
             if not closedNotifiedSet[name] then
                 closedNotifiedSet[name] = true
@@ -270,10 +312,10 @@ local function update()
         local statusText
         if not active then
             statusText = "Closed"
-        elseif next(insideSet) == nil then
-            statusText = "No one inside."
+        elseif #openDoorNames == 0 then
+            statusText = "All doors closed"
         else
-            statusText = "Inside: " .. table.concat(insideNames(), ", ")
+            statusText = "Open: " .. table.concat(openDoorNames, ", ")
         end
         rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = statusText, active = active }, PROTOCOL)
     end
@@ -286,7 +328,7 @@ basalt.schedule(function()
     end
 end)
 
--- parallel (not basalt.schedule) since Basalt won't resume on rednet_message
+-- parallel, not basalt.schedule (see README)
 local function listenForCommands()
     while true do
         local _, msg = rednet.receive(PROTOCOL)

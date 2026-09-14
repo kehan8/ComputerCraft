@@ -4,16 +4,8 @@ return {
     -- Shown in messages via %s.
     BUILDING_NAME = "Your Building",
 
-    -- Player Detector, checks both boxes from locations.lua.
+    -- Player Detector, checks every door box + the building box from locations.lua.
     DETECTOR_NAME = "player_detector_0",
-
-    -- Drives the door: computer redstone, a Redstone Relay, or both.
-    COMPUTER_SIDE = "back",
-    COMPUTER_ENABLED = true,
-
-    DOOR_RELAY_NAME = "redstone_relay_0", -- relay wired to the door (side or network name)
-    DOOR_SIDE = "front",                   -- side of that relay driving the door
-    DOOR_RELAY_ENABLED = false,
 
     -- Chat Box for welcome/goodbye/closed toasts. Side or network name.
     CHATBOX_NAME = "chat_box_0",
@@ -37,7 +29,7 @@ return {
         "Bye! Hope to see you at %s again.",
     },
 
-    -- Toast while INACTIVE: once on close, plus to new arrivals at the door.
+    -- Toast while INACTIVE: once on close, plus to new arrivals at any door.
     CLOSED_TITLE = "Closed",
     CLOSED_MESSAGE = "We are closed.",
 
