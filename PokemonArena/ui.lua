@@ -36,6 +36,17 @@
 -- - Frame background: explicit light gray (colors.lightGray) instead of
 --   Basalt's default white, so the empty space around/below the podium
 --   cards isn't stark white.
+-- - Session 10 restyle (user mockup + feedback: header/VS "mogen wat
+--   dikker" for balance, VS text should be black):
+--   - The colored header bar (accent color, top of each podium card) and
+--     the green winner banner (bottom of the card) both went from 1 row
+--     tall to 3 rows tall ("triple regels/bar") -- thickening both the top
+--     AND bottom bars keeps the card visually balanced instead of only
+--     the top growing. The middle content rows (trainer/name/HP bar/HP
+--     text/fainted count) are unchanged at 1 row each.
+--   - The V/S seam letters grew to match the new 3-row header height
+--     (same column, same accent background, just taller) and their
+--     foreground changed from white to black per the mockup.
 --
 -- Basalt2 gotcha (confirmed via GymArena/TicTacToe project memory): Label
 -- elements never render a background in this Basalt2 build -- only Button
@@ -123,11 +134,16 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
     end
 
     -- ---------------------- LIVE SCREEN ----------------------
-    -- The 7-row podium card (header/trainer/name/bar/hp/fainted/banner) is
+    -- The podium card (header/trainer/name/bar/hp/fainted/banner) is
     -- vertically centered in the space above the bottom New Battle/History
     -- row, so it doesn't stay pinned to the top with a dead strip below it
     -- on a tall monitor.
-    local PODIUM_CARD_ROWS = 7
+    -- header(3) + trainer/name/bar/hp/fainted(5x1) + banner(3) = 11 rows --
+    -- see session 10 restyle comment above (header/banner tripled in
+    -- height; was 7 rows total with a 1-row header/banner before that).
+    local HEADER_ROWS = 3
+    local BANNER_ROWS = 3
+    local PODIUM_CARD_ROWS = HEADER_ROWS + 5 + BANNER_ROWS
     local liveBodyHeight = h - 1 -- rows 1..(h-1); row h is New Battle/History
     local liveTop = 1 + math.max(0, math.floor((liveBodyHeight - PODIUM_CARD_ROWS) / 2))
 
@@ -141,26 +157,29 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         -- Header: colored accent bar instead of the "Left"/"Right" text --
         -- the trainer name label right below carries the same accent color
         -- (see renderLive), so color + name work together as one header.
+        -- 3 rows tall (session 10: "triple regels/bar" for balance).
         ui_.headerLabel = screen:addButton()
-            :setText(""):setPosition(x, liveTop):setSize(width, 1)
+            :setText(""):setPosition(x, liveTop):setSize(width, HEADER_ROWS)
             :setBackground(accent):setForeground(colors.white)
         ui_.trainerLabel = screen:addButton()
-            :setText(""):setPosition(x, liveTop + 1):setSize(width, 1)
+            :setText(""):setPosition(x, liveTop + HEADER_ROWS):setSize(width, 1)
             :setBackground(colors.lightBlue):setForeground(accent)
         ui_.nameLabel = screen:addButton()
-            :setText(""):setPosition(x, liveTop + 2):setSize(width, 1)
+            :setText(""):setPosition(x, liveTop + HEADER_ROWS + 1):setSize(width, 1)
             :setBackground(colors.lightBlue):setForeground(colors.black)
         ui_.barLabel = screen:addButton()
-            :setText(""):setPosition(x, liveTop + 3):setSize(width, 1)
+            :setText(""):setPosition(x, liveTop + HEADER_ROWS + 2):setSize(width, 1)
             :setBackground(colors.lightBlue):setForeground(colors.black)
         ui_.hpLabel = screen:addButton()
-            :setText(""):setPosition(x, liveTop + 4):setSize(width, 1)
+            :setText(""):setPosition(x, liveTop + HEADER_ROWS + 3):setSize(width, 1)
             :setBackground(colors.lightBlue):setForeground(colors.black)
         ui_.faintedLabel = screen:addButton()
-            :setText(""):setPosition(x, liveTop + 5):setSize(width, 1)
+            :setText(""):setPosition(x, liveTop + HEADER_ROWS + 4):setSize(width, 1)
             :setBackground(colors.lightBlue):setForeground(colors.black)
+        -- Winner banner: also 3 rows tall (session 10: thickened to match
+        -- the header, so the card reads balanced top/bottom).
         ui_.bannerLabel = screen:addButton()
-            :setText(""):setPosition(x, liveTop + 6):setSize(width, 1)
+            :setText(""):setPosition(x, liveTop + HEADER_ROWS + 5):setSize(width, BANNER_ROWS)
             :setBackground(colors.green):setForeground(colors.white)
 
         podiumUI[i] = ui_
@@ -173,24 +192,27 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         liveElements[#liveElements + 1] = ui_.bannerLabel
     end
 
-    -- "VS" seam marker: a single-cell "V" flush against the right edge of
-    -- podium 1's colored header bar, and a single-cell "S" flush against
+    -- "VS" seam marker: a single-column "V" flush against the right edge of
+    -- podium 1's colored header bar, and a single-column "S" flush against
     -- the left edge of podium 2's header bar (see header comment) -- drawn
-    -- on the same row as the header bars, only for exactly 2 podiums.
+    -- over the same rows as the (now 3-row-tall) header bars, only for
+    -- exactly 2 podiums. Session 10: grown from 1 to HEADER_ROWS tall to
+    -- match the thicker header, and text color switched white -> black
+    -- per user mockup.
     if showVs then
         local x1, width1 = columnFor(1)
         local x2 = columnFor(2)
 
         local vLetter = screen:addButton()
             :setText("V")
-            :setPosition(x1 + width1 - 1, liveTop):setSize(1, 1)
-            :setBackground(headerColorFor(1)):setForeground(colors.white)
+            :setPosition(x1 + width1 - 1, liveTop):setSize(1, HEADER_ROWS)
+            :setBackground(headerColorFor(1)):setForeground(colors.black)
         liveElements[#liveElements + 1] = vLetter
 
         local sLetter = screen:addButton()
             :setText("S")
-            :setPosition(x2, liveTop):setSize(1, 1)
-            :setBackground(headerColorFor(2)):setForeground(colors.white)
+            :setPosition(x2, liveTop):setSize(1, HEADER_ROWS)
+            :setBackground(headerColorFor(2)):setForeground(colors.black)
         liveElements[#liveElements + 1] = sLetter
     end
 

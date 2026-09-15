@@ -759,3 +759,52 @@ OPEN / TE DOEN
 3. Concretere feedback verzamelen als de V/S-look nog niet precies matcht
    met de handtekening (grootte, exacte positie, kleur van de letters).
 4. Niet automatisch committen - wacht op expliciete vraag van de user.
+
+========================================================================
+SESSIE 10 - feedback op sessie-9 fix: dikkere header/banner-balken, VS zwart
+========================================================================
+AANLEIDING (user testte sessie 9 in-game, 2 screenshots: 1 echte foto, 1
+eigen handtekening eroverheen als mockup)
+- "ja perfect waar plek" - de V/S-positie op de naad uit sessie 9 is
+  bevestigd goed (geen klacht over positie zelf).
+- Nieuwe klacht: blauw/rode header-balk en de "VS"-letters mogen dikker
+  ("dubbel regels/bar naar boven dan groen onderste mogen ook mee dikker
+  dan daar mooi balans" -> uiteindelijk expliciet "doe maar triple
+  regels/bar"). Ook: VS-tekst moet zwart worden i.p.v. wit (zie
+  handtekening-mockup).
+
+FIX (ui.lua)
+- HEADER_ROWS/BANNER_ROWS = 3 (was allebei impliciet 1 regel). headerLabel
+  (accentkleur-balk bovenaan elk podium) en bannerLabel (groene WINNER-
+  balk onderaan elk podium) zijn nu allebei 3 regels hoog i.p.v. 1 -
+  bewust ALLEBEI verdikt (niet alleen de header) voor visuele balans
+  boven/onder, zoals user expliciet vroeg. De tussenliggende content-
+  regels (trainer/naam/HP-balk/HP-cijfers/fainted-tally) blijven elk 1
+  regel, dus PODIUM_CARD_ROWS ging van 7 naar 11 (3+5+3) - liveTop's
+  verticale centrering (sessie 6) rekent hier automatisch mee, geen losse
+  aanpassing nodig.
+- V/S-seam-knopjes (sessie 9) meegegroeid naar dezelfde HEADER_ROWS-hoogte
+  (was 1x1, nu 1xHEADER_ROWS) zodat ze de volle hoogte van de nieuwe
+  dikkere header-balk beslaan i.p.v. alleen de bovenste regel. Foreground
+  wit -> zwart, exact de gevraagde kleurwijziging.
+
+NIET GEDAAN / BEWUST UITGESTELD
+- Nog steeds geen lokale lua/luac beschikbaar - ongetest, zelfde beperking
+  als elke sessie hiervoor. Met name onzeker (geen interpreter om te
+  verifieren): of Basalt2's Button-tekst bij setSize(breedte, 3) verticaal
+  centreert op de middelste regel (aanname, gebaseerd op hoe de andere
+  multi-regel-buttons in dit bestand zich gedragen) i.p.v. bovenaan/
+  onderaan te blijven plakken.
+- Geen wijziging aan de content-regels (trainer/naam/HP/fainted) of aan de
+  bottom New Battle/History-rij - klacht ging specifiek over header/VS/
+  banner-dikte en VS-kleur, niet over de rest van de kaart.
+
+OPEN / TE DOEN
+1. In-game bevestigen: header- en banner-balk zijn nu zichtbaar 3 regels
+   dik (niet per ongeluk nog 1 regel door een verkeerde setSize-aanname).
+2. In-game bevestigen: "V" en "S" tonen zwarte tekst en staan verticaal
+   gecentreerd (of in elk geval leesbaar) binnen de dikkere balk, niet
+   onzichtbaar tegen de accentkleur-achtergrond.
+3. In-game bevestigen: de kaart oogt nu gebalanceerd (dikke balk boven EN
+   onder), geen nieuwe lege/dode ruimte door de gewijzigde totaalhoogte.
+4. Niet automatisch committen - wacht op expliciete vraag van de user.
