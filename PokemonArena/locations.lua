@@ -11,17 +11,17 @@ return {
     -- different concept entirely).
     PODIUMS = {
         {
-            position = "Left",                    -- shown on screen; purely a label, doesn't affect wiring
-            detector = "environmentDetector_0",   -- Environment Detector peripheral name
+            position = "Left",                     -- shown on screen; purely a label, doesn't affect wiring
+            detector = "environment_detector_0",   -- Environment Detector peripheral name (1.21.1+ snake_case; on older MC it's "environmentDetector_0" instead)
         },
         {
             position = "Right",
-            detector = "environmentDetector_1",
+            detector = "environment_detector_1",
         },
         -- add as many as you want, e.g. a 3rd podium for a triple battle:
         -- {
         --     position = "Middle",
-        --     detector = "environmentDetector_2",
+        --     detector = "environment_detector_2",
         -- },
     },
 }

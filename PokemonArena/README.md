@@ -51,15 +51,15 @@ And `locations.lua`:
 
 ```lua
 PODIUMS = {
-    { position = "Left",  detector = "environmentDetector_0" },
-    { position = "Right", detector = "environmentDetector_1" },
+    { position = "Left",  detector = "environment_detector_0" },
+    { position = "Right", detector = "environment_detector_1" },
     -- add as many as you want, e.g. a "Middle" podium for a triple battle
 },
 ```
 
 Each podium needs its own Environment Detector placed near that trainer's spot -- the *nearest* owned Pokemon to that specific detector is what gets shown, so keep detectors close enough to their own podium (and far enough from the other) that they don't cross-pick each other's battler. No wiring "side" field is needed: an Environment Detector is wrapped by its network name only, exactly like a Player Detector (unlike a Redstone Relay/computer redstone side used elsewhere in this repo -- different concept, don't confuse the two).
 
-If you're not sure what your peripherals are named, run `peripheral.getNames()` from the Lua prompt to list them.
+**Peripheral name depends on your Minecraft version:** Advanced Peripherals renamed this block's peripheral from `environmentDetector` (below 1.21.1) to `environment_detector` (1.21.1 and above) to match Minecraft's own snake_case registry convention. `locations.lua` above assumes 1.21.1+; if you're still on an older version, use `environmentDetector_0`/`environmentDetector_1` instead. Either way, don't guess -- run `peripheral.getNames()` from the Lua prompt to see the exact names CC:Tweaked assigned on your world (the numeric suffix depends on placement order, not on which podium is "left" or "right").
 
 ### Naming this device
 
