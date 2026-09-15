@@ -42,15 +42,11 @@ return {
                    -- team_sizes.dat is NOT touched by update.lua/
                    -- update_full.lua, same reasoning as config.lua itself.
 
-    MONITOR_NAME = nil, -- e.g. "monitor_0" to force a specific monitor;
-                        -- nil = auto-detect via peripheral.find("monitor")
-                        -- -- same convention as GymArena/SimonSays and
-                        -- GymArena/TicTacToe, so any wired Advanced Monitor
-                        -- is picked up automatically with zero config, no
-                        -- need to look up peripheral.getNames(). Falls back
-                        -- to the computer's own screen only if no monitor
-                        -- is found at all. Set this only if you have
-                        -- multiple monitors and need to pick a specific one.
+    -- Monitor is always auto-detected via peripheral.find("monitor") --
+    -- startup.lua just uses whichever wired Advanced Monitor it finds first,
+    -- falling back to the computer's own screen if none is present. No
+    -- MONITOR_NAME setting needed (removed -- this setup only ever has one
+    -- monitor, so multi-monitor selection was dead weight).
     MONITOR_SCALE = 1, -- passed to monitor.setTextScale() when a monitor is
                        -- in use. Lower (e.g. 0.5) fits more text on a small
                        -- monitor; 1 is the CC:Tweaked default.

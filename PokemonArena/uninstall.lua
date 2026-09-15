@@ -1,6 +1,6 @@
 -- uninstall.lua: removes the files installed by install.lua/update.lua.
 
-local FILES = { "startup.lua", "rename.lua", "history.lua", "update.lua", "update_full.lua", "install.lua" }
+local FILES = { "startup.lua", "scan.lua", "teamsizes.lua", "match.lua", "ui.lua", "rename.lua", "history.lua", "update.lua", "update_full.lua", "install.lua" }
 
 print("This will remove: " .. table.concat(FILES, ", "))
 io.write("Also remove config.lua/locations.lua (your detector/podium settings)? (y/N): ")

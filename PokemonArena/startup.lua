@@ -7,6 +7,12 @@
 -- an automatic jump to that same setup screen when a brand new Pokemon
 -- shows up after a match is already over, and a "History" screen listing
 -- the last few completed matches (see match_history.dat / history.lua).
+--
+-- Session 8: split into modules (scan.lua/teamsizes.lua/match.lua/ui.lua)
+-- -- this file is now purely orchestration: load config, build the podium
+-- table, bootstrap Basalt2 + the monitor, wire the modules together, and
+-- run the scan loop. See each module's own header comment for what moved
+-- where and why. No behavior change intended from the split itself.
 
 -- ====================== CONFIG ======================
 local config = require("config")
@@ -14,12 +20,14 @@ local RADIUS = config.RADIUS
 local OWNED_TAG = config.OWNED_TAG
 local PLAYER_TAG = config.PLAYER_TAG
 local POLL_INTERVAL = config.POLL_INTERVAL
-local MONITOR_NAME = config.MONITOR_NAME
 local MONITOR_SCALE = config.MONITOR_SCALE
 local HISTORY_MAX_ENTRIES = config.HISTORY_MAX_ENTRIES or 20
 
 local locations = require("locations")
 local matchHistory = require("history")
+local scan = require("scan")
+local teamsizes = require("teamsizes")
+local match = require("match")
 
 if not locations.PODIUMS or #locations.PODIUMS == 0 then
     error("locations.lua must define PODIUMS with at least one podium table (see locations.lua).")
@@ -54,11 +62,11 @@ for i, raw in ipairs(locations.PODIUMS) do
         -- every scan instead of being re-guessed -- re-guessing every
         -- ~2.2s let a bystander who merely walked closer than the real
         -- trainer steal the label mid-battle. Cleared (uuid = nil) whenever
-        -- the active Pokemon changes (a new send-out) or on resetMatch().
+        -- the active Pokemon changes (a new send-out) or on match.reset().
         trainerLock = { uuid = nil, name = nil },
 
         -- match tracking: how many of this podium's owned Pokemon have
-        -- fainted so far (see updateMatchStatus()/teamSizes below)
+        -- fainted so far (see match.lua)
         faintedCount = 0,
         faintedUuids = {}, -- set of uuids already counted, so a fainted
                            -- Pokemon that stays visible for a couple of
@@ -94,646 +102,53 @@ end
 local basalt = require("basalt")
 
 -- Auto-detect a wired Advanced Monitor and mirror the whole display onto
--- it, exactly like GymArena/SimonSays and GymArena/TicTacToe: MONITOR_NAME
--- = nil (config.lua default) means "use whichever monitor
--- peripheral.find("monitor") turns up", not "never use a monitor" -- no
--- need to look up the exact peripheral name first. Only falls back to the
--- computer's own terminal if no monitor is present on the network at all.
-local mon = MONITOR_NAME and wrapPeripheral(MONITOR_NAME, "Monitor") or peripheral.find("monitor")
+-- it, exactly like GymArena/SimonSays and GymArena/TicTacToe. Falls back
+-- to the computer's own terminal if no monitor is present on the network
+-- at all. No MONITOR_NAME setting anymore (removed -- this setup only
+-- ever has one monitor, so a "pick a specific one" option was dead
+-- weight; peripheral.find("monitor") is all that's needed).
+local mon = peripheral.find("monitor")
 
-local screen
+local screen, paletteTarget
 if mon then
     if MONITOR_SCALE then
         mon.setTextScale(MONITOR_SCALE)
     end
     screen = basalt.createFrame():setTerm(mon)
+    paletteTarget = mon
 else
     screen = basalt.getMainFrame()
-end
-
--- Cobblemon Pokemon entities always report a "baby" field; players, Loot
--- Balls, etc. never do. Cheap filter, no datapack needed for this part.
-local function isPokemon(entity)
-    return entity.baby ~= nil
-end
-
-local function hasTag(entity, tag)
-    if not entity.tags then
-        return false
-    end
-    for _, t in ipairs(entity.tags) do
-        if t == tag then
-            return true
-        end
-    end
-    return false
-end
-
--- scanEntities() coordinates are relative to the detector itself, so this
--- is plain distance-from-detector.
-local function distanceSquared(entity)
-    return entity.x * entity.x + entity.y * entity.y + entity.z * entity.z
-end
-
--- Distance between two scanned entities (both coordinates are relative to
--- the same detector, i.e. the same origin, so this is just their delta).
--- Used to find the player standing closest to the Pokemon actually being
--- shown, not just closest to the detector block in general.
-local function distanceSquaredBetween(a, b)
-    local dx, dy, dz = a.x - b.x, a.y - b.y, a.z - b.z
-    return dx * dx + dy * dy + dz * dz
-end
-
--- One scanEntities() call per podium per cycle (the detector has its own
--- ~2s cooldown -- see config.lua's POLL_INTERVAL comment -- so calling it
--- twice per cycle would starve the second call).
---
--- Trainer candidate: used to require "nearest entity without a baby
--- field", but that also matches ordinary mobs (confirmed in-game: a
--- wandering Bat got shown as "Trainer: Bat"). Now requires the PLAYER_TAG
--- (set on every real player by the datapack, see ../datapack/), and is
--- measured from the shown Pokemon rather than from the detector, so a
--- second player merely walking closer to the podium than the real trainer
--- can't outrank them. update() below additionally *locks* this guess per
--- Pokemon uuid so it's only computed once per send-out, not re-guessed
--- every scan.
---
--- Cross-podium ownership: RADIUS is documented (config.lua) to see the
--- *whole* arena from every detector on a small setup, not just its own
--- podium. That's normally harmless -- each detector's own "nearest owned
--- Pokemon" is naturally its own podium's Pokemon -- but confirmed in-game
--- to break down when one side is genuinely empty (no active Pokemon of its
--- own): the empty podium's "nearest owned Pokemon" then resolves to the
--- *other* podium's Pokemon (the only one on the field), which that empty
--- podium happily displayed as its own and then never cleared, since as
--- far as its own scan is concerned that Pokemon never leaves. Reported as
--- "2 identical trainer names" / a stale name that only "New Battle" could
--- clear. Fixed by resolving each Pokemon uuid to exactly one podium --
--- whichever podium's detector reports it as physically closer -- across
--- ALL podiums first, so every other podium simply never sees it as a
--- candidate and correctly falls through to its own miss-count/clear path.
-local function scanAllPodiums()
-    local raw = {}
-    for i, podium in ipairs(podiums) do
-        local ok, entities = pcall(podium.detectorPeripheral.scanEntities, RADIUS)
-        local candidates, players = {}, {}
-        if ok and type(entities) == "table" then
-            for _, entity in ipairs(entities) do
-                if isPokemon(entity) and hasTag(entity, OWNED_TAG) then
-                    candidates[#candidates + 1] = { entity = entity, dist = distanceSquared(entity) }
-                elseif hasTag(entity, PLAYER_TAG) then
-                    players[#players + 1] = entity
-                end
-            end
-        end
-        raw[i] = { candidates = candidates, players = players }
-    end
-
-    -- Resolve each seen Pokemon uuid to whichever podium's detector is
-    -- physically closest to it (smallest reported distance wins). Entities
-    -- with no uuid (shouldn't normally happen for a real Cobblemon Pokemon)
-    -- are never deduplicated, so they can't accidentally starve every
-    -- podium of a candidate.
-    local bestPodiumForUuid = {} -- uuid -> podium index
-    for i, r in ipairs(raw) do
-        for _, c in ipairs(r.candidates) do
-            local uuid = c.entity.uuid
-            if uuid then
-                local best = bestPodiumForUuid[uuid]
-                if not best or c.dist < best.dist then
-                    bestPodiumForUuid[uuid] = { index = i, dist = c.dist }
-                end
-            end
-        end
-    end
-
-    local results = {}
-    for i, r in ipairs(raw) do
-        local nearestPokemon, nearestPokemonDist = nil, nil
-        for _, c in ipairs(r.candidates) do
-            local uuid = c.entity.uuid
-            local ownedByThisPodium = (not uuid) or (bestPodiumForUuid[uuid].index == i)
-            if ownedByThisPodium and (not nearestPokemon or c.dist < nearestPokemonDist) then
-                nearestPokemon, nearestPokemonDist = c.entity, c.dist
-            end
-        end
-
-        local nearestTrainer, nearestTrainerDist = nil, nil
-        for _, player in ipairs(r.players) do
-            local dist = nearestPokemon and distanceSquaredBetween(player, nearestPokemon) or distanceSquared(player)
-            if not nearestTrainer or dist < nearestTrainerDist then
-                nearestTrainer, nearestTrainerDist = player, dist
-            end
-        end
-
-        results[i] = { pokemon = nearestPokemon, trainer = nearestTrainer }
-    end
-    return results
+    paletteTarget = term
 end
 
 -- ====================== PER-PODIUM TEAM SIZE (team_sizes.dat) ======================
--- Team size is chosen per podium in the "New Battle" setup screen (1-6),
--- not shared and not in config.lua, so update.lua/update_full.lua never
--- clobber it and a config reset doesn't erase an in-progress event's sizes.
-local TEAM_SIZES_FILE = "team_sizes.dat"
-local TEAM_SIZE_MIN, TEAM_SIZE_MAX = 1, 6
-
-local function clampTeamSize(n)
-    n = tonumber(n) or TEAM_SIZE_MIN
-    if n < TEAM_SIZE_MIN then return TEAM_SIZE_MIN end
-    if n > TEAM_SIZE_MAX then return TEAM_SIZE_MAX end
-    return math.floor(n)
-end
-
-local function loadTeamSizes()
-    local saved = nil
-    if fs.exists(TEAM_SIZES_FILE) then
-        local file = fs.open(TEAM_SIZES_FILE, "r")
-        local contents = file.readAll()
-        file.close()
-        local ok, data = pcall(textutils.unserialize, contents)
-        if ok and type(data) == "table" then
-            saved = data
-        end
-    end
-
-    local fallback = clampTeamSize(config.TEAM_SIZE)
-    local sizes = {}
-    for i in ipairs(podiums) do
-        sizes[i] = clampTeamSize((saved and saved[i]) or fallback)
-    end
-    return sizes
-end
-
-local function saveTeamSizes(sizes)
-    local file = fs.open(TEAM_SIZES_FILE, "w")
-    file.write(textutils.serialize(sizes))
-    file.close()
-end
-
-local teamSizes = loadTeamSizes()
-local pendingTeamSizes = {} -- working copy edited on the setup screen
+local teamSizes = teamsizes.load(#podiums, config.TEAM_SIZE)
 
 -- ====================== MATCH HISTORY (match_history.dat) ======================
-local historyEntries = matchHistory.load() -- newest first, capped at HISTORY_MAX_ENTRIES
-
--- ====================== STATE ======================
--- index into podiums of the winning side once a match resolves, or nil
--- while the match is ongoing (or ended in a mutual KO - no winner shown).
--- Recomputed every scan by updateMatchStatus(), cleared by resetMatch().
-local matchWinnerIndex = nil
-local matchLogged = false -- true once the current (over) match has been
-                          -- written to historyEntries, so update() doesn't
-                          -- write a duplicate entry every subsequent scan
-                          -- while the match is still showing DEFEAT/WINNER
-local screenState = "live" -- "live", "setup", or "history"
-
--- forward declarations: UI button handlers below reference these before
--- their bodies are assigned further down, and vice versa.
-local renderLive, isMatchOver, resetMatch, showScreen, openSetupScreen,
-      startBattle, openHistoryScreen, renderHistoryPage, logMatch, update
+-- matchState bundles the match-in-progress tracking that used to be loose
+-- locals in this file: winnerIndex (nil while ongoing/no single winner),
+-- logged (guards against double-logging the same finished match), and
+-- historyEntries (newest first, capped at HISTORY_MAX_ENTRIES -- the same
+-- table reference is handed to ui.build() once below and stays valid for
+-- the whole run, see match.lua/ui.lua headers for why).
+local matchState = {
+    winnerIndex = nil,
+    logged = false,
+    historyEntries = matchHistory.load(),
+}
 
 -- ====================== UI ======================
--- All widgets live directly on `screen` (no intermediate addFrame()
--- nesting) -- this matches the ONLY proven monitor-compatible pattern
--- elsewhere in this repo (GymArena/SimonSays, GymArena/TicTacToe,
--- FossilLab, ControlRoom all add widgets straight onto `screen`, whether
--- `screen` is the computer's basalt.getMainFrame() or a Monitor-backed
--- basalt.createFrame():setTerm(mon)). Three flat groups of widgets
--- (liveElements/setupElements/historyElements) are toggled with individual
--- :setVisible() calls via showScreen() below.
---
--- REAL root cause of "Monitor stays completely blank" (session 5): it was
--- never the Frame nesting -- config.lua's MONITOR was still nil and nil
--- meant "don't touch any monitor, ever" in this file, unlike every other
--- Monitor-using project in this repo. GymArena/SimonSays and
--- GymArena/TicTacToe treat MONITOR_NAME = nil as "auto-detect via
--- peripheral.find("monitor")", so their Monitor lights up with zero config.
--- Fixed above (see the `mon = MONITOR_NAME and ... or peripheral.find(...)`
--- block) to match that exact convention.
---
--- Every screen:addButton() below that used to be screen:addLabel() (session
--- 5): confirmed in GymArena/TicTacToe's memory notes that this Basalt2
--- build does NOT render Label backgrounds -- only the text draws, the
--- :setBackground() call is silently a no-op on a Label. That's what made
--- the "New Battle" team-size screen unreadable (foto 1): every panel/title/
--- count Label fell back to the frame's actual (light) default background,
--- and several used a light foreground colour (white) on top of it --
--- invisible. Button backgrounds DO render (proven by the already-working
--- New Battle/Start Battle/History buttons in the same screenshot), so every
--- decorative text panel now uses addButton() instead, same fix already
--- applied in GymArena/TicTacToe for its pixel-art boxes.
-local w, h = screen:getSize()
-local colWidth = math.floor(w / #podiums)
-local BAR_WIDTH = math.max(4, colWidth - 4)
-
-local liveElements = {}
-local setupElements = {}
-local historyElements = {}
-
-local function setElementsVisible(elements, visible)
-    for _, element in ipairs(elements) do
-        element:setVisible(visible)
-    end
-end
-
-showScreen = function(state)
-    screenState = state
-    setElementsVisible(liveElements, state == "live")
-    setElementsVisible(setupElements, state == "setup")
-    setElementsVisible(historyElements, state == "history")
-end
-
--- ---------------------- LIVE SCREEN ----------------------
--- The 7-row podium card (header/trainer/name/bar/hp/fainted/banner) used to
--- be pinned to rows 1-7, leaving a big dead strip of blank background
--- between it and the New Battle/History row at the very bottom on any
--- monitor taller than ~8 rows (reported: layout looks broken/ugly, empty
--- on a big Advanced Monitor). Vertically centered instead, so the leftover
--- space splits evenly above and below the card.
-local PODIUM_CARD_ROWS = 7
-local liveBodyHeight = h - 1 -- rows 1..(h-1); row h is New Battle/History
-local liveTop = 1 + math.max(0, math.floor((liveBodyHeight - PODIUM_CARD_ROWS) / 2))
-
-local podiumUI = {}
-
-for i, podium in ipairs(podiums) do
-    local x = (i - 1) * colWidth + 1
-    local width = (i == #podiums) and (w - x + 1) or colWidth
-
-    local ui = {}
-    ui.headerLabel = screen:addButton()
-        :setText(podium.position)
-        :setPosition(x, liveTop):setSize(width, 1)
-        :setBackground(colors.gray):setForeground(colors.white)
-    ui.trainerLabel = screen:addButton()
-        :setText(""):setPosition(x, liveTop + 1):setSize(width, 1)
-        :setBackground(colors.lightGray):setForeground(colors.black)
-    ui.nameLabel = screen:addButton()
-        :setText(""):setPosition(x, liveTop + 2):setSize(width, 1)
-        :setBackground(colors.lightGray):setForeground(colors.black)
-    ui.barLabel = screen:addButton()
-        :setText(""):setPosition(x, liveTop + 3):setSize(width, 1)
-        :setBackground(colors.lightGray):setForeground(colors.black)
-    ui.hpLabel = screen:addButton()
-        :setText(""):setPosition(x, liveTop + 4):setSize(width, 1)
-        :setBackground(colors.lightGray):setForeground(colors.black)
-    ui.faintedLabel = screen:addButton()
-        :setText(""):setPosition(x, liveTop + 5):setSize(width, 1)
-        :setBackground(colors.lightGray):setForeground(colors.black)
-    ui.bannerLabel = screen:addButton()
-        :setText(""):setPosition(x, liveTop + 6):setSize(width, 1)
-        :setBackground(colors.black):setForeground(colors.yellow)
-
-    podiumUI[i] = ui
-    liveElements[#liveElements + 1] = ui.headerLabel
-    liveElements[#liveElements + 1] = ui.trainerLabel
-    liveElements[#liveElements + 1] = ui.nameLabel
-    liveElements[#liveElements + 1] = ui.barLabel
-    liveElements[#liveElements + 1] = ui.hpLabel
-    liveElements[#liveElements + 1] = ui.faintedLabel
-    liveElements[#liveElements + 1] = ui.bannerLabel
-end
-
--- bottom row, split in half: New Battle (left) / History (right)
-local bottomHalf = math.floor(w / 2)
-local newBattleButton = screen:addButton()
-    :setText("New Battle")
-    :setPosition(1, h):setSize(bottomHalf, 1)
-    :setBackground(colors.orange):setForeground(colors.white)
-    :onClick(function() openSetupScreen() end)
-liveElements[#liveElements + 1] = newBattleButton
-
-local historyButton = screen:addButton()
-    :setText("History")
-    :setPosition(bottomHalf + 1, h):setSize(w - bottomHalf, 1)
-    :setBackground(colors.cyan):setForeground(colors.white)
-    :onClick(function() openHistoryScreen() end)
-liveElements[#liveElements + 1] = historyButton
-
--- ---------------------- SETUP SCREEN ----------------------
-local setupTitle = screen:addButton()
-    :setText("New Battle - Team Size (1-6)")
-    :setPosition(1, 1):setSize(w, 1)
-    :setBackground(colors.black):setForeground(colors.white)
-setupElements[#setupElements + 1] = setupTitle
-
--- Vertically center the per-podium rows in the space between the title
--- (row 1) and Start Battle (row h), with a blank spacer row between each
--- podium, instead of cramming them all into rows 2-3 -- reported: "team
--- size zit erg hoog" (sits way too high), with most of a tall monitor left
--- as dead blank space below the -/+ pickers.
-local SETUP_ROW_HEIGHT = 2 -- 1 content row + 1 blank spacer row
-local setupBodyHeight = h - 2 -- rows 2..(h-1): below title, above Start Battle
-local setupBlockHeight = #podiums * SETUP_ROW_HEIGHT
-local setupStartY = 2 + math.max(0, math.floor((setupBodyHeight - setupBlockHeight) / 2))
-
-local setupUI = {}
-for i, podium in ipairs(podiums) do
-    local y = setupStartY + (i - 1) * SETUP_ROW_HEIGHT
-    setupUI[i] = {}
-
-    local label = screen:addButton()
-        :setText(podium.position .. ":")
-        :setPosition(2, y):setSize(math.max(4, w - 14), 1)
-        :setBackground(colors.black):setForeground(colors.white)
-    setupElements[#setupElements + 1] = label
-
-    local minusButton = screen:addButton()
-        :setText("-")
-        :setPosition(w - 9, y):setSize(3, 1)
-        :setBackground(colors.red):setForeground(colors.white)
-        :onClick(function()
-            pendingTeamSizes[i] = clampTeamSize(pendingTeamSizes[i] - 1)
-            setupUI[i].countLabel:setText(tostring(pendingTeamSizes[i]))
-        end)
-    setupElements[#setupElements + 1] = minusButton
-
-    setupUI[i].countLabel = screen:addButton()
-        :setText("1")
-        :setPosition(w - 6, y):setSize(3, 1)
-        :setBackground(colors.black):setForeground(colors.white)
-    setupElements[#setupElements + 1] = setupUI[i].countLabel
-
-    local plusButton = screen:addButton()
-        :setText("+")
-        :setPosition(w - 3, y):setSize(3, 1)
-        :setBackground(colors.green):setForeground(colors.white)
-        :onClick(function()
-            pendingTeamSizes[i] = clampTeamSize(pendingTeamSizes[i] + 1)
-            setupUI[i].countLabel:setText(tostring(pendingTeamSizes[i]))
-        end)
-    setupElements[#setupElements + 1] = plusButton
-end
-
-local startBattleButton = screen:addButton()
-    :setText("Start Battle")
-    :setPosition(1, h):setSize(w, 1)
-    :setBackground(colors.green):setForeground(colors.white)
-    :onClick(function() startBattle() end)
-setupElements[#setupElements + 1] = startBattleButton
-
--- ---------------------- HISTORY SCREEN ----------------------
--- Fixed, pre-drawn row slots (Basalt widgets should all exist before
--- basalt.run() starts -- see ControlRoom/FossilLab, same convention),
--- refilled per page rather than created/destroyed on demand.
-local historyTitle = screen:addButton()
-    :setText("Match History (last " .. HISTORY_MAX_ENTRIES .. ")")
-    :setPosition(1, 1):setSize(w, 1)
-    :setBackground(colors.black):setForeground(colors.white)
-historyElements[#historyElements + 1] = historyTitle
-
-local HISTORY_ROWS_PER_PAGE = math.max(1, h - 3) -- row1 title, rows 2..h-2 list, h-1 pager, h back
-local historySlots = {}
-for i = 1, HISTORY_ROWS_PER_PAGE do
-    historySlots[i] = screen:addButton()
-        :setText("")
-        :setPosition(1, 1 + i):setSize(w, 1)
-        :setBackground(colors.black):setForeground(colors.white)
-    historyElements[#historyElements + 1] = historySlots[i]
-end
-
-local historyPagerY = h - 1
-local historyPrevButton = screen:addButton()
-    :setText("< Prev")
-    :setPosition(1, historyPagerY):setSize(8, 1)
-    :setBackground(colors.gray):setForeground(colors.white)
-historyElements[#historyElements + 1] = historyPrevButton
-
-local historyNextButton = screen:addButton()
-    :setText("Next >")
-    :setPosition(w - 7, historyPagerY):setSize(8, 1)
-    :setBackground(colors.gray):setForeground(colors.white)
-historyElements[#historyElements + 1] = historyNextButton
-
-local historyPageLabel = screen:addButton()
-    :setText("")
-    :setPosition(10, historyPagerY):setSize(math.max(1, w - 18), 1)
-    :setBackground(colors.black):setForeground(colors.white)
-historyElements[#historyElements + 1] = historyPageLabel
-
-local historyBackButton = screen:addButton()
-    :setText("Back")
-    :setPosition(1, h):setSize(w, 1)
-    :setBackground(colors.gray):setForeground(colors.white)
-    :onClick(function() showScreen("live") end)
-historyElements[#historyElements + 1] = historyBackButton
-
-local currentHistoryPage = 1
-
-local function totalHistoryPages()
-    return math.max(1, math.ceil(#historyEntries / HISTORY_ROWS_PER_PAGE))
-end
-
--- one line per match: "<time>  <who> F/T vs <who> F/T  -> <winner> won" (or
--- "-> Draw" on a simultaneous mutual KO). Generic over any podium count.
-local function formatHistoryEntry(entry)
-    local parts = {}
-    for _, r in ipairs(entry.results) do
-        local who = r.trainer or r.position
-        parts[#parts + 1] = who .. " " .. r.fainted .. "/" .. r.teamSize
-    end
-    local outcome = entry.winner and (entry.winner .. " won") or "Draw"
-    return (entry.time or "") .. "  " .. table.concat(parts, " vs ") .. "  -> " .. outcome
-end
-
-renderHistoryPage = function()
-    local pages = totalHistoryPages()
-    if currentHistoryPage > pages then currentHistoryPage = pages end
-    if currentHistoryPage < 1 then currentHistoryPage = 1 end
-
-    local startIndex = (currentHistoryPage - 1) * HISTORY_ROWS_PER_PAGE
-    for i = 1, HISTORY_ROWS_PER_PAGE do
-        local entry = historyEntries[startIndex + i]
-        historySlots[i]:setText(entry and formatHistoryEntry(entry) or "")
-    end
-    if #historyEntries == 0 then
-        historySlots[1]:setText("(no matches recorded yet)")
-    end
-    historyPageLabel:setText("Page " .. currentHistoryPage .. "/" .. pages)
-end
-
-historyPrevButton:onClick(function()
-    currentHistoryPage = currentHistoryPage - 1
-    renderHistoryPage()
-end)
-historyNextButton:onClick(function()
-    currentHistoryPage = currentHistoryPage + 1
-    renderHistoryPage()
-end)
-
-openHistoryScreen = function()
-    currentHistoryPage = 1
-    renderHistoryPage()
-    showScreen("history")
-end
-
--- start with only the live screen visible
-setElementsVisible(setupElements, false)
-setElementsVisible(historyElements, false)
-
--- ====================== DISPLAY / STATE LOGIC ======================
-local function healthBar(health, maxHealth)
-    if not health or not maxHealth or maxHealth <= 0 then
-        return string.rep("-", BAR_WIDTH)
-    end
-    local filled = math.floor(BAR_WIDTH * math.min(health, maxHealth) / maxHealth + 0.5)
-    filled = math.max(0, math.min(BAR_WIDTH, filled))
-    return string.rep("#", filled) .. string.rep("-", BAR_WIDTH - filled)
-end
-
--- green >50%, yellow 20-50%, red <20% (as agreed)
-local function hpColor(health, maxHealth)
-    if not health or not maxHealth or maxHealth <= 0 then
-        return colors.gray
-    end
-    local pct = health / maxHealth
-    if pct > 0.5 then
-        return colors.green
-    elseif pct > 0.2 then
-        return colors.yellow
-    else
-        return colors.red
-    end
-end
-
-renderLive = function()
-    for i, podium in ipairs(podiums) do
-        local ui = podiumUI[i]
-        local defeated = podium.faintedCount >= teamSizes[i]
-
-        ui.faintedLabel:setText("(" .. podium.faintedCount .. "/" .. teamSizes[i] .. " fainted)")
-
-        if defeated then
-            ui.trainerLabel:setText("")
-            ui.nameLabel:setText("*** DEFEAT ***"):setForeground(colors.red)
-            ui.barLabel:setText("")
-            ui.hpLabel:setText("")
-        else
-            ui.trainerLabel:setText(podium.lastTrainerName and ("Trainer: " .. podium.lastTrainerName) or "")
-
-            if podium.lastName then
-                local nameText = podium.lastName
-                if podium.lastHealth and podium.lastHealth <= 0 then
-                    nameText = nameText .. "  FAINTED"
-                end
-                ui.nameLabel:setText(nameText):setForeground(colors.black)
-                ui.barLabel:setText("[" .. healthBar(podium.lastHealth, podium.lastMaxHealth) .. "]")
-                    :setForeground(hpColor(podium.lastHealth, podium.lastMaxHealth))
-                ui.hpLabel:setText("HP " .. (podium.lastHealth or 0) .. "/" .. (podium.lastMaxHealth or 0))
-            else
-                ui.nameLabel:setText("(no Pokemon detected)"):setForeground(colors.gray)
-                ui.barLabel:setText("")
-                ui.hpLabel:setText("")
-            end
+local ui = require("ui")
+local screenUI = ui.build(screen, paletteTarget, podiums, teamSizes, matchState.historyEntries, {
+    historyMaxEntries = HISTORY_MAX_ENTRIES,
+    onStartBattle = function(pendingSizes)
+        for i in ipairs(podiums) do
+            teamSizes[i] = pendingSizes[i]
         end
-
-        ui.bannerLabel:setText(matchWinnerIndex == i and "*** WINNER ***" or "")
-    end
-end
-
--- A podium counts as "defeated" once faintedCount reaches its teamSize; if
--- exactly one podium isn't defeated, it's the winner. Simultaneous mutual
--- KOs (everyone defeated at once) show no winner (all podiums show
--- DEFEAT). Monotonic: faintedCount only goes up between resets, so this
--- never flickers mid-match.
-local function updateMatchStatus()
-    local aliveIndex, aliveCount = nil, 0
-    for i, podium in ipairs(podiums) do
-        if podium.faintedCount < teamSizes[i] then
-            aliveCount = aliveCount + 1
-            aliveIndex = i
-        end
-    end
-    if #podiums > 1 and aliveCount == 1 then
-        matchWinnerIndex = aliveIndex
-    elseif aliveCount == #podiums then
-        matchWinnerIndex = nil -- nobody defeated yet
-    end
-    -- otherwise (2+ still alive with 3+ podiums, or aliveCount == 0 mutual
-    -- KO) leave matchWinnerIndex as-is: no single winner to report.
-end
-
-isMatchOver = function()
-    for i, podium in ipairs(podiums) do
-        if podium.faintedCount >= teamSizes[i] then
-            return true
-        end
-    end
-    return false
-end
-
--- Records the just-finished match to historyEntries/match_history.dat.
--- Called exactly once per match, from update() the first scan cycle
--- isMatchOver() goes true (see matchLogged below) -- independent of which
--- screen is currently showing, so a match finishing while the player is on
--- the History or Setup screen still gets logged.
-logMatch = function()
-    local results = {}
-    for i, podium in ipairs(podiums) do
-        results[i] = {
-            position = podium.position,
-            trainer = podium.lastTrainerName,
-            fainted = podium.faintedCount,
-            teamSize = teamSizes[i],
-        }
-    end
-
-    local winner = nil
-    if matchWinnerIndex then
-        local winnerPodium = podiums[matchWinnerIndex]
-        winner = winnerPodium.lastTrainerName or winnerPodium.position
-    end
-
-    historyEntries = matchHistory.add(historyEntries, {
-        time = os.date("%m-%d %H:%M"),
-        results = results,
-        winner = winner,
-    }, HISTORY_MAX_ENTRIES)
-
-    if screenState == "history" then
-        renderHistoryPage()
-    end
-end
-
--- Clears the fainted tally + seen-uuid tracking on every podium and starts
--- tracking a fresh match. Only called from startBattle() (i.e. after the
--- setup screen's team sizes are committed) -- never directly from a
--- "reset" button, per the agreed New Battle -> setup -> Start Battle flow.
-resetMatch = function()
-    for _, podium in ipairs(podiums) do
-        podium.faintedCount = 0
-        podium.faintedUuids = {}
-        podium.seenUuids = {}
-        podium.trainerLock = { uuid = nil, name = nil }
-    end
-    matchWinnerIndex = nil
-    matchLogged = false
-end
-
--- Opens the team-size setup screen, prefilled with the currently active
--- team sizes (so re-running the same team size is just "New Battle" ->
--- "Start Battle"). Reached either by clicking "New Battle" on the live
--- screen, or automatically once a brand new Pokemon shows up after a
--- match is already over (see update() below) -- either way, "Start
--- Battle" is still required before the tally actually resets.
-openSetupScreen = function()
-    for i in ipairs(podiums) do
-        pendingTeamSizes[i] = teamSizes[i]
-        setupUI[i].countLabel:setText(tostring(pendingTeamSizes[i]))
-    end
-    showScreen("setup")
-end
-
-startBattle = function()
-    for i in ipairs(podiums) do
-        teamSizes[i] = pendingTeamSizes[i]
-    end
-    saveTeamSizes(teamSizes)
-    resetMatch()
-    showScreen("live")
-    renderLive()
-end
+        teamsizes.save(teamSizes)
+        match.reset(matchState, podiums)
+    end,
+})
 
 -- ====================== SCAN LOOP ======================
 -- A scan briefly missing the active Pokemon (recall animation, scan
@@ -741,8 +156,8 @@ end
 -- consecutive misses.
 local MISS_LIMIT = 2
 
-update = function()
-    local scans = scanAllPodiums()
+local function update()
+    local scans = scan.scanAllPodiums(podiums, RADIUS, OWNED_TAG, PLAYER_TAG)
     for i, podium in ipairs(podiums) do
         local pokemon, trainer = scans[i].pokemon, scans[i].trainer
         if pokemon then
@@ -777,9 +192,9 @@ update = function()
                 -- Jump to the setup screen (prefilled with the last-used
                 -- team sizes) instead of silently resetting -- "Start
                 -- Battle" is still required (agreed auto-detect option).
-                if screenState == "live" and isMatchOver() and isNewUuid
+                if screenUI.getState() == "live" and match.isOver(podiums, teamSizes) and isNewUuid
                    and pokemon.health and pokemon.health > 0 then
-                    openSetupScreen()
+                    screenUI.openSetupScreen()
                 end
 
                 if pokemon.health and pokemon.health <= 0 and not podium.faintedUuids[pokemon.uuid] then
@@ -798,15 +213,18 @@ update = function()
             end
         end
     end
-    updateMatchStatus()
+    match.updateStatus(matchState, podiums, teamSizes)
 
-    if isMatchOver() and not matchLogged then
-        logMatch()
-        matchLogged = true
+    if match.isOver(podiums, teamSizes) and not matchState.logged then
+        match.log(matchState, podiums, teamSizes, HISTORY_MAX_ENTRIES)
+        matchState.logged = true
+        if screenUI.getState() == "history" then
+            screenUI.renderHistoryPage()
+        end
     end
 
-    if screenState == "live" then
-        renderLive()
+    if screenUI.getState() == "live" then
+        screenUI.renderLive(matchState.winnerIndex)
     end
 end
 
@@ -817,7 +235,7 @@ end
 -- rednet-specific gotcha noted in SimonSays/README and this repo's shared
 -- memory -- that one only applies when something needs to resume on a
 -- rednet_message event, which nothing here does).
-renderLive()
+screenUI.renderLive(matchState.winnerIndex)
 basalt.schedule(function()
     while true do
         update()

@@ -4,7 +4,7 @@ VS-battle display for Cobblemon fights: one Environment Detector per podium show
 
 ![status](https://img.shields.io/badge/status-core--confirmed--in--game-brightgreen)
 
-Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, and win/lose tally are confirmed working live in-game, and the Monitor auto-detect, unreadable-setup-screen, mob-as-trainer, and cramped-layout fixes from previous rounds are also confirmed working (Monitor scale 2 confirmed sharp/readable). One more in-game report: with only one side actually holding an active Pokemon, both podiums showed the *same* trainer name/Pokemon, and the empty side wouldn't clear back to "(no Pokemon detected)" on its own -- only clicking "New Battle" again fixed it. Root cause: the scan radius intentionally covers the whole (small) arena from every detector (see `RADIUS` in [Configure](#configure)), so an empty podium's "nearest owned Pokemon" search had nothing to compare against and simply borrowed the other podium's Pokemon instead. Fixed: every scan cycle now resolves each Pokemon uuid to exactly one podium -- whichever detector is physically closest to it -- across *all* podiums first, so a genuinely empty side never sees a candidate at all and falls through to the normal miss-count clear. **Not yet re-tested in-game.**
+Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, win/lose tally, Monitor auto-detect, and the cross-podium "empty side borrows the other side's Pokemon" fix are all confirmed working live in-game (Monitor scale 2 confirmed sharp/readable). **Not yet re-tested in-game:** the code was just split into modules (`scan.lua`/`teamsizes.lua`/`match.lua`/`ui.lua`, see [Files](#files)) and restyled with a soft blue/green/red palette, a colored header (replacing the plain "Left"/"Right" text) with the trainer name shown alongside it, and a "VS" marker between the two podiums -- see [Look & feel](#look--feel) below. The module split is meant to be a pure refactor (no behavior change), but please re-verify the Monitor still auto-connects and nothing regressed.
 
 ## What it does
 
@@ -17,12 +17,20 @@ Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 U
 - Tracks how many of each podium's own Pokemon have fainted against that podium's team size, and shows `DEFEAT`/`WINNER` once a side's team is wiped out -- see [Match tracking](#match-tracking-winlose) below.
 - Logs every finished match (win/lose/draw + fainted tally) to a browsable, paged **History** screen, capped at the last `HISTORY_MAX_ENTRIES` matches -- see [Match history](#match-history) below.
 
+## Look & feel
+
+A soft blue/green/red battle-arena palette (via `setPaletteColor`, where the terminal supports it -- both an Advanced Computer and Advanced Monitor do), replacing the earlier plain gray/white/black look:
+
+- Each podium gets a rotating accent color (blue, red, green, repeating for a 3rd+ podium) shown as a colored bar where the podium used to just say "Left"/"Right" -- the trainer's name is still shown right below it, tinted the same accent color, so color and name work together instead of one replacing the other.
+- With **exactly 2 podiums**, a small red "VS" marker sits in a center gutter between the two columns, like a classic versus-battle screen. With 3+ podiums (e.g. a "Middle" podium added in `locations.lua` for a triple battle) there's no single gap to put it in, so this falls back to the original edge-to-edge equal-width columns and no VS is shown.
+- HP bar colors are unchanged (green >50%, yellow 20-50%, red <20%).
+
 ## Requirements
 
 - CC:Tweaked (Minecraft mod)
 - An **Advanced Computer** (and, if you want the mirrored display, an **Advanced Monitor**) -- Basalt2's UI (buttons, colored labels) needs the Advanced variants, unlike v1's plain text
 - Advanced Peripherals' **Environment Detector**, one per podium, each on a Wired Modem network -- see `locations.lua`
-- Optionally, a **Monitor** (any size, e.g. 6x8 blocks) on the same network -- it's auto-detected and used automatically, no config needed (see `MONITOR_NAME` in [Configure](#configure))
+- Optionally, a **Monitor** (any size, e.g. 6x8 blocks) on the same network -- it's auto-detected and used automatically, no config needed (see [Configure](#configure))
 - Cobblemon
 - The companion **datapack** in `datapack/` loaded into the world (or merged into another datapack), so ownership tags exist -- see [Datapack](#datapack)
 - Internet access on the computer (HTTP API enabled) the first time it runs, so it can download the **Basalt2** UI library -- handled automatically by `install.lua`/`startup.lua`, same as GymArena/SimonSays
@@ -36,7 +44,7 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/Poke
 install
 ```
 
-This downloads `config.lua`, `locations.lua`, `startup.lua`, `rename.lua`, `history.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`, and also installs the **Basalt2** UI library if it isn't already present. If `config.lua`/`locations.lua` already exist (e.g. reinstalling after `uninstall.lua` kept them), they're left untouched -- only the other files are refreshed.
+This downloads `config.lua`, `locations.lua`, `startup.lua`, `scan.lua`, `teamsizes.lua`, `match.lua`, `ui.lua`, `rename.lua`, `history.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`, and also installs the **Basalt2** UI library if it isn't already present. If `config.lua`/`locations.lua` already exist (e.g. reinstalling after `uninstall.lua` kept them), they're left untouched -- only the other files are refreshed.
 
 The `datapack/` folder is **not** part of this download (it's not CC:Tweaked code) -- copy it into the world's `datapacks/` folder yourself, or merge it into an existing datapack. See [Datapack](#datapack).
 
@@ -67,11 +75,10 @@ TEAM_SIZE = 1, -- default/fallback team size (1-6) used only before you've
                -- real per-podium team sizes live in team_sizes.dat once you
                -- have (see "Match tracking" below).
 
-MONITOR_NAME = nil, -- e.g. "monitor_0" to force a specific monitor;
-                    -- nil = auto-detect via peripheral.find("monitor")
-                    -- (same convention as GymArena/SimonSays and
-                    -- GymArena/TicTacToe) -- falls back to the computer's
-                    -- own screen only if no monitor is found at all.
+-- Monitor is always auto-detected via peripheral.find("monitor")
+-- (same convention as GymArena/SimonSays and GymArena/TicTacToe) --
+-- falls back to the computer's own screen only if no monitor is found
+-- at all. No setting needed here; there's nothing to configure.
 MONITOR_SCALE = 1, -- passed to monitor.setTextScale() when a monitor is in use
 
 HISTORY_MAX_ENTRIES = 20, -- how many recent matches match_history.dat remembers
@@ -164,7 +171,11 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 |---|---|
 | `config.lua` | Your local settings (scan radius, ownership tags, poll interval, team size, optional monitor, history limit) -- not touched by `update.lua` |
 | `locations.lua` | Podium list: label + Environment Detector name per podium -- not touched by `update.lua` |
-| `startup.lua` | Scans each podium's detector, filters to the active owned Pokemon + trainer, shows a Basalt2 UI with name/HP/fainted tally/WINNER-DEFEAT + the New Battle setup screen + the History screen |
+| `startup.lua` | Orchestration only: loads config, builds the podium table, bootstraps Basalt2 + the monitor, wires the modules below together, and runs the scan loop |
+| `scan.lua` | Turns raw Environment Detector `scanEntities()` output into "active Pokemon + trainer per podium", including the cross-podium dedup fix |
+| `teamsizes.lua` | Load/save/clamp helpers for `team_sizes.dat` (per-podium team size, 1-6) |
+| `match.lua` | HP-bar/color display helpers + match tracking (winner/defeat detection, resetting a podium's tally, logging a finished match) |
+| `ui.lua` | All Basalt2 screen building + render functions (live/setup/history screens), including the color palette/header/VS-gutter restyle -- see [Look & feel](#look--feel) |
 | `history.lua` | Load/save/add helpers for `match_history.dat` (same load/save/add shape as FossilLab's `fossilhistory.lua`) |
 | `install.lua` | First-time setup |
 | `rename.lua` | Change this device's label later without reinstalling |

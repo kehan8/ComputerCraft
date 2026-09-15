@@ -588,3 +588,102 @@ OPEN / TE DOEN
    zijn eigen Pokemon) werkt nog steeds zoals in sessie 6 (geen "Trainer:
    Bat", geen flikkeren).
 3. Niet automatisch committen - wacht op expliciete vraag van de user.
+
+========================================================================
+SESSIE 8 - MONITOR_NAME weg, module-split, blauw/groen/rood restyle + VS
+========================================================================
+AANLEIDING - user keurde een plan goed (session 7's genoemde "genoeg" was
+puur over de bugfixes; dit is een aparte, expliciet aangevraagde
+polijst-ronde): config opschonen, startup.lua (827 regels) opsplitsen, en
+de UI restylen richting een "battle-arena" look (referentiefoto van user,
+blauw/groen zacht + rode accenten, VS tussen de twee kanten).
+
+STAP 0: MONITOR_NAME weg
+- config.lua: MONITOR_NAME-veld volledig verwijderd (was toch al altijd
+  nil in de praktijk - user heeft geen tweede monitor nodig). startup.lua
+  gebruikt nu hardcoded `peripheral.find("monitor")`, MONITOR_SCALE blijft
+  staan (nog steeds nuttig, ongewijzigd).
+
+STAP 5: module-split (mechanische refactor, geen gedragswijziging bedoeld)
+- startup.lua (827 regels) opgesplitst in:
+  - scan.lua: isPokemon/hasTag/scanAllPodiums (incl. de cross-podium-dedup
+    fix uit sessie 7, ongewijzigde logica, puur verplaatst).
+  - teamsizes.lua: clamp/load/save voor team_sizes.dat.
+  - match.lua: healthBar/hpColor (pure weergave-helpers) + isOver/
+    updateStatus/reset/log (matchState-tabel {winnerIndex, logged,
+    historyEntries} wordt door startup.lua aangemaakt en doorgegeven,
+    geen losse globals meer in dit bestand).
+  - ui.lua: alle Basalt2-schermen (live/setup/history) + render-functies.
+    Bouwt zelf de meeste knop-callbacks intern (New Battle/History/Back/
+    Prev/Next/+/- zijn puur UI-lokale state of muteren de podiums/
+    teamSizes-tabellen die het als referentie meekrijgt), op EEN externe
+    callback na: opts.onStartBattle(pendingSizesCopy), omdat "Start
+    Battle" ook team_sizes.dat moet opslaan en match.reset() moet
+    aanroepen - dat hoort niet in ui.lua's verantwoordelijkheid.
+  - startup.lua: nu puur orchestratie (config laden, podium-tabel bouwen,
+    Basalt2/monitor bootstrappen, modules aan elkaar knopen, scan-loop).
+- Belangrijke ontwerpkeuze: match_history.dat se historyEntries-tabel en
+  team_sizes.dat se teamSizes-array worden EEN keer (bij opstart) als
+  referentie aan ui.build() doorgegeven, niet steeds opnieuw opgevraagd -
+  history.lua/teamsizes.lua muteren hun tabellen altijd in-place
+  (table.insert/remove, index-assignment), dus die referentie blijft de
+  hele sessie geldig zonder getter-functies nodig te hebben. Gecontroleerd
+  door history.lua's load/save/add-code te lezen, niet aangenomen.
+- install.lua/update.lua/update_full.lua/uninstall.lua: FILES-lijsten
+  aangevuld met scan.lua/teamsizes.lua/match.lua/ui.lua (code-bestanden,
+  dus in alle vier de lijsten, net als startup.lua/history.lua al waren).
+
+STAP 1-3: restyle (blauw/groen/rood palet, header-kleur+trainer-naam mix,
+VS-gutter)
+- setPaletteColor()-stretch toegepast in ui.lua (softenPalette()): herdefinieert
+  colors.blue/lightBlue/green/red/cyan naar zachtere hex-tinten op de
+  Monitor of het computer-scherm (term), in pcall (kon niet lokaal getest
+  worden of setPaletteColor bestaat/werkt op beide targets).
+- Elk podium krijgt een roterende accentkleur (blauw/rood/groen,
+  herhalend voor een 3e+ podium). Het header-vak toont nu GEEN "Left"/
+  "Right"-tekst meer, alleen die accentkleur als balk; de trainer-naam
+  (1 regel eronder) is getint in diezelfde accentkleur - kleur EN naam
+  samen, niet kleur IN PLAATS VAN naam (expliciete user-eis).
+- Nieuw: bij EXACT 2 podiums wordt een smalle rode "VS"-kolom (3 breed)
+  tussen de twee podium-kolommen ingevoegd (colWidth herberekend zodat
+  beide kolommen + gutter samen nog steeds binnen de schermbreedte
+  passen). Bij 3+ podiums (locations.lua ondersteunt een "Middle"-podium)
+  géén VS - valt terug op de oude edge-to-edge gelijke-breedte-kolommen,
+  exact zoals gepland. Extra veiligheidsmarge toegevoegd (te smal scherm
+  -> ook geen gutter) om een kolom-breedte van 0 of negatief te voorkomen,
+  puur defensief, niet expliciet gevraagd maar wel nodig zonder lokaal te
+  kunnen testen.
+- Overige panelen (setup-titel/labels, history-rijen/pager, bottom-row
+  knoppen) omgezet van het oude gray/lightGray/black/orange/cyan-mengsel
+  naar de blauw/groen/rood-familie (blauw voor titels/neutrale acties,
+  groen voor positief/bevestigen, rood voor min-knop/gevaar), consistent
+  met de podium-header-kleuren.
+
+NIET GEDAAN / BEWUST UITGESTELD
+- Stap 4 (KO-tracker/scoreboard in ASCII-art-stijl, per-Pokemon naam+HP-
+  balk+KO-markers) - EXPLICIET overgeslagen per het goedgekeurde plan
+  (laagste prioriteit, "alleen als er tijd over is"). match_history.dat/
+  het History-scherm tonen nog steeds alleen de samenvattingsregel per
+  match, ongewijzigd t.o.v. sessie 4.
+- Nog steeds geen lokale lua/luac beschikbaar - deze hele sessie is dus
+  volledig ongetest, net als alle sessies hiervoor. Specifiek risico van
+  de module-split: Basalt-knop-callbacks die nu cross-module heen-en-weer
+  lopen (ui.lua -> onStartBattle-callback -> match.lua/teamsizes.lua) zijn
+  met extra aandacht nagelopen op verborgen kruisverwijzingen, maar dat is
+  geen vervanging voor een echte in-game test.
+
+OPEN / TE DOEN
+1. In-game bevestigen: update_full + startup draaien, monitor verbindt
+   nog steeds vanzelf (geen MONITOR_NAME meer nodig).
+2. In-game bevestigen: geen functionele regressie door de module-split -
+   scannen, trainer-lock, fainted-tally, WINNER/DEFEAT, auto-detect-nieuwe-
+   match, New Battle -> Start Battle-flow, History-scherm (paging/logging)
+   werken allemaal nog exact zoals voor de split.
+3. In-game bevestigen: nieuwe layout - kleuren zien er goed uit (niet te
+   fel/te zwak door setPaletteColor), header toont kleur+trainer-naam
+   i.p.v. "Left"/"Right"-tekst, VS verschijnt correct tussen de 2 podiums
+   en verdwijnt vanzelf als er een 3e podium wordt toegevoegd.
+4. Concretere feedback verzamelen op het kleurenpalet zelf (exacte hex-
+   tinten zijn een eerste gok, user zei "gewoon proberen") als het geheel
+   nog niet bevalt.
+5. Niet automatisch committen - wacht op expliciete vraag van de user.
