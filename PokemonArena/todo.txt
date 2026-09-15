@@ -890,3 +890,65 @@ OPEN / TE DOEN
    podiums of een kleine monitor-scale) verschijnt er geen kapotte/
    afgesneden VS, gewoon niks - zoals bedoeld.
 4. Niet automatisch committen - wacht op expliciete vraag van de user.
+
+========================================================================
+SESSIE 12 - feedback op sessie-11 pixel-VS: gat openen tussen V en S
+========================================================================
+AANLEIDING (user testte sessie 11 in-game, 7 screenshots: 4 in-world op
+verschillende Monitor-scales (1.8/1/2/2.2), 1 vanaf het computer-scherm
+zelf (scale 1, geen 3D-perspectief), 2 van de code-editor/monitor samen)
+- "YAY zeer tevreden!" op alle 5 - scale 2 is "perfect", scale 2.2 "ook
+  goeie". Geen klacht over dikte/positie/kleur.
+- Wel een aparte, losstaande wens: "ik wil tussen iets open. V gaat iets
+  links en S gaat rechts" - een klein gaatje tussen de twee letters in
+  plaats van strak tegen elkaar aan op de naad. User had dit zelf al
+  geprobeerd met een 13x5-patroon, maar dat mislukte.
+
+MISSTAP DEZE SESSIE (rechtgezet, niet in de uiteindelijke code) - de
+eerste poging las de bugreport verkeerd en verzon een heel ander probleem
+(monitor-tekencel-aspect-ratio, 6x9px niet-vierkant) dat de user niet had
+gevraagd, en versmalde toen de V-bitmap zelf (11 naar 9 kolommen inkt).
+User reageerde terecht boos: de wens was gewoon een gat TUSSEN V en S
+openen door de letters te verschuiven, niet de V-vorm zelf aanpassen.
+Volledig teruggedraaid - VS_PATTERNS.V staat weer op de originele sessie
+11-vorm (11 kolommen, diagonaal, rechterkant tegen de naad).
+
+ECHTE FIX (ui.lua)
+- Nieuwe constante VS_GAP = 2 (kolommen). Bij het tekenen wordt de V-box
+  VS_GAP kolommen naar links geschoven (weg van de naad, richting het
+  midden van podium 1) en de S-box VS_GAP kolommen naar rechts (weg van
+  de naad, richting het midden van podium 2) - puur een verschuiving van
+  de tekenpositie, de bitmaps zelf blijven ongewijzigd.
+- Effect: er ontstaat een kleine strook van elke podium z'n eigen
+  headerkleur (blauw links, rood rechts van de naad) zichtbaar tussen de
+  V en de S, in plaats van dat de twee letters elkaar raken.
+- showVs-check aangepast naar `colWidth >= VS_LETTER_COLS + VS_GAP` (was
+  enkel `>= VS_LETTER_COLS`) zodat de bredere footprint (letter + gat)
+  nog steeds niet over de trainer-naam-tekst heen kan vallen op een smal
+  scherm.
+
+BESTANDEN AANGEPAST
+- ui.lua: VS_PATTERNS.V teruggezet naar de originele sessie 11-vorm,
+  VS_GAP-constante toegevoegd, vx/sx-berekening en showVs-check
+  aangepast, module-header-comment sessie-12-alinea herschreven naar het
+  juiste verhaal (incl. korte vermelding van de teruggedraaide misstap).
+- README.md: "Look & feel"-sectie aangepast - minimale kolombreedte nu
+  13 (11 + 2 gat) i.p.v. 11, en de tekst legt het gat tussen V/S uit i.p.v.
+  de (teruggedraaide) aspect-ratio-uitleg.
+
+NIET GEDAAN / BEWUST UITGESTELD
+- Nog steeds geen lokale lua/luac beschikbaar - ongetest, zelfde beperking
+  als elke sessie hiervoor.
+- VS_GAP = 2 is een eigen inschatting van "iets" (klein gaatje) - niet
+  letterlijk door de user in kolommen gespecificeerd, dus dit is het
+  eerste wat moet worden bijgesteld als het gat te klein/groot oogt.
+
+OPEN / TE DOEN
+1. In-game bevestigen: er zit nu een zichtbaar (maar klein) gaatje met
+   headerkleur tussen de V en de S, geen twee letters die elkaar raken.
+2. In-game bevestigen: de V zelf ziet er weer exact zo uit als de
+   sessie-11-versie die de user al "perfect"/"goeie" noemde op scale 2/2.2
+   (dus geen regressie door de teruggedraaide misstap).
+3. Als het gat te klein of te groot oogt: VS_GAP in ui.lua aanpassen (1
+   kolom kleiner/groter per stap) - enige plek die moet veranderen.
+4. Niet automatisch committen - wacht op expliciete vraag van de user.

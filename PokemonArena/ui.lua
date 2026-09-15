@@ -70,6 +70,20 @@
 --     requires colWidth >= 11 so the full-width pattern can't overlap the
 --     trainer name text on a narrow screen; below that width no V/S is
 --     drawn at all (same graceful-fallback pattern as the 3+ podium case).
+-- - Session 12 (user feedback on session 11's V/S: overall very happy across
+--   4 different monitor scales, but wanted a visible gap opened up between
+--   the V and S -- "V gaat iets links en S gaat rechts" -- instead of the
+--   two letters sitting flush against each other at the seam. (A first
+--   attempt at this diagnosed the wrong problem -- monitor cell aspect
+--   ratio -- and shrank the V's bitmap instead of moving it; reverted, see
+--   below.) The actual fix: VS_PATTERNS.V is back to its original session
+--   11 shape (full 11-column diagonal, right edge flush at the seam,
+--   unchanged), and a new VS_GAP constant shifts the whole V box left and
+--   the whole S box right by that many columns when drawing, opening a
+--   small strip of each podium's own header color between the two letters
+--   instead of touching. showVs now requires colWidth >= VS_LETTER_COLS +
+--   VS_GAP so the widened footprint still can't overlap the trainer name
+--   text on a narrow screen.
 --
 -- Basalt2 gotcha (confirmed via GymArena/TicTacToe project memory): Label
 -- elements never render a background in this Basalt2 build -- only Button
@@ -111,6 +125,10 @@ end
 -- technique as GymArena/TicTacToe's ICON_PATTERNS, drawn at 1:1 scale.
 local VS_LETTER_COLS = 11
 local VS_LETTER_ROWS = 5
+-- Session 12: extra columns of gap opened between the V and S boxes when
+-- drawing (see drawVsLetter call site below) -- purely a positioning
+-- shift, not part of either bitmap.
+local VS_GAP = 2
 local VS_PATTERNS = {
     V = {
         {1,1,0,0,0,0,0,0,0,1,1},
@@ -153,9 +171,10 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
     local colWidth = math.floor(w / #podiums)
     local BAR_WIDTH = math.max(4, colWidth - 4)
     -- Embed V/S into the header seam below -- only for exactly 2 podiums,
-    -- and only if the pixel-art pattern (11 columns wide) actually fits a
-    -- column without overlapping the trainer name text (session 11).
-    local showVs = (#podiums == 2) and (colWidth >= VS_LETTER_COLS)
+    -- and only if the pixel-art pattern plus the session 12 gap (11 + 2
+    -- columns wide) actually fits a column without overlapping the trainer
+    -- name text (session 11 / 12).
+    local showVs = (#podiums == 2) and (colWidth >= VS_LETTER_COLS + VS_GAP)
 
     local function columnFor(i)
         local x = (i - 1) * colWidth + 1
@@ -244,17 +263,16 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
 
     -- "VS" seam marker (session 11): pixel-art V/S bitmaps (VS_PATTERNS,
     -- see module header comment), same "1 = filled pixel -> its own small
-    -- addButton()" technique as GymArena/TicTacToe's icons. The V's right
-    -- edge sits flush against podium 1's right edge (the seam); the S's
-    -- left edge sits flush against podium 2's left edge -- same seam
-    -- position as sessions 9-10, just drawn as real letters instead of a
-    -- single character. Only for exactly 2 podiums with a wide-enough
-    -- column (see showVs above).
+    -- addButton()" technique as GymArena/TicTacToe's icons. Session 12:
+    -- both boxes are pulled VS_GAP columns away from the seam (V left,
+    -- S right) instead of sitting flush against each other, opening a
+    -- small strip of each podium's own header color in between. Only for
+    -- exactly 2 podiums with a wide-enough column (see showVs above).
     if showVs then
         local x1, width1 = columnFor(1)
         local x2 = columnFor(2)
-        local vx = x1 + width1 - VS_LETTER_COLS
-        local sx = x2
+        local vx = x1 + width1 - VS_LETTER_COLS - VS_GAP
+        local sx = x2 + VS_GAP
 
         local function drawVsLetter(pattern, startX)
             for pr = 1, VS_LETTER_ROWS do
