@@ -1,0 +1,91 @@
+POKEMONARENA - project geheugen (lang gesprek, dit is de samenvatting)
+========================================================================
+Status: v1 net neergezet, nog NIET in-game getest. Zie README.md voor
+gebruik/install; dit bestand is puur het ontwerp-geheugen zodat we niet
+terug hoeven te scrollen in het (superlange) gesprek waarin dit is bedacht.
+
+DOEL
+- Twee (of meer) podiums, elk met eigen Environment Detector.
+- Toont per kant: naam + HP/maxHP van het actieve (niet-gebalde) Pokemon
+  het dichtst bij die detector.
+- Alles op het scherm van de computer zelf. GEEN chatbox, geen toasts,
+  geen chat-berichten - user vindt chatbox-gebruik vervelend/geforceerd.
+- v1 = platte tekst (term.clear()/print, geen Basalt2/kleuren). Eerst
+  dataflow valideren voordat we het oppoetsen.
+
+BEVESTIGD (uit test_entities.lua + /data get entity tests, tijdens een
+live Cobblemon-gevecht)
+- scanEntities() radius = kubus (AABB) rond het detector-blok, geen bol,
+  geen richting.
+- Environment Detector heeft GEEN apart wiring-side-veld nodig in code:
+  wordt net als een Player Detector puur via zijn netwerk-naam gewrapt
+  (peripheral.wrap(name)). ("side" in de rest van de repo, bv.
+  relay_side/computer_side in AdminDoor of GEARSHIFTS[i].side in
+  DaylightDetector, betekent iets heel anders: de redstone-kant van dat
+  blok. Niet verwarren - eerdere planversie kopieerde dat velden-patroon
+  hier onterecht.)
+- Harde praktische range-limiet op de scan: 16. 17 en hoger geeft altijd
+  "no entities found", ook stilstaand met dezelfde entities aanwezig.
+  getConfiguration() toont dit niet (zegt "free"), maar het gedrag is een
+  harde (waarschijnlijk server-side/Advanced Peripherals config) cap.
+  User's arena is 18x17 -> ruim binnen bereik, geen probleem. User overlegt
+  evt. nog met de server-admin of dit omhoog kan voor een groter toekomstig
+  arena, maar dat blokkeert v1 niet. RADIUS staat op 16 in config.lua.
+- health/maxHealth staan al direct op elke entity (geen snapshot nodig).
+- uuid is stabiel tussen scans (~2.2s cooldown) -> te gebruiken om dezelfde
+  Pokemon tussen scans te volgen (nog niet gebruikt in v1 buiten opslag).
+- name geeft direct trainer-naam (bv "KnightKehan") of soortnaam
+  (bv "Metagross").
+- Entities zonder "baby"-veld = geen Cobblemon-Pokemon (spelers, Loot Ball).
+  Gratis eerste filter, geen datapack voor nodig. Gebruikt in startup.lua
+  als isPokemon().
+- Wild vs. eigen Pokemon: NBT-veld Pokemon.PokemonOriginalTrainerType
+  ("NONE" = wild) is NIET zichtbaar via scanEntities() (die geeft alleen
+  tags/health/positie/naam/uuid/etc, geen ruwe NBT). Bevestigd via
+  `/data get entity @e[type=cobblemon:pokemon,sort=nearest,limit=1]`.
+  Oplossing: klein datapack (zie datapack/) tagt elke Pokemon elke ~1s met
+  pa_owned of pa_wild op basis van dat NBT-veld; startup.lua filtert op
+  tags. Dit lost het probleem structureel op i.p.v. heuristisch (geen
+  "dichtstbijzijnde bij trainer"-gok nodig).
+- 6-team-lezen (gebalde Pokemon in de PC/party) is onmogelijk - gebalde
+  Pokemon zijn geen entities. Geaccepteerde beperking, v1 scope is alleen
+  het actieve gevechts-Pokemon per kant.
+- 2s scan-cooldown op de Environment Detector is een fysieke/hardware
+  limiet -> UI update in ~2.2s stappen, geaccepteerd (zelfde interval als
+  Test_Debug/test_entities.lua gebruikt).
+
+DATAPACK (PokemonArena/datapack/)
+- Los, standalone datapack met eigen "pokemonarena" namespace, zodat het nu
+  al werkt zonder in iemands andere repo te hoeven zitten.
+- User heeft een eigen datapack-repo (github.com/turboblitz181/mcdatapacks,
+  map "cobblemon/CobbleBuddy 1.7") waar dit op termijn zelf in gemerged
+  wordt - dat gebeurt in een ANDER VS Code-venster/repo, niet hier. Zie
+  datapack/NOTES.txt voor de merge-instructies en een waarschuwing over
+  pack_format-afhankelijke folder-namen (function vs functions).
+- Web-toegang (WebFetch) was niet goedgekeurd in de sessie waarin dit werd
+  bedacht, dus de structuur van CobbleBuddy 1.7 kon niet worden ingelezen
+  om er direct in te haken - vandaar de standalone versie.
+
+CONVENTIES (overgenomen van AdminDoor/DaylightDetector, zie hoofdrepo)
+- Self-contained per-instance tabellen (PODIUMS), nil/lege lijst = uit.
+- Fail-fast validatie bij startup, noemt exact welk item fout is.
+- config.lua = lokale instellingen, update.lua laat 'm met rust,
+  update_full.lua reset 'm terug naar repo-default.
+- Nooit committen zonder expliciete vraag van de gebruiker. Nooit git push.
+- Geen lokale lua/luac beschikbaar - alles testen in-game via
+  update_full + startup.
+
+OPEN / TE DOEN (volgende sessie hier verder oppakken)
+1. In-game testen: 2 Environment Detectors plaatsen/bekabelen, config.lua
+   + locations.lua invullen met echte peripheral-namen, update_full + startup
+   draaien, kijken of de HP/naam-weergave klopt tijdens een echt gevecht.
+2. Datapack in-game laden (los, in de datapack-map van de wereld) en
+   controleren of pa_owned/pa_wild echt verschijnen in de tags-lijst
+   (test_entities.lua opnieuw draaien om te verifiëren).
+3. Beslissen of/wanneer de datapack gemerged wordt in CobbleBuddy 1.7
+   (user's eigen actie, ander venster).
+4. Als v1 werkt: pas dan nadenken over Basalt2/kleuren/mooiere layout,
+   en evt. faint/winnaar-detectie verfijnen (nu: FAINTED zodra health<=0,
+   scherm blijft laatst bekende Pokemon tonen tot 2x achter elkaar gemist).
+5. Evt. RADIUS > 16 later aanpasbaar maken als de admin de server-config
+   ophoogt voor een groter arena.

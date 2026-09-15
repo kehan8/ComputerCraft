@@ -1,0 +1,6 @@
+{
+    "pack": {
+        "pack_format": 48,
+        "description": "PokemonArena - tags Cobblemon Pokemon as pa_owned/pa_wild so CC:Tweaked can tell trainer Pokemon apart from wild spawns. Standalone for now; see NOTES.txt to merge into another datapack."
+    }
+}

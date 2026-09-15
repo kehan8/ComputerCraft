@@ -1,0 +1,45 @@
+This is a minimal standalone datapack so PokemonArena's Lua code (see
+../startup.lua) has a way to tell trainer-owned Pokemon apart from wild
+spawns. scanEntities() (Advanced Peripherals' Environment Detector) has no
+ownership info at all - only tags/health/position/name/uuid/etc, no raw
+NBT - so the only way to expose ownership to Lua is to have something else
+write it into a tag. See ../todo.txt for the full background/investigation.
+
+WHAT IT DOES
+Every ~1 second (20 ticks), tags every not-yet-checked cobblemon:pokemon
+entity with either:
+  - pa_owned  (Pokemon.PokemonOriginalTrainerType != "NONE", i.e. has a trainer)
+  - pa_wild   (Pokemon.PokemonOriginalTrainerType == "NONE", i.e. wild-spawned)
+then marks it pa_checked so it's never re-evaluated again (a Pokemon's
+original trainer doesn't change after capture, so this stays cheap even
+with lots of Pokemon around - only new/untagged ones get checked each run).
+
+startup.lua then just filters scanEntities() results on the pa_owned tag.
+
+FILES
+  pack.mcmeta                                       - datapack metadata
+  data/pokemonarena/function/load.mcfunction         - starts the loop on load
+  data/pokemonarena/function/tag_ownership.mcfunction - the actual tagging + reschedule
+  data/minecraft/tags/function/load.json             - hooks load.mcfunction into #minecraft:load
+
+MERGING INTO YOUR OWN DATAPACK (e.g. CobbleBuddy)
+This currently uses its own "pokemonarena" namespace and its own #load tag
+entry so it runs standalone without touching anything else. To fold it into
+another datapack instead, either:
+  1. Copy the 3 lines from tag_ownership.mcfunction into (or call it from)
+     that datapack's own per-second/per-tick loop, if it already has one -
+     saves running two separate schedule loops side by side, or
+  2. Just drop the data/pokemonarena/ folder as-is into the other
+     datapack's data/ folder, and add "pokemonarena:load" to that
+     datapack's own data/minecraft/tags/function/load.json "values" list
+     (or just keep using the load.json shipped here, both work fine
+     together).
+
+FOLDER NAMING - CHECK YOUR MC VERSION FIRST
+pack_format 48 (see pack.mcmeta) assumes a fairly recent Minecraft version,
+which uses the singular "function" folder (data/<namespace>/function/...)
+and data/minecraft/tags/function/load.json. Older versions (pre-1.21) use
+the plural "functions"/"tags/functions" instead. If functions silently
+don't run after adding this datapack, that mismatch is the first thing to
+check - rename the folders to match whatever pack_format your modpack
+actually uses.
