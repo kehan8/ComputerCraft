@@ -519,3 +519,72 @@ OPEN / TE DOEN
    fix, zodat de volgende layout-ronde gerichter kan zijn (kleuren?
    borders? iets anders?).
 4. Niet automatisch committen - wacht op expliciete vraag van de user.
+
+========================================================================
+SESSIE 7 - lege podium "leent" de andere kant z'n Pokemon/trainer-naam
+========================================================================
+IN-GAME TEST RESULTAAT (user bevestigde: Monitor scale 2 werkt goed en
+scherp, trainer-naam blijft stabiel zolang je rondloopt/wegloopt - "goed
+gedaan"). Nieuwe klacht, "ultra diep test" met 1 speler die zelf beide
+kanten bespeelde:
+- Screenshot toont dezelfde trainer-naam op BEIDE podiums tegelijk, ook al
+  had de user maar 1 kant een actief Pokemon.
+- Reproductiepad zoals beschreven: user ging naar de kant zonder eigen
+  Pokemon, drukte "New Battle" (reset alle podiums) -> die kant toonde
+  meteen user's naam, terwijl die kant zelf leeg was. User liep terug naar
+  zijn eigen/echte kant - de andere (lege) kant bleef user's naam tonen en
+  ververste niet vanzelf; alleen "New Battle" opnieuw drukken maakte het
+  weer normaal.
+
+ROOT CAUSE (bevestigd via code, niet alleen giswerk): config.lua's RADIUS-
+commentaar zegt het letterlijk - "both podiums see entities across the
+whole arena at this radius". Elke podium-detector's scanPodium() koos
+gewoon "de dichtstbijzijnde OWNED_TAG-Pokemon IN ZIJN EIGEN SCAN", zonder
+ooit te checken of een ANDER podium diezelfde Pokemon ook al claimde. Op
+een kleine arena, met maar 1 Pokemon actief in het totaal (de andere kant
+leeg): dat ene Pokemon is dan voor BEIDE detectoren "de dichtstbijzijnde
+owned Pokemon" (er is namelijk geen ander kandidaat) - dus de lege kant
+"leende" het Pokemon+trainer van de andere kant, en toonde die als zijn
+eigen scan resultaat elke cyclus opnieuw (dus nooit een miss, nooit
+clearen via MISS_LIMIT). Dit is exact de "2 identieke namen" +
+"ververst niet"-klacht.
+
+FIX: scanPodium(podium) (per-podium, blind) vervangen door
+scanAllPodiums() (alle podiums in EEN pass, met cross-podium dedup):
+1. Scan eerst alle podiums zoals voorheen (nog steeds precies 1
+   scanEntities()-call per podium per cyclus, zelfde cooldown-reden als
+   altijd), maar verzamel nu ALLE owned-Pokemon-kandidaten per podium
+   (niet alleen de dichtstbijzijnde) plus hun afstand.
+2. Bouw daarna 1x een globale bestPodiumForUuid-tabel: voor elke gezien
+   Pokemon-uuid, welk podium rapporteerde de kleinste afstand ernaartoe?
+   (d.w.z. welke detector staat er FYSIEK het dichtst bij).
+3. Elk podium mag een Pokemon-uuid alleen als "zijn eigen" kandidaat
+   meetellen als hijzelf de globale winnaar is voor die uuid - alle andere
+   podiums zien die Pokemon simpelweg niet, ook al stond die wel binnen
+   hun scanEntities()-straal.
+- Resultaat: een echt lege kant heeft nul geldige kandidaten (het enige
+  Pokemon op het veld "hoort" nu bij de kant die er het dichtst bij staat),
+  valt gewoon terug op de bestaande missCount/MISS_LIMIT-clear-logica, en
+  toont dus vanzelf "(no Pokemon detected)" zonder dat "New Battle" nodig
+  is. trainerLock-logica (sessie 6) is ongewijzigd - die werkt nu gewoon
+  op de juiste (nooit meer geleende) Pokemon-uuid per podium.
+- update()'s scan-loop aangepast: 1x scanAllPodiums() per cyclus i.p.v.
+  scanPodium() per podium in de loop, resultaten per index opgehaald.
+
+NIET GEDAAN / BEWUST UITGESTELD
+- Nog steeds geen lokale lua/luac beschikbaar - ongetest, zelfde beperking
+  als elke sessie hiervoor. De "2 identieke namen"-diagnose is direct
+  afgeleid uit RADIUS's eigen in-code documentatie ("whole arena"), dus
+  vrij hoog vertrouwen, maar wel graag in-game bevestigen.
+- Geen layout/kleuren aangepakt deze sessie - user's vraag ("laat zo maar
+  zijn of kan je fixen") ging specifiek over de dubbele-naam-bug, niet
+  over verdere lelijkheid; dat blijft open staan tot concretere feedback.
+
+OPEN / TE DOEN
+1. In-game bevestigen: als 1 kant leeg is (geen eigen Pokemon), toont die
+   kant nooit meer de naam/Pokemon van de andere kant, ook niet na "New
+   Battle" op de lege kant, en ook niet blijvend als je heen-en-weer loopt.
+2. In-game bevestigen: het normale 2-kanten-actief scenario (elk podium
+   zijn eigen Pokemon) werkt nog steeds zoals in sessie 6 (geen "Trainer:
+   Bat", geen flikkeren).
+3. Niet automatisch committen - wacht op expliciete vraag van de user.

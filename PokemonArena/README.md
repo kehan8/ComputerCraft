@@ -4,11 +4,11 @@ VS-battle display for Cobblemon fights: one Environment Detector per podium show
 
 ![status](https://img.shields.io/badge/status-core--confirmed--in--game-brightgreen)
 
-Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, and win/lose tally are confirmed working live in-game, and the Monitor auto-detect + unreadable-setup-screen fixes from the previous round are also confirmed working. Two more in-game reports (Monitor screenshots): the "Trainer:" name could latch onto a random nearby mob (a Bat was shown as `Trainer: Bat`) or flicker to a different player just walking past the podium, and the "New Battle" team-size screen was crammed into the top few rows of the monitor with most of the screen left blank below it. Both fixed: the trainer guess now requires a real player (`pa_player` tag, see [Datapack](#datapack)) and is *locked* per active Pokemon instead of re-guessed every scan (see [Match tracking](#match-tracking-winlose)), and both the live and setup screens are now vertically centered instead of pinned to the top. **Not yet re-tested in-game.**
+Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, and win/lose tally are confirmed working live in-game, and the Monitor auto-detect, unreadable-setup-screen, mob-as-trainer, and cramped-layout fixes from previous rounds are also confirmed working (Monitor scale 2 confirmed sharp/readable). One more in-game report: with only one side actually holding an active Pokemon, both podiums showed the *same* trainer name/Pokemon, and the empty side wouldn't clear back to "(no Pokemon detected)" on its own -- only clicking "New Battle" again fixed it. Root cause: the scan radius intentionally covers the whole (small) arena from every detector (see `RADIUS` in [Configure](#configure)), so an empty podium's "nearest owned Pokemon" search had nothing to compare against and simply borrowed the other podium's Pokemon instead. Fixed: every scan cycle now resolves each Pokemon uuid to exactly one podium -- whichever detector is physically closest to it -- across *all* podiums first, so a genuinely empty side never sees a candidate at all and falls through to the normal miss-count clear. **Not yet re-tested in-game.**
 
 ## What it does
 
-- Every `POLL_INTERVAL` seconds, scans each podium's Environment Detector and finds the trainer-owned Pokemon closest to it (its active battler), plus the nearest player (that podium's trainer).
+- Every `POLL_INTERVAL` seconds, scans every podium's Environment Detector and finds the trainer-owned Pokemon closest to it (its active battler), plus the nearest player (that podium's trainer). Because the scan radius can see the whole arena from any podium (see `RADIUS` below), the same Pokemon uuid is resolved to exactly one podium per cycle -- whichever detector is physically closest to it -- so a podium with no Pokemon of its own never "borrows" the other podium's Pokemon/trainer just because it's the only one on the field.
 - Shows, per podium, in a boxed panel: the trainer's name, the active Pokemon's name, a colored HP bar (green >50%, yellow 20-50%, red <20%) and `HP current/max` -- on screen, mirrored automatically onto a wired external **Monitor** if one is present, or the computer's own terminal otherwise (see [Configure](#configure)).
 - Filters out anything that isn't a Cobblemon Pokemon (players, Loot Balls, etc. never have a `baby` field) and anything wild-spawned (no trainer), using tags set by a small companion datapack -- see [Datapack](#datapack) below.
 - Trainer names only come from real players (tagged `pa_player` by the datapack), never from a wandering mob, and the guess is locked to whichever Pokemon uuid is currently shown -- it's picked once per send-out (nearest tagged player to that Pokemon) and never re-guessed while the same Pokemon stays active, so a bystander walking past the podium can't steal the label.
@@ -45,9 +45,14 @@ The `datapack/` folder is **not** part of this download (it's not CC:Tweaked cod
 Open `config.lua`:
 
 ```lua
-RADIUS = 16, -- scanEntities() radius per detector (half-width, so this
-             -- scans a 32x32x32 cube). 16 is also the practical max we've
-             -- measured (17+ always returns "no entities found").
+RADIUS = 8, -- scanEntities() radius per detector (half-width, so this
+            -- scans a 16x16x16 cube). Confirmed in-game: on a small arena
+            -- this is big enough that every podium's detector actually
+            -- sees the whole arena, not just its own podium -- startup.lua
+            -- resolves that (see "What it does" above), not this value.
+            -- 16 is the practical max measured (17+ always returns "no
+            -- entities found"); raise this only if the server admin raises
+            -- the underlying limit.
 
 OWNED_TAG = "pa_owned", -- set by the datapack on trainer-owned Pokemon
 WILD_TAG = "pa_wild",   -- set on wild-spawned Pokemon (unused by startup.lua for now)
