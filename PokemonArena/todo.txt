@@ -419,3 +419,103 @@ OPEN / TE DOEN
 2. In-game bevestigen: het team-size (New Battle) scherm toont nu overal
    leesbare tekst (titel, per-podium-label, team-size-getallen).
 3. Niet automatisch committen - wacht op expliciete vraag van de user.
+
+========================================================================
+SESSIE 6 - Monitor/team-size bevestigd werkend, trainer-naam + layout bugs
+========================================================================
+IN-GAME TEST RESULTAAT (user bevestigde sessie-5 fixes werken: "het ziet
+wel goed", Monitor toont nu de UI, team-size scherm is leesbaar). Nieuwe
+klachten, 7 screenshots:
+1. Layout nog steeds lelijk in het algemeen ("we moeten nog lang
+   verbeteren voor layout") - op de grote Advanced Monitor stonden zowel
+   het live-scherm (podium-kaart) als het setup-scherm (team-size) volledig
+   bovenaan gepropt, met een enorme lege witte/zwarte strook eronder tot de
+   New Battle/History/Start Battle-knop op de laatste rij.
+2. Team-size scherm specifiek "zit erg hoog" - zelfde oorzaak als 1, extra
+   concreet gemeld.
+3. Trainer-naam toont soms een willekeurige entity i.p.v. de echte speler:
+   screenshot toont letterlijk "Trainer: Bat" (een vleermuis liep langs de
+   detector). User's diagnose: de oude heuristiek ("dichtstbijzijnde entity
+   zonder baby-veld") is te los - elke gewone mob zonder baby-variant
+   (vleermuis, enderman, etc.) voldoet daar ook aan.
+4. Trainer-naam wisselt/"dubbelt" willekeurig als spelers rondlopen, ook al
+   is er allang een limiet-van-1-speler-idee toegepast (de oude "nearest"
+   her-evalueerde gewoon elke scan (~2.2s) opnieuw, dus zodra een 2e speler
+   toevallig dichterbij de detector kwam dan de echte trainer, nam die het
+   label over). User wil expliciet "vasthouden" - de trainer-naam moet aan
+   de getoonde Pokemon zelf vastzitten (blijven), niet continu herwogen
+   worden - en stelde voor de datapack te "misbruiken" (dus: net als
+   pa_owned/pa_wild, een tag laten zetten) i.p.v. te blijven gokken met
+   scanEntities()-heuristieken.
+
+FIX 1: pa_player-tag (datapack + startup.lua)
+- datapack/.../tag_ownership.mcfunction: `tag @a add pa_player` toegevoegd
+  (elke cyclus opnieuw alle online spelers taggen - een tag die al bestaat
+  opnieuw zetten is gratis, geen aparte "checked"-vlag nodig zoals bij
+  Pokemon, spelers hebben geen "geboorte-moment" om op te haken).
+- config.lua: nieuwe PLAYER_TAG = "pa_player".
+- startup.lua's scanPodium(): trainer-kandidaten moeten nu hasTag(entity,
+  PLAYER_TAG) hebben i.p.v. "isPokemon(entity) == false" - een vleermuis of
+  andere mob kan dus nooit meer als trainer verschijnen, alleen echte
+  spelers.
+
+FIX 2: afstand-tot-Pokemon i.p.v. afstand-tot-detector, PLUS trainer-lock
+per Pokemon-uuid (startup.lua)
+- scanPodium() zoekt nu de dichtstbijzijnde pa_player-getagde speler TOT DE
+  GETOONDE POKEMON zelf (distanceSquaredBetween(), beide coords al relatief
+  aan dezelfde detector-oorsprong dus gewoon een delta) i.p.v. tot de
+  detector in het algemeen - een 2e speler die toevallig dichter bij het
+  PODIUM staat dan bij de POKEMON wint niet meer.
+- NIEUW: podium.trainerLock = { uuid, name } per podium. In update(): zodra
+  het actieve Pokemon-uuid verandert (nieuwe send-out) wordt de lock
+  gewist; zolang dezelfde uuid actief blijft wordt de eenmaal gevonden
+  trainer-naam NOOIT meer herzien, ook al scant scanPodium() elke cyclus
+  een (misschien andere) "dichtstbijzijnde speler". Dit is de directe
+  implementatie van "vasthouden om verbinden met pokemon" - de trainer-
+  naam zit nu vast aan de Pokemon-identiteit, niet aan een live
+  afstandsmeting. trainerLock wordt gereset in resetMatch() (dus bij
+  "Start Battle"), net als seenUuids/faintedUuids.
+- Combinatie van fix 1+2 lost zowel "Trainer: Bat" (fix 1, geen mobs meer
+  uberhaupt kandidaat) als het willekeurige wisselen/"dubbelen" op (fix 2,
+  eenmaal vergrendeld verandert het niet meer door rondlopende spelers).
+
+FIX 3: layout - verticaal centreren i.p.v. bovenaan proppen (startup.lua)
+- Live-scherm: de 7-regelige podium-kaart (header/trainer/naam/bar/hp/
+  fainted/banner) stond hard op rij 1-7 gepind. Nu: liveTop wordt berekend
+  als het midden van de beschikbare ruimte (rij 1 t/m h-1, want rij h is de
+  New Battle/History-knop), dus de kaart zakt mee naar het midden op een
+  hoge Monitor i.p.v. bovenaan te blijven plakken met een dode zone eronder.
+- Setup-scherm: zelfde aanpak, SETUP_ROW_HEIGHT = 2 (1 content-rij + 1
+  lege spacer-rij) per podium, setupStartY = midden van de ruimte tussen
+  titel (rij 1) en Start Battle (rij h). Ook het podium-label breder
+  gemaakt (was hard begrensd op max 10 breed, nu w-14) zodat het niet meer
+  onnodig smal/gedrukt oogt.
+- Geen losse divider/border-widget toegevoegd tussen podium-kolommen (geen
+  concrete klacht hierover, en risico op breken van de kolom-breedte-
+  wiskunde zonder lokaal te kunnen testen) - puur de verticale centrering,
+  dat is wat alle 7 screenshots gemeen hadden (grote lege zone onderaan).
+
+NIET GEDAAN / BEWUST UITGESTELD
+- "Layout nog steeds lelijk" is verder een vage/algemene klacht zonder
+  extra concrete voorbeelden buiten "team size zit hoog" (nu gefixt) en de
+  grote lege zones (nu gefixt door centreren) - geen kleurenpalet/border-
+  redesign gedaan zonder concretere feedback, om niet blind dingen te
+  breken die net werkten.
+- Geen lokale lua/luac beschikbaar - dit is dus WEER volledig ongetest,
+  zelfde beperking als elke sessie hiervoor. WebSearch/WebFetch nog steeds
+  "requires approval" zonder prompt in deze sessie (zelfde blokkade als
+  sessie 3/4), dus scanEntities()'s exacte veldenset (bv. of er een "id"/
+  "type"-veld bestaat) kon niet tegen de Advanced Peripherals-bron
+  geverifieerd worden - de pa_player-tag omzeilt dat probleem net als
+  pa_owned/pa_wild dat al deden voor ownership.
+
+OPEN / TE DOEN
+1. In-game bevestigen: geen "Trainer: Bat" (of andere mob) meer, en de
+   trainer-naam blijft stabiel op de echte speler zolang dezelfde Pokemon
+   actief is, ook als een 2e speler voorbij loopt.
+2. In-game bevestigen: live-scherm en setup-scherm staan nu verticaal
+   gecentreerd op de fysieke Monitor i.p.v. bovenaan geplakt.
+3. Concretere feedback verzamelen als "nog steeds lelijk" blijft na deze
+   fix, zodat de volgende layout-ronde gerichter kan zijn (kleuren?
+   borders? iets anders?).
+4. Niet automatisch committen - wacht op expliciete vraag van de user.

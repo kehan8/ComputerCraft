@@ -4,13 +4,14 @@ VS-battle display for Cobblemon fights: one Environment Detector per podium show
 
 ![status](https://img.shields.io/badge/status-core--confirmed--in--game-brightgreen)
 
-Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, and win/lose tally are confirmed working live in-game. The Monitor stayed blank because it was never actually wired up (config.lua's `MONITOR` defaulted to "off", unlike every other Monitor-using project in this repo) -- fixed by switching to the same auto-detect convention as GymArena/SimonSays and GymArena/TicTacToe (see `MONITOR_NAME` below), and the "New Battle" setup screen was unreadable (white text invisible on a light background) because Basalt2 `Label` backgrounds don't render in this build -- fixed by switching every decorative panel to `Button` widgets instead, same fix already used in GymArena/TicTacToe. **Not yet re-tested in-game** -- please confirm the Monitor shows the UI and the setup screen is readable after updating. The History screen (below) is also new and untested.
+Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, and win/lose tally are confirmed working live in-game, and the Monitor auto-detect + unreadable-setup-screen fixes from the previous round are also confirmed working. Two more in-game reports (Monitor screenshots): the "Trainer:" name could latch onto a random nearby mob (a Bat was shown as `Trainer: Bat`) or flicker to a different player just walking past the podium, and the "New Battle" team-size screen was crammed into the top few rows of the monitor with most of the screen left blank below it. Both fixed: the trainer guess now requires a real player (`pa_player` tag, see [Datapack](#datapack)) and is *locked* per active Pokemon instead of re-guessed every scan (see [Match tracking](#match-tracking-winlose)), and both the live and setup screens are now vertically centered instead of pinned to the top. **Not yet re-tested in-game.**
 
 ## What it does
 
 - Every `POLL_INTERVAL` seconds, scans each podium's Environment Detector and finds the trainer-owned Pokemon closest to it (its active battler), plus the nearest player (that podium's trainer).
 - Shows, per podium, in a boxed panel: the trainer's name, the active Pokemon's name, a colored HP bar (green >50%, yellow 20-50%, red <20%) and `HP current/max` -- on screen, mirrored automatically onto a wired external **Monitor** if one is present, or the computer's own terminal otherwise (see [Configure](#configure)).
 - Filters out anything that isn't a Cobblemon Pokemon (players, Loot Balls, etc. never have a `baby` field) and anything wild-spawned (no trainer), using tags set by a small companion datapack -- see [Datapack](#datapack) below.
+- Trainer names only come from real players (tagged `pa_player` by the datapack), never from a wandering mob, and the guess is locked to whichever Pokemon uuid is currently shown -- it's picked once per send-out (nearest tagged player to that Pokemon) and never re-guessed while the same Pokemon stays active, so a bystander walking past the podium can't steal the label.
 - A single missed scan (recall animation, scan jitter) doesn't blank the screen; it only clears after 2 consecutive misses.
 - Marks `FAINTED` once a shown Pokemon's HP hits 0.
 - Tracks how many of each podium's own Pokemon have fainted against that podium's team size, and shows `DEFEAT`/`WINNER` once a side's team is wiped out -- see [Match tracking](#match-tracking-winlose) below.
@@ -50,6 +51,9 @@ RADIUS = 16, -- scanEntities() radius per detector (half-width, so this
 
 OWNED_TAG = "pa_owned", -- set by the datapack on trainer-owned Pokemon
 WILD_TAG = "pa_wild",   -- set on wild-spawned Pokemon (unused by startup.lua for now)
+PLAYER_TAG = "pa_player", -- set by the datapack on every real player;
+                          -- required for a "Trainer:" candidate, so a
+                          -- wandering mob can never be shown as the trainer
 
 POLL_INTERVAL = 2.2, -- seconds between scans
 
@@ -89,7 +93,7 @@ Each podium needs its own Environment Detector placed near that trainer's spot -
 
 ## Datapack
 
-Advanced Peripherals' `scanEntities()` has no idea whether a Pokemon belongs to a trainer or is a wild spawn -- that only exists in raw NBT (`Pokemon.PokemonOriginalTrainerType`), which the Lua API doesn't expose. `datapack/` is a small standalone datapack that tags every Cobblemon Pokemon with `pa_owned` or `pa_wild` every ~1 second based on that NBT field, so `startup.lua` can filter on the tag instead. See `datapack/NOTES.txt` for exactly what it does, how to merge it into an existing datapack instead of running it standalone, and a folder-naming gotcha if your modpack pins an older Minecraft version.
+Advanced Peripherals' `scanEntities()` has no idea whether a Pokemon belongs to a trainer or is a wild spawn -- that only exists in raw NBT (`Pokemon.PokemonOriginalTrainerType`), which the Lua API doesn't expose. `datapack/` is a small standalone datapack that tags every Cobblemon Pokemon with `pa_owned` or `pa_wild` every ~1 second based on that NBT field, so `startup.lua` can filter on the tag instead. It also tags every online player `pa_player` every cycle, so the "Trainer:" guess can require an actual player instead of "any entity without a baby field" (that older heuristic also matched ordinary mobs -- confirmed in-game, a wandering Bat got shown as `Trainer: Bat`). See `datapack/NOTES.txt` for exactly what it does, how to merge it into an existing datapack instead of running it standalone, and a folder-naming gotcha if your modpack pins an older Minecraft version.
 
 ## Match tracking (win/lose)
 
@@ -173,6 +177,6 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 - Can only show the **active** (out-of-ball) Pokemon per side -- a trainer's full 6-Pokemon team can't be read directly, since balled Pokemon aren't entities. The per-podium team size fainted-tally works around this by counting distinct Pokemon seen at 0 HP over time instead of reading the party/PC.
 - Scan cooldown (~2s) means the display updates in ~2s steps, not real-time.
 - Scan radius is capped at 16 in practice (see `config.lua` comment) -- fine for the current arena (18x17), but a much larger future arena may need this limit raised server-side first.
-- "Trainer name" is a best-effort guess: the nearest non-Pokemon entity to that podium's detector (almost always the player standing there). No level/gender is shown either -- `scanEntities()` doesn't expose those fields for Pokemon entities.
+- "Trainer name" is a locked best-effort guess: the nearest real player (`pa_player`-tagged) to the Pokemon currently shown, picked once when that Pokemon is first sent out and kept until it's swapped for a different one -- not re-guessed every scan, so a second player walking near the podium can't steal the label. If no player is in range at all on the very first scan after a send-out, it keeps trying each scan until one shows up. No level/gender is shown either -- `scanEntities()` doesn't expose those fields for Pokemon entities.
 - If a Pokemon's HP is misread as 0 for a moment (scan glitch) it counts as fainted, same risk the existing `FAINTED` label already had -- not new, just worth knowing.
 - Requires an Advanced Computer/Monitor for the Basalt2 UI (buttons, colors) -- a regular Computer/Monitor won't render it correctly.

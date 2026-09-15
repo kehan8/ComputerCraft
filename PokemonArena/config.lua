@@ -19,6 +19,15 @@ return {
     -- scanEntities() itself has no ownership info, hence the datapack.
     OWNED_TAG = "pa_owned", -- trainer-owned Pokemon; this is what gets shown
     WILD_TAG = "pa_wild",   -- wild-spawned Pokemon; currently unused by startup.lua, kept for debugging/future use
+    PLAYER_TAG = "pa_player", -- set by the datapack on every real player (tag
+                              -- @a add pa_player, see ../datapack/). Used to
+                              -- pick the "Trainer:" name -- startup.lua used
+                              -- to guess "nearest entity without a baby
+                              -- field", which any non-Pokemon mob (a Bat, a
+                              -- Loot Ball, ...) also satisfies. Confirmed
+                              -- in-game: a wandering Bat got shown as
+                              -- "Trainer: Bat". This tag makes the filter
+                              -- exact instead of a heuristic.
 
     POLL_INTERVAL = 2.2, -- seconds between scans; slightly above the detector's own ~2s cooldown (see Test_Debug/test_entities.lua)
 

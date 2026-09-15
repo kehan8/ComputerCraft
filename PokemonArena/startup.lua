@@ -12,6 +12,7 @@
 local config = require("config")
 local RADIUS = config.RADIUS
 local OWNED_TAG = config.OWNED_TAG
+local PLAYER_TAG = config.PLAYER_TAG
 local POLL_INTERVAL = config.POLL_INTERVAL
 local MONITOR_NAME = config.MONITOR_NAME
 local MONITOR_SCALE = config.MONITOR_SCALE
@@ -44,8 +45,17 @@ for i, raw in ipairs(locations.PODIUMS) do
         lastName = nil,
         lastHealth = nil,
         lastMaxHealth = nil,
-        lastTrainerName = nil, -- nearest non-Pokemon (player) entity's name
+        lastTrainerName = nil, -- the locked trainer name for the currently
+                                -- shown Pokemon (see trainerLock below)
         missCount = 0,
+
+        -- locked trainer guess for whichever Pokemon uuid is currently
+        -- shown: computed once when that Pokemon first appears, then reused
+        -- every scan instead of being re-guessed -- re-guessing every
+        -- ~2.2s let a bystander who merely walked closer than the real
+        -- trainer steal the label mid-battle. Cleared (uuid = nil) whenever
+        -- the active Pokemon changes (a new send-out) or on resetMatch().
+        trainerLock = { uuid = nil, name = nil },
 
         -- match tracking: how many of this podium's owned Pokemon have
         -- fainted so far (see updateMatchStatus()/teamSizes below)
@@ -125,17 +135,32 @@ local function distanceSquared(entity)
     return entity.x * entity.x + entity.y * entity.y + entity.z * entity.z
 end
 
+-- Distance between two scanned entities (both coordinates are relative to
+-- the same detector, i.e. the same origin, so this is just their delta).
+-- Used to find the player standing closest to the Pokemon actually being
+-- shown, not just closest to the detector block in general.
+local function distanceSquaredBetween(a, b)
+    local dx, dy, dz = a.x - b.x, a.y - b.y, a.z - b.z
+    return dx * dx + dy * dy + dz * dz
+end
+
 -- One scanEntities() call per podium per cycle (the detector has its own
 -- ~2s cooldown -- see config.lua's POLL_INTERVAL comment -- so calling it
 -- twice per cycle would starve the second call). Returns the nearest
--- trainer-owned Pokemon AND the nearest non-Pokemon entity (the trainer
--- standing at that podium) from the same scan. Ownership tags come from
--- the tag_ownership datapack function (see ../datapack/) -- scanEntities()
--- itself has no ownership info. The "trainer" is a best-effort guess (the
--- nearest entity without a "baby" field); in practice that's almost always
--- the player standing at their own podium, but a stray Loot Ball (which
--- also lacks "baby") could theoretically win instead -- not a concern near
--- a battle podium, no datapack support exists to do this more precisely.
+-- trainer-owned Pokemon AND the nearest real player (candidate trainer for
+-- that Pokemon) from the same scan. Ownership tags come from the
+-- tag_ownership datapack function (see ../datapack/) -- scanEntities()
+-- itself has no ownership info.
+--
+-- Trainer candidate: used to require "nearest entity without a baby
+-- field", but that also matches ordinary mobs (confirmed in-game: a
+-- wandering Bat got shown as "Trainer: Bat"). Now requires the PLAYER_TAG
+-- (set on every real player by the datapack, see ../datapack/), and is
+-- measured from the shown Pokemon rather than from the detector, so a
+-- second player merely walking closer to the podium than the real trainer
+-- can't outrank them. update() below additionally *locks* this guess per
+-- Pokemon uuid so it's only computed once per send-out, not re-guessed
+-- every scan.
 local function scanPodium(podium)
     local ok, entities = pcall(podium.detectorPeripheral.scanEntities, RADIUS)
     if not ok or type(entities) ~= "table" then
@@ -143,19 +168,26 @@ local function scanPodium(podium)
     end
 
     local nearestPokemon, nearestPokemonDist = nil, nil
-    local nearestTrainer, nearestTrainerDist = nil, nil
+    local players = {}
     for _, entity in ipairs(entities) do
-        local dist = distanceSquared(entity)
         if isPokemon(entity) and hasTag(entity, OWNED_TAG) then
+            local dist = distanceSquared(entity)
             if not nearestPokemon or dist < nearestPokemonDist then
                 nearestPokemon, nearestPokemonDist = entity, dist
             end
-        elseif not isPokemon(entity) and entity.name then
-            if not nearestTrainer or dist < nearestTrainerDist then
-                nearestTrainer, nearestTrainerDist = entity, dist
-            end
+        elseif hasTag(entity, PLAYER_TAG) then
+            players[#players + 1] = entity
         end
     end
+
+    local nearestTrainer, nearestTrainerDist = nil, nil
+    for _, player in ipairs(players) do
+        local dist = nearestPokemon and distanceSquaredBetween(player, nearestPokemon) or distanceSquared(player)
+        if not nearestTrainer or dist < nearestTrainerDist then
+            nearestTrainer, nearestTrainerDist = player, dist
+        end
+    end
+
     return nearestPokemon, nearestTrainer
 end
 
@@ -273,6 +305,16 @@ showScreen = function(state)
 end
 
 -- ---------------------- LIVE SCREEN ----------------------
+-- The 7-row podium card (header/trainer/name/bar/hp/fainted/banner) used to
+-- be pinned to rows 1-7, leaving a big dead strip of blank background
+-- between it and the New Battle/History row at the very bottom on any
+-- monitor taller than ~8 rows (reported: layout looks broken/ugly, empty
+-- on a big Advanced Monitor). Vertically centered instead, so the leftover
+-- space splits evenly above and below the card.
+local PODIUM_CARD_ROWS = 7
+local liveBodyHeight = h - 1 -- rows 1..(h-1); row h is New Battle/History
+local liveTop = 1 + math.max(0, math.floor((liveBodyHeight - PODIUM_CARD_ROWS) / 2))
+
 local podiumUI = {}
 
 for i, podium in ipairs(podiums) do
@@ -282,25 +324,25 @@ for i, podium in ipairs(podiums) do
     local ui = {}
     ui.headerLabel = screen:addButton()
         :setText(podium.position)
-        :setPosition(x, 1):setSize(width, 1)
+        :setPosition(x, liveTop):setSize(width, 1)
         :setBackground(colors.gray):setForeground(colors.white)
     ui.trainerLabel = screen:addButton()
-        :setText(""):setPosition(x, 2):setSize(width, 1)
+        :setText(""):setPosition(x, liveTop + 1):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.black)
     ui.nameLabel = screen:addButton()
-        :setText(""):setPosition(x, 3):setSize(width, 1)
+        :setText(""):setPosition(x, liveTop + 2):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.black)
     ui.barLabel = screen:addButton()
-        :setText(""):setPosition(x, 4):setSize(width, 1)
+        :setText(""):setPosition(x, liveTop + 3):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.black)
     ui.hpLabel = screen:addButton()
-        :setText(""):setPosition(x, 5):setSize(width, 1)
+        :setText(""):setPosition(x, liveTop + 4):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.black)
     ui.faintedLabel = screen:addButton()
-        :setText(""):setPosition(x, 6):setSize(width, 1)
+        :setText(""):setPosition(x, liveTop + 5):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.black)
     ui.bannerLabel = screen:addButton()
-        :setText(""):setPosition(x, 7):setSize(width, 1)
+        :setText(""):setPosition(x, liveTop + 6):setSize(width, 1)
         :setBackground(colors.black):setForeground(colors.yellow)
 
     podiumUI[i] = ui
@@ -336,14 +378,24 @@ local setupTitle = screen:addButton()
     :setBackground(colors.black):setForeground(colors.white)
 setupElements[#setupElements + 1] = setupTitle
 
+-- Vertically center the per-podium rows in the space between the title
+-- (row 1) and Start Battle (row h), with a blank spacer row between each
+-- podium, instead of cramming them all into rows 2-3 -- reported: "team
+-- size zit erg hoog" (sits way too high), with most of a tall monitor left
+-- as dead blank space below the -/+ pickers.
+local SETUP_ROW_HEIGHT = 2 -- 1 content row + 1 blank spacer row
+local setupBodyHeight = h - 2 -- rows 2..(h-1): below title, above Start Battle
+local setupBlockHeight = #podiums * SETUP_ROW_HEIGHT
+local setupStartY = 2 + math.max(0, math.floor((setupBodyHeight - setupBlockHeight) / 2))
+
 local setupUI = {}
 for i, podium in ipairs(podiums) do
-    local y = 2 + i
+    local y = setupStartY + (i - 1) * SETUP_ROW_HEIGHT
     setupUI[i] = {}
 
     local label = screen:addButton()
         :setText(podium.position .. ":")
-        :setPosition(2, y):setSize(math.max(4, math.min(10, w - 12)), 1)
+        :setPosition(2, y):setSize(math.max(4, w - 14), 1)
         :setBackground(colors.black):setForeground(colors.white)
     setupElements[#setupElements + 1] = label
 
@@ -613,6 +665,7 @@ resetMatch = function()
         podium.faintedCount = 0
         podium.faintedUuids = {}
         podium.seenUuids = {}
+        podium.trainerLock = { uuid = nil, name = nil }
     end
     matchWinnerIndex = nil
     matchLogged = false
@@ -656,9 +709,21 @@ update = function()
             podium.lastName = pokemon.name
             podium.lastHealth = pokemon.health
             podium.lastMaxHealth = pokemon.maxHealth
-            if trainer then
-                podium.lastTrainerName = trainer.name
+
+            -- Lock the trainer guess to this Pokemon's uuid: forget the old
+            -- lock the moment a different Pokemon becomes active on this
+            -- podium (new send-out), then adopt the first trainer candidate
+            -- found and keep it -- never overwritten by a closer bystander
+            -- while the same Pokemon stays out (reported bug: trainer name
+            -- flickered to other players/mobs as people walked around).
+            if podium.trainerLock.uuid ~= pokemon.uuid then
+                podium.trainerLock = { uuid = pokemon.uuid, name = nil }
             end
+            if not podium.trainerLock.name and trainer then
+                podium.trainerLock.name = trainer.name
+            end
+            podium.lastTrainerName = podium.trainerLock.name
+
             podium.missCount = 0
 
             if pokemon.uuid then
