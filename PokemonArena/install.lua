@@ -20,6 +20,10 @@ local function downloadFile(name)
     return true
 end
 
+if not fs.exists("basalt") and not fs.exists("basalt.lua") then
+    shell.run("wget run https://raw.githubusercontent.com/Pyroxenium/Basalt2/main/install.lua")
+end
+
 local CONFIG_FILES = { ["config.lua"] = true, ["locations.lua"] = true }
 
 for _, name in ipairs(FILES) do

@@ -89,3 +89,183 @@ OPEN / TE DOEN (volgende sessie hier verder oppakken)
    scherm blijft laatst bekende Pokemon tonen tot 2x achter elkaar gemist).
 5. Evt. RADIUS > 16 later aanpasbaar maken als de admin de server-config
    ophoogt voor een groter arena.
+
+========================================================================
+SESSIE 2 - in-game test v1 + team-size/winner-defeat + monitor
+========================================================================
+IN-GAME TEST RESULTAAT (4 screenshots, user's testaccount)
+- Kernlogica werkt: juiste kant toont juiste Pokemon, wisselt direct mee
+  als het testaccount naar de andere kant loopt, en blijft correct tijdens
+  een lopend gevecht met aflopende HP (Kingambit 34/35 vs Sprigatito 8/27).
+- RADIUS-inzicht gecorrigeerd: RADIUS is een STRAAL (half-width), geen
+  kubus-zijde. RADIUS=16 -> scanEntities() ziet een kubus van 32x32x32,
+  dus allebei detectors zien de HELE arena, niet alleen hun eigen kant.
+  Dat "welke kant toont wie" werkt toch goed komt puur door de
+  "nearest owned tag per podium"-logica in findActivePokemon(), niet door
+  een beperkte scan-radius. Comment in config.lua/README.md hierop
+  aangepast (geen gedragswijziging, puur documentatie-fix).
+
+NIEUWE FEATURE: team-size winner/defeat tracking (user's idee, nu
+geimplementeerd in startup.lua + config.lua)
+- Probleem: gebalde Pokemon (party/PC) zijn geen entities (zie boven,
+  regel 50-52) -> kan team van 6 niet direct aflezen. Oplossing: TEL hoe
+  veel VERSCHILLENDE (uuid-based) eigen Pokemon per podium al bij 0 HP zijn
+  gezien (podium.faintedCount/faintedUuids in startup.lua). Geen party/PC
+  lezen nodig, puur uit de bestaande scan-stream afgeleid.
+- TEAM_SIZE in config.lua (nu 1 om te testen, straks 6/3 voor echte match,
+  1 gedeelde waarde voor beide kanten).
+- Scherm toont live "(2/6 fainted)" tussenstand per podium; zodra
+  faintedCount >= TEAM_SIZE toont die kant "*** DEFEAT ***" i.p.v.
+  Pokemon-info; als daardoor nog maar 1 kant overblijft toont die
+  "*** WINNER ***". Bij gelijktijdige dubbele KO (alle kanten tegelijk
+  defeated): geen winnaar, gewoon overal DEFEAT.
+- Reset: geen automatische "nieuwe match"-detectie gebouwd (te riskant om
+  te raden - zie afweging hieronder). In plaats daarvan: R-toets op de
+  computer zelf (niet het monitor-scherm, dat is output-only in v1) wist
+  faintedCount/faintedUuids op alle podiums via resetMatch(). Vereist
+  parallel.waitForAny() i.p.v. de oude kale while-loop, zodat de key-listener
+  niet vastzit achter POLL_INTERVAL se os.sleep() - zelfde soort gotcha als
+  de eerder gevonden basalt.schedule()-vs-rednet issue (zie
+  feedback_basalt_schedule_rednet_gotcha memory), nu met os.pullEvent i.p.v.
+  Basalt, maar het principe (een sleep-loop mag niet de enige plek zijn waar
+  events opgehaald worden) is hetzelfde.
+- Afweging automatische reset: overwogen om een nieuwe match te detecteren
+  zodra er weer een geheel nieuwe (nooit eerder geziene) uuid met volle HP
+  verschijnt op een podium dat net DEFEAT toonde. Bewust NIET gedaan - te
+  fragiel/giswerk (zou ook per ongeluk midden in een lopend gevecht kunnen
+  triggeren bij TEAM_SIZE>1 switches). Handmatige R-reset is simpeler en
+  voorspelbaar. Kan later alsnog toegevoegd worden als de R-toets in de
+  praktijk onhandig blijkt.
+
+NIEUWE FEATURE: optionele Monitor-output
+- User bouwt een fysieke Monitor (6x8 blocks) naast de bestaande setup.
+  Onduidelijk of dit een directe instructie was of puur een FYI, dus
+  geimplementeerd als OPTIONEEL via config.lua's MONITOR (nil = uit, blijft
+  gewoon computer-terminal tonen zoals nu getest) i.p.v. verplicht -
+  breekt niks aan de al-werkende test-setup als de monitor nog niet
+  aangesloten/bekabeld is.
+- Implementatie: term.redirect(monitorPeripheral) na wrapPeripheral(),
+  render()-functie zelf ongewijzigd (gebruikt nog steeds term.*, die nu
+  gewoon naar de monitor wijst i.p.v. de computer). MONITOR_TEXT_SCALE
+  optioneel via monitor.setTextScale(). Nog NIET in-game getest (user had
+  het monitor-blok nog aan het bouwen tijdens dit gesprek).
+- Fail-fast: MONITOR ingesteld maar peripheral niet gevonden -> error bij
+  startup, zelfde patroon als de detectors.
+
+OPEN / TE DOEN (bijgewerkt)
+1. In-game testen: TEAM_SIZE=1, 1 gevecht laten eindigen (iemand faint),
+   controleren dat DEFEAT/WINNER correct verschijnen en op de juiste kant.
+2. R-toets testen: na een DEFEAT/WINNER resetten en een 2e testgevecht
+   starten, controleren dat de tally weer op 0/1 begint.
+3. Zodra de Monitor-blok af is: MONITOR = "<echte naam>" invullen (via
+   peripheral.getNames()), update_full + startup opnieuw draaien, kijken
+   of de layout op 6x8 blocks leesbaar is (evt. MONITOR_TEXT_SCALE
+   aanpassen als tekst te klein/groot is).
+4. Als dit alles werkt: pas dan verder nadenken over Basalt2/kleuren.
+5. Niet automatisch committen - wacht op expliciete vraag van de user.
+
+========================================================================
+SESSIE 3 - Basalt2 UI, trainer-naam, "New Battle"-flow (R-toets vervangen)
+========================================================================
+AANLEIDING
+- User stuurde een screenshot van de klassieke Pokemon Game Boy battle-UI
+  (naam-kader, HP-balk, HP-cijfers) als visuele inspiratie voor de podium-
+  boxen.
+- User verwierp impliciet de eerdere R-toets-reset (nooit expliciet
+  gevraagd, agent had 'm eigenmachtig toegevoegd in sessie 2) en wilde
+  i.p.v. "Reset" een "New Battle"-knop met een team-size-keuzescherm
+  (1-6) vooraf, i.p.v. direct resetten.
+
+BESLISSINGEN (alle 4 door user bevestigd, geen aannames meer)
+1. Geen key-rebind. Reset gaat via een Basalt2 UI-knop ("New Battle"),
+   klikbaar op de computer EN aantikbaar op de Monitor (Basalt2 handelt
+   monitor-touch events af, anders dan v1's output-only Monitor).
+2. "New Battle"-knop opent een SETUP-scherm: per podium een -/+ teller
+   (1-6) voor teamSize, geen tijd/countdown nodig. Klik "Start Battle" ->
+   reset de tally's en gaat pas dan terug naar het live-scherm.
+3. Optie (b) uit de vorige open vraag gekozen: de live +/- knoppen tijdens
+   een lopende match vervallen VOLLEDIG - teamSize wordt alleen via het
+   setup-scherm ingesteld, niet meer live aanpasbaar tijdens een gevecht.
+4. Automatische detectie blijft (optie b): als een match al voorbij is
+   (DEFEAT/WINNER) en er verschijnt een nooit eerder geziene (uuid) levende
+   Pokemon op een podium, springt het scherm automatisch naar het setup-
+   scherm (voorgevuld met de laatst gebruikte team sizes) i.p.v. direct te
+   resetten - "Start Battle" blijft altijd nodig, nooit een silent reset.
+5. EXP-balk uit de Game Boy-mockup weggelaten (user bevestigd, hoeft niet).
+   Level en geslacht ook weggelaten (scanEntities() geeft deze velden niet
+   voor Pokemon-entities, user akkoord).
+6. NIEUW: trainer-naam ook tonen per podium (user's toevoeging, niet in het
+   eerdere ontwerp). Geen apart NBT/datapack-veld hiervoor beschikbaar -
+   opgelost door in dezelfde scanEntities()-call (1x per podium per cyclus,
+   ivm de ~2s detector-cooldown - NOOIT een 2e losse scan doen) ook de
+   dichtstbijzijnde entity ZONDER "baby"-veld te pakken (dus geen Pokemon).
+   In de praktijk vrijwel altijd de speler die bij zijn eigen podium staat.
+   Enige theoretische fout: een Loot Ball (heeft ook geen "baby"-veld) zou
+   kunnen winnen i.p.v. de speler, maar irrelevant vlakbij een podium -
+   gedocumenteerd als bekende beperking, geen blocker.
+
+IMPLEMENTATIE (startup.lua volledig herschreven, Basalt2 i.p.v. term.*)
+- Bootstrap identiek aan GymArena/SimonSays: wget-install van Basalt2 als
+  "basalt"/"basalt.lua" nog niet bestaat (zowel in install.lua als als
+  fallback in startup.lua zelf).
+- screen = basalt.createFrame():setTerm(monitor) als MONITOR is ingesteld,
+  anders basalt.getMainFrame() - zelfde patroon als SimonSays.
+- Kolom-layout: 1 kolom per podium, elke kolom een "kader"-look via
+  aaneengesloten gelijk-gekleurde Labels (geen losse border-widget nodig,
+  geen aanname over widget-z-order): header (podium-naam, grijze balk),
+  trainer-naam, Pokemon-naam (of "*** DEFEAT ***"), gekleurde HP-balk
+  (groen >50%, geel 20-50%, rood <20%), HP-cijfers, fainted-tally,
+  WINNER-banner (leeg tenzij van toepassing).
+- teamSizes is nu een ARRAY per podium-index (niet 1 gedeelde config.TEAM_
+  SIZE meer), geladen/opgeslagen in team_sizes.dat via textutils.serialize/
+  unserialize (buiten config.lua, dus update.lua/update_full.lua raken het
+  nooit aan - zelfde reden als config.lua zelf niet aangeraakt wordt).
+  config.lua's TEAM_SIZE is nu puur fallback/default voor de eerste run
+  (of een podium dat ontbreekt in een verouderd team_sizes.dat).
+- Twee Basalt-frames (liveFrame/setupFrame) op dezelfde screen, getoggled
+  via :show()/:hide() (aanname o.b.v. gangbare Basalt-Frame-API, net als de
+  rest van dit project ongetest zonder lokale lua/luac - in-game verifiëren).
+- scanPodium(podium) vervangt findActivePokemon(): EEN scanEntities()-call
+  per podium per cyclus, geeft zowel de dichtstbijzijnde eigen Pokemon ALS
+  de dichtstbijzijnde niet-Pokemon-entity (trainer) terug - nooit 2x scannen
+  ivm de detector-cooldown (zie hierboven, sessie 3 beslissing 6).
+- podium.seenUuids (nieuw, per match, gereset door resetMatch()) houdt bij
+  welke uuids al gezien zijn sinds de laatste "Start Battle" - dit drijft
+  zowel de fainted-telling (faintedUuids, ongewijzigd) als de auto-detect-
+  nieuwe-match-check (isNewUuid && isMatchOver() && health>0).
+- resetMatch() wordt nu ALLEEN aangeroepen vanuit startBattle() (dus na
+  bevestiging van het setup-scherm), nooit meer direct vanuit een knop -
+  past bij "New Battle is geen Reset" - het commit-moment is Start Battle.
+- Scan-loop draait via basalt.schedule() (niet parallel.waitForAny): puur
+  os.sleep()-getimed, geen rednet hier, dus de eerder gevonden basalt.
+  schedule()-vs-rednet gotcha (zie hoofdrepo-memory) is niet van toepassing
+  - anders dan SimonSays (die WEL rednet gebruikt voor ControlRoom-
+  rapportage en daarom parallel.waitForAny nodig heeft).
+
+BESTANDEN AANGEPAST
+- startup.lua: volledig herschreven (zie boven).
+- config.lua: TEAM_SIZE-comment aangepast (fallback i.p.v. gedeeld/R-toets),
+  MONITOR-comment aangepast (Basalt2-frame i.p.v. term.redirect).
+- install.lua: Basalt2 wget-bootstrap toegevoegd (kopie van SimonSays).
+- uninstall.lua: vraagt nu ook of team_sizes.dat en basalt/basalt.lua
+  verwijderd moeten worden (kopie van SimonSays' basalt-vraag).
+- README.md: Requirements (Advanced Computer/Monitor nodig voor Basalt2),
+  Configure, Match tracking (New Battle-flow, geen R-toets meer, per-
+  podium team size, auto-detect), Files-tabel (team_sizes.dat/basalt
+  toegevoegd), Known limitations bijgewerkt.
+
+NOG NIET GEDAAN / OPEN
+- Nog volledig ONGETEST in-game (geen lokale lua/luac beschikbaar, user
+  test alles zelf in-game - zelfde beperking als elke sessie hiervoor).
+  Specifiek te controleren:
+  1. Kleuren van de HP-balk (groen/geel/rood) renderen correct.
+  2. Per-podium team size -/+ knoppen op het setup-scherm werken en
+     persisteren na een reboot via team_sizes.dat.
+  3. "New Battle"-knop werkt zowel op de computer als (aantikken) op de
+     Monitor.
+  4. Auto-detect springt naar het setup-scherm zodra een nieuwe Pokemon
+     verschijnt na een DEFEAT/WINNER (en NIET midden in een lopende match).
+  5. Trainer-naam toont daadwerkelijk de speler, niet per ongeluk een Loot
+     Ball of iets anders zonder "baby"-veld.
+  6. Uninstall-prompt biedt correct aan om team_sizes.dat te verwijderen.
+- Niet automatisch committen - wacht op expliciete vraag van de user.
