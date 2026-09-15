@@ -24,11 +24,18 @@
 --   (already shown one row below) is tinted with that same accent color
 --   -- "color instead of text" and "trainer name" mix into one look
 --   instead of being either/or.
--- - VS gutter: when there are EXACTLY 2 podiums, a small center column is
---   reserved between them for a red "VS" marker, matching the reference
---   battle-UI look. With 3+ podiums (locations.lua supports a "Middle"
---   podium) there's no single gap to put it in, so this falls back to the
---   original edge-to-edge equal-width columns, no VS shown.
+-- - VS marker: originally a small red "VS" reserved in its own center
+--   gutter column, but that disrupted the middle of the arena (user
+--   feedback: not what was pictured -- see mockup in session notes). Now,
+--   when there are EXACTLY 2 podiums, columns sit edge-to-edge (no
+--   reserved gap) and a single-cell "V" is tucked into the right end of
+--   podium 1's colored header bar, with "S" tucked into the left end of
+--   podium 2's header bar -- the two letters sit flush against each other
+--   at the seam, reading "VS" without stealing any board width. With 3+
+--   podiums there's no single seam to put it at, so no V/S is shown.
+-- - Frame background: explicit light gray (colors.lightGray) instead of
+--   Basalt's default white, so the empty space around/below the podium
+--   cards isn't stark white.
 --
 -- Basalt2 gotcha (confirmed via GymArena/TicTacToe project memory): Label
 -- elements never render a background in this Basalt2 build -- only Button
@@ -59,7 +66,7 @@ end
 
 -- Rotating per-podium accent color: podium 1 = blue, 2 = red, 3 = green,
 -- then repeats. Two podiums (the common case) reads as "blue side vs red
--- side", matching the VS-gutter look below.
+-- side", matching the V/S seam markers below.
 local HEADER_COLORS = { colors.blue, colors.red, colors.green }
 local function headerColorFor(index)
     return HEADER_COLORS[((index - 1) % #HEADER_COLORS) + 1]
@@ -79,31 +86,22 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
 
     local w, h = screen:getSize()
 
-    -- ---------------------- COLUMN LAYOUT (+ VS gutter) ----------------------
-    local VS_GUTTER_WIDTH = 3
-    local showVsGutter = (#podiums == 2) and (w >= (2 * 6 + VS_GUTTER_WIDTH))
+    -- Gray background instead of Basalt's default white -- see header
+    -- comment. All three screens (live/setup/history) share this one
+    -- frame, so one call covers all of them.
+    screen:setBackground(colors.lightGray)
 
-    local colWidth
-    if showVsGutter then
-        colWidth = math.floor((w - VS_GUTTER_WIDTH) / 2)
-    else
-        colWidth = math.floor(w / #podiums)
-    end
+    -- ---------------------- COLUMN LAYOUT ----------------------
+    -- Always edge-to-edge equal-width columns, no reserved center gutter
+    -- (see header comment on the VS marker for why that was dropped).
+    local colWidth = math.floor(w / #podiums)
     local BAR_WIDTH = math.max(4, colWidth - 4)
+    local showVs = (#podiums == 2) -- embed V/S into the header seam below
 
     local function columnFor(i)
-        if showVsGutter then
-            if i == 1 then
-                return 1, colWidth
-            else
-                local x = colWidth + VS_GUTTER_WIDTH + 1
-                return x, w - x + 1
-            end
-        else
-            local x = (i - 1) * colWidth + 1
-            local width = (i == #podiums) and (w - x + 1) or colWidth
-            return x, width
-        end
+        local x = (i - 1) * colWidth + 1
+        local width = (i == #podiums) and (w - x + 1) or colWidth
+        return x, width
     end
 
     local liveElements = {}
@@ -175,16 +173,25 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         liveElements[#liveElements + 1] = ui_.bannerLabel
     end
 
-    -- "VS" marker in the center gutter, vertically aligned with the
-    -- name/bar rows of the podium card. Only exists when showVsGutter.
-    if showVsGutter then
-        local vsX = colWidth + 1
-        local vsY = liveTop + 3
-        local vsButton = screen:addButton()
-            :setText("VS")
-            :setPosition(vsX, vsY):setSize(VS_GUTTER_WIDTH, 1)
-            :setBackground(colors.red):setForeground(colors.white)
-        liveElements[#liveElements + 1] = vsButton
+    -- "VS" seam marker: a single-cell "V" flush against the right edge of
+    -- podium 1's colored header bar, and a single-cell "S" flush against
+    -- the left edge of podium 2's header bar (see header comment) -- drawn
+    -- on the same row as the header bars, only for exactly 2 podiums.
+    if showVs then
+        local x1, width1 = columnFor(1)
+        local x2 = columnFor(2)
+
+        local vLetter = screen:addButton()
+            :setText("V")
+            :setPosition(x1 + width1 - 1, liveTop):setSize(1, 1)
+            :setBackground(headerColorFor(1)):setForeground(colors.white)
+        liveElements[#liveElements + 1] = vLetter
+
+        local sLetter = screen:addButton()
+            :setText("S")
+            :setPosition(x2, liveTop):setSize(1, 1)
+            :setBackground(headerColorFor(2)):setForeground(colors.white)
+        liveElements[#liveElements + 1] = sLetter
     end
 
     -- bottom row, split in half: New Battle (left) / History (right)

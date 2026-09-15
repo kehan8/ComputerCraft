@@ -687,3 +687,75 @@ OPEN / TE DOEN
    tinten zijn een eerste gok, user zei "gewoon proberen") als het geheel
    nog niet bevalt.
 5. Niet automatisch committen - wacht op expliciete vraag van de user.
+
+========================================================================
+SESSIE 9 - feedback op sessie-8 restyle (screenshot): achtergrond + VS-seam
+========================================================================
+AANLEIDING (user testte sessie 8 in-game, 2 screenshots: 1 echte foto van
+het resultaat, 1 eigen handtekening eroverheen als mockup)
+- "heel mooi! mooi kleur" - het blauw/groen/rood-palet uit sessie 8 is
+  bevestigd goed in-game (geen probleem gemeld met setPaletteColor of de
+  hex-tinten zelf).
+- Klacht 1: achtergrond is nog steeds wit ("misschien licht grijs of
+  grijs" als suggestie).
+- Klacht 2: de rode "VS"-gutter-kolom uit sessie 8 (smalle kolom TUSSEN de
+  twee podium-kolommen) is niet wat user in gedachte had - "toch niet
+  precies wat ik wou", "die huidige vs hoeft niet meer verstoren in
+  midden". User tekende een mockup: een "V" en "S" als losse grote letters
+  bovenaan, IN de bestaande gekleurde header-balk van elk podium, vlak
+  tegen elkaar aan op de naad tussen de twee kolommen (geen aparte kolom/
+  ruimte ervoor nodig).
+
+FIX 1: grijze achtergrond (ui.lua)
+- screen:setBackground(colors.lightGray) toegevoegd, 1x bovenaan
+  ui.build() (voor de kolom-layout-berekening) - geldt voor alle drie de
+  schermen (live/setup/history) omdat ze allemaal dezelfde `screen`-frame
+  delen, dus 1 call is genoeg.
+
+FIX 2: VS-gutter weg, V/S in de header-naad (ui.lua)
+- VS_GUTTER_WIDTH/showVsGutter volledig verwijderd. columnFor() is nu
+  altijd de simpele edge-to-edge gelijke-breedte-verdeling (was al de
+  fallback-tak voor 3+ podiums, nu ook voor 2) - geen gereserveerde
+  kolom-ruimte meer voor VS.
+- Nieuw: bij EXACT 2 podiums wordt een los 1-breed "V"-knopje rechts-vast
+  tegen het einde van podium 1's header-balk geplaatst, en een los
+  1-breed "S"-knopje links-vast tegen het begin van podium 2's
+  header-balk - beide op dezelfde rij (liveTop) als de bestaande
+  accentkleur-header-balk, ERBOVENOP getekend (na de hoofd-loop
+  toegevoegd aan screen, dus latere z-order). De twee losse
+  1-brede knopjes i.p.v. tekst-padding in de bestaande header-balk zelf,
+  om niet te hoeven gokken hoe Basalt2's Button-tekst-uitlijning
+  (gecentreerd/links) een gepadde string zou renderen - kon niet
+  geverifieerd worden zonder lokale interpreter of WebSearch-toegang deze
+  sessie, dus de veiligere route (aparte 1-cel-brede widget, geen
+  uitlijn-aanname nodig) gekozen.
+- Bij 3+ podiums: geen naad om V/S in te zetten, dus showVs blijft false
+  en er verschijnt niks extra (zelfde soort fallback-redenering als de
+  oude VS-gutter had).
+
+BESTANDEN AANGEPAST
+- ui.lua: zie boven (header-comment, achtergrond, kolom-layout, V/S-
+  knopjes).
+- README.md: "Look & feel"-sectie en de "Not yet re-tested"-regel
+  bijgewerkt (grijze achtergrond genoemd, VS-gutter-beschrijving vervangen
+  door de V/S-naad-beschrijving), Files-tabel ui.lua-omschrijving
+  bijgewerkt.
+
+NIET GEDAAN / BEWUST UITGESTELD
+- Nog steeds geen lokale lua/luac beschikbaar - deze fix is dus ongetest,
+  zelfde beperking als elke sessie hiervoor.
+- Geen aanname of "V"/"S" precies de goede letters/positie zijn t.o.v. de
+  handtekening (die was schetsmatig) - dichtstbijzijnde redelijke lezing
+  van de mockup gekozen (1 letter per kant, vlak tegen de naad), user kan
+  nog verfijnen (bv. grotere letters, andere positie) na de in-game test.
+
+OPEN / TE DOEN
+1. In-game bevestigen: achtergrond is nu grijs i.p.v. wit, op zowel de
+   Monitor als het computer-scherm.
+2. In-game bevestigen: geen aparte VS-kolom meer tussen de podiums, en de
+   "V"/"S"-letters staan zichtbaar tegen elkaar aan op de naad, bovenop de
+   gekleurde header-balken (niet per ongeluk onzichtbaar/overlapt door de
+   header-balk zelf, gezien de latere-z-order-aanname hierboven).
+3. Concretere feedback verzamelen als de V/S-look nog niet precies matcht
+   met de handtekening (grootte, exacte positie, kleur van de letters).
+4. Niet automatisch committen - wacht op expliciete vraag van de user.

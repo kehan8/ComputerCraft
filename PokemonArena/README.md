@@ -4,7 +4,7 @@ VS-battle display for Cobblemon fights: one Environment Detector per podium show
 
 ![status](https://img.shields.io/badge/status-core--confirmed--in--game-brightgreen)
 
-Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, win/lose tally, Monitor auto-detect, and the cross-podium "empty side borrows the other side's Pokemon" fix are all confirmed working live in-game (Monitor scale 2 confirmed sharp/readable). **Not yet re-tested in-game:** the code was just split into modules (`scan.lua`/`teamsizes.lua`/`match.lua`/`ui.lua`, see [Files](#files)) and restyled with a soft blue/green/red palette, a colored header (replacing the plain "Left"/"Right" text) with the trainer name shown alongside it, and a "VS" marker between the two podiums -- see [Look & feel](#look--feel) below. The module split is meant to be a pure refactor (no behavior change), but please re-verify the Monitor still auto-connects and nothing regressed.
+Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, win/lose tally, Monitor auto-detect, and the cross-podium "empty side borrows the other side's Pokemon" fix are all confirmed working live in-game (Monitor scale 2 confirmed sharp/readable). **Not yet re-tested in-game:** the code was just split into modules (`scan.lua`/`teamsizes.lua`/`match.lua`/`ui.lua`, see [Files](#files)) and restyled with a soft blue/green/red palette, a light gray background, a colored header (replacing the plain "Left"/"Right" text) with the trainer name shown alongside it, and a "V"/"S" pair embedded into the two podiums' headers at the seam between them -- see [Look & feel](#look--feel) below. The module split is meant to be a pure refactor (no behavior change), but please re-verify the Monitor still auto-connects and nothing regressed.
 
 ## What it does
 
@@ -19,10 +19,11 @@ Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 U
 
 ## Look & feel
 
-A soft blue/green/red battle-arena palette (via `setPaletteColor`, where the terminal supports it -- both an Advanced Computer and Advanced Monitor do), replacing the earlier plain gray/white/black look:
+A soft blue/green/red battle-arena palette (via `setPaletteColor`, where the terminal supports it -- both an Advanced Computer and Advanced Monitor do), a light gray background, replacing the earlier plain gray/white/black look:
 
+- The frame background is light gray (`colors.lightGray`) instead of Basalt's default white, so the empty space around/below the podium cards isn't stark white.
 - Each podium gets a rotating accent color (blue, red, green, repeating for a 3rd+ podium) shown as a colored bar where the podium used to just say "Left"/"Right" -- the trainer's name is still shown right below it, tinted the same accent color, so color and name work together instead of one replacing the other.
-- With **exactly 2 podiums**, a small red "VS" marker sits in a center gutter between the two columns, like a classic versus-battle screen. With 3+ podiums (e.g. a "Middle" podium added in `locations.lua` for a triple battle) there's no single gap to put it in, so this falls back to the original edge-to-edge equal-width columns and no VS is shown.
+- With **exactly 2 podiums**, the two columns sit edge-to-edge (no reserved center gap) and a single-cell "V" is tucked into the right end of podium 1's colored header bar, with "S" tucked into the left end of podium 2's header bar -- the two letters sit flush against each other at the seam, reading "VS" without a disruptive marker floating in the middle of the arena (an earlier version reserved a whole center gutter for a "VS" label; that's gone). With 3+ podiums (e.g. a "Middle" podium added in `locations.lua` for a triple battle) there's no single seam to put it at, so no V/S is shown.
 - HP bar colors are unchanged (green >50%, yellow 20-50%, red <20%).
 
 ## Requirements
@@ -175,7 +176,7 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 | `scan.lua` | Turns raw Environment Detector `scanEntities()` output into "active Pokemon + trainer per podium", including the cross-podium dedup fix |
 | `teamsizes.lua` | Load/save/clamp helpers for `team_sizes.dat` (per-podium team size, 1-6) |
 | `match.lua` | HP-bar/color display helpers + match tracking (winner/defeat detection, resetting a podium's tally, logging a finished match) |
-| `ui.lua` | All Basalt2 screen building + render functions (live/setup/history screens), including the color palette/header/VS-gutter restyle -- see [Look & feel](#look--feel) |
+| `ui.lua` | All Basalt2 screen building + render functions (live/setup/history screens), including the color palette/background/header/V-S-seam restyle -- see [Look & feel](#look--feel) |
 | `history.lua` | Load/save/add helpers for `match_history.dat` (same load/save/add shape as FossilLab's `fossilhistory.lua`) |
 | `install.lua` | First-time setup |
 | `rename.lua` | Change this device's label later without reinstalling |
