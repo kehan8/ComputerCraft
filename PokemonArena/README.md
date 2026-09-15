@@ -4,7 +4,7 @@ VS-battle display for Cobblemon fights: one Environment Detector per podium show
 
 ![status](https://img.shields.io/badge/status-core--confirmed--in--game-brightgreen)
 
-Core scanning/display (name, HP, left/right switching mid-battle) confirmed working live in-game. The Basalt2 UI, trainer name, win/lose tally and Monitor output described below are new and not yet in-game tested.
+Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, and win/lose tally are confirmed working live in-game. The Monitor output had a bug (UI rendered on the computer but stayed blank on the Monitor) -- fixed this session by dropping an untested nested-Frame pattern in favor of the flat-widgets-on-`screen` approach already proven by every other Monitor-using project in this repo, but **not yet re-tested in-game** -- please confirm the Monitor shows the UI after updating. The History screen (below) is also new this session and untested.
 
 ## What it does
 
@@ -14,6 +14,7 @@ Core scanning/display (name, HP, left/right switching mid-battle) confirmed work
 - A single missed scan (recall animation, scan jitter) doesn't blank the screen; it only clears after 2 consecutive misses.
 - Marks `FAINTED` once a shown Pokemon's HP hits 0.
 - Tracks how many of each podium's own Pokemon have fainted against that podium's team size, and shows `DEFEAT`/`WINNER` once a side's team is wiped out -- see [Match tracking](#match-tracking-winlose) below.
+- Logs every finished match (win/lose/draw + fainted tally) to a browsable, paged **History** screen, capped at the last `HISTORY_MAX_ENTRIES` matches -- see [Match history](#match-history) below.
 
 ## Requirements
 
@@ -34,7 +35,7 @@ wget https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/Poke
 install
 ```
 
-This downloads `config.lua`, `locations.lua`, `startup.lua`, `rename.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`, and also installs the **Basalt2** UI library if it isn't already present. If `config.lua`/`locations.lua` already exist (e.g. reinstalling after `uninstall.lua` kept them), they're left untouched -- only the other files are refreshed.
+This downloads `config.lua`, `locations.lua`, `startup.lua`, `rename.lua`, `history.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`, and also installs the **Basalt2** UI library if it isn't already present. If `config.lua`/`locations.lua` already exist (e.g. reinstalling after `uninstall.lua` kept them), they're left untouched -- only the other files are refreshed.
 
 The `datapack/` folder is **not** part of this download (it's not CC:Tweaked code) -- copy it into the world's `datapacks/` folder yourself, or merge it into an existing datapack. See [Datapack](#datapack).
 
@@ -61,6 +62,9 @@ MONITOR = nil, -- optional Monitor peripheral name (e.g. "monitor_0") to
                -- mirror the display onto instead of the computer's own
                -- terminal. Leave nil to keep using the computer's screen.
 MONITOR_TEXT_SCALE = 1, -- only used if MONITOR is set; passed to monitor.setTextScale()
+
+HISTORY_MAX_ENTRIES = 20, -- how many recent matches match_history.dat remembers
+                          -- (oldest drop off first) -- see "Match history" below.
 ```
 
 And `locations.lua`:
@@ -107,6 +111,16 @@ Only **owned** Pokemon count (wild-tagged entities are already filtered out befo
 
 Note: lowering a podium's team size below its current fainted count on the setup screen takes effect immediately on Start Battle and can show `DEFEAT` right away -- that's expected, not a bug.
 
+## Match history
+
+Every finished match (a `DEFEAT`/`WINNER`, or a mutual KO with no winner) is logged once to `match_history.dat`, most recent first, capped at `HISTORY_MAX_ENTRIES` (default 20 -- oldest entries drop off). Click **History** (next to **New Battle** on the live screen) to browse it: one line per match, e.g.
+
+```
+09-15 20:41  KnightKehan 5/5 vs Kehan88 0/1  -> Kehan88 won
+```
+
+showing each side's trainer (or podium position, if no trainer was detected that match), its fainted/team-size tally, and the winner -- or `Draw` for a mutual KO. Use **< Prev** / **Next >** to page through older matches, and **Back** to return to the live screen. A match is recorded the moment it resolves (even if you're on the Setup or History screen when it happens), not when you click **New Battle** -- so it survives even if you forget to check the score before starting the next one.
+
 ## Run
 
 ```
@@ -137,9 +151,10 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 
 | File | Purpose |
 |---|---|
-| `config.lua` | Your local settings (scan radius, ownership tags, poll interval, team size, optional monitor) -- not touched by `update.lua` |
+| `config.lua` | Your local settings (scan radius, ownership tags, poll interval, team size, optional monitor, history limit) -- not touched by `update.lua` |
 | `locations.lua` | Podium list: label + Environment Detector name per podium -- not touched by `update.lua` |
-| `startup.lua` | Scans each podium's detector, filters to the active owned Pokemon + trainer, shows a Basalt2 UI with name/HP/fainted tally/WINNER-DEFEAT + the New Battle setup screen |
+| `startup.lua` | Scans each podium's detector, filters to the active owned Pokemon + trainer, shows a Basalt2 UI with name/HP/fainted tally/WINNER-DEFEAT + the New Battle setup screen + the History screen |
+| `history.lua` | Load/save/add helpers for `match_history.dat` (same load/save/add shape as FossilLab's `fossilhistory.lua`) |
 | `install.lua` | First-time setup |
 | `rename.lua` | Change this device's label later without reinstalling |
 | `update.lua` | Re-downloads the code, keeps your `config.lua`/`locations.lua` |
@@ -148,6 +163,7 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 | `datapack/` | Standalone Minecraft datapack tagging Pokemon ownership (not downloaded by `install.lua`, copy manually -- see above) |
 | `todo.txt` | Design notes/history from building this -- not needed to run it, kept for context on why things are the way they are |
 | `team_sizes.dat` | Runtime-generated: saved per-podium team sizes, written whenever you click "Start Battle" -- not part of the repo, not downloaded, only created/read on the computer itself |
+| `match_history.dat` | Runtime-generated: last `HISTORY_MAX_ENTRIES` completed matches, written whenever a match resolves -- not part of the repo, not downloaded, only created/read on the computer itself |
 | `basalt`/`basalt.lua` | The Basalt2 UI library, auto-installed by `install.lua`/`startup.lua` the first time it's missing -- not part of this repo either |
 
 ## Known limitations

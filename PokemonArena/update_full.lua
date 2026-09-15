@@ -2,7 +2,7 @@
 
 local REPO_URL = "https://raw.githubusercontent.com/kehan8/ComputerCraft/refs/heads/main/PokemonArena/"
 
-local FILES = { "config.lua", "locations.lua", "startup.lua", "rename.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
+local FILES = { "config.lua", "locations.lua", "startup.lua", "rename.lua", "history.lua", "update.lua", "update_full.lua", "install.lua", "uninstall.lua" }
 
 local function downloadFile(name)
     -- cache-busting

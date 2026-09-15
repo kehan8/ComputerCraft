@@ -44,4 +44,10 @@ return {
                             -- monitor.setTextScale(). Lower (e.g. 0.5) fits
                             -- more text on a small monitor; 1 is the
                             -- CC:Tweaked default.
+
+    HISTORY_MAX_ENTRIES = 20, -- how many recent matches match_history.dat
+                              -- remembers (oldest drop off first), shown on
+                              -- the "History" screen (New Battle's neighbor
+                              -- button on the live screen). Same convention
+                              -- as FossilLab's HISTORY_MAX_ENTRIES.
 }

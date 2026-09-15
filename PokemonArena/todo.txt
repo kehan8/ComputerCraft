@@ -274,3 +274,90 @@ NOG NIET GEDAAN / OPEN
      Ball of iets anders zonder "baby"-veld.
   6. Uninstall-prompt biedt correct aan om team_sizes.dat te verwijderen.
 - Niet automatisch committen - wacht op expliciete vraag van de user.
+
+========================================================================
+SESSIE 4 - in-game test resultaat, Monitor-bugfix (nested Frame), History
+========================================================================
+IN-GAME TEST RESULTAAT (3 screenshots, user's testaccount)
+- "ja werkt goed" - de sessie-3 setVisible()-bugfix werkt: geen crash meer,
+  scherm toggelt zichtbaar tussen live/setup, -/+ team-size werkt, DEFEAT/
+  WINNER/trainer-naam kloppen (zie screenshots: "KnightKehan" 1/5 fainted
+  vs "Kehan88" 0/1, daarna DEFEAT/WINNER, daarna setup-scherm met Left=5/
+  Right=1 voorgevuld). Alles op dit punt was op het COMPUTER-scherm zelf
+  (de twee iconen links - rode aan/uit-knop, doorgestreepte cirkel - zijn
+  CC:Tweaked's Advanced Computer terminate/shutdown-iconen, geen Monitor).
+- NIEUW GEMELD PROBLEEM: user had eerder gevraagd om ook op de Monitor te
+  tonen (MONITOR in config.lua), maar "ik zie niks" - de Monitor blijft
+  leeg terwijl het computer-scherm wel alles laat zien.
+
+ROOT CAUSE HYPOTHESE (Monitor blijft leeg)
+- Vergeleken met ALLE andere Basalt2+Monitor-projecten in deze repo
+  (GymArena/SimonSays, GymArena/TicTacToe, FossilLab, ControlRoom - alle
+  vier al eerder in-game bevestigd werkend inclusief Monitor-gebruik):
+  die voegen widgets ALTIJD rechtstreeks toe aan `screen`
+  (screen:addLabel()/addButton()), nooit via een tussenliggende
+  screen:addFrame(). PokemonArena's sessie-3 versie deed dat WEL (liveFrame/
+  setupFrame = screen:addFrame(), alle widgets erop) om show/hide-"schermen"
+  te bouwen via :setVisible(). Dat toggelen werkte prima op het computer-
+  scherm (bevestigd, zie boven) maar is NERGENS elders in deze repo getest
+  in combinatie met `screen` = een Monitor-backed basalt.createFrame():
+  setTerm(monitor) - sterkste concrete verdachte voor "rendert op computer,
+  niks op Monitor".
+- Kon dit NIET tegen de Basalt2-bron verifieren (WebFetch/WebSearch/curl
+  allemaal "requires approval" zonder dat er een prompt beschikbaar was om
+  goed te keuren, exact dezelfde blokkade als sessie 3 bij de setVisible()-
+  fix). Dit blijft dus een best-effort fix op basis van cross-referencing
+  met de rest van de repo, GEEN bevestigde Basalt2-API-fout.
+
+FIX (startup.lua herschreven)
+- screen:addFrame()-nesting volledig verwijderd. Alle live/setup/history-
+  widgets zitten nu rechtstreeks op `screen`, elk apart bijgehouden in een
+  van drie platte lijsten (liveElements/setupElements/historyElements).
+  showScreen(state) loopt door de juiste lijst en zet :setVisible(true) en
+  door de andere twee met :setVisible(false) - zelfde :setVisible()-API als
+  de bevestigde sessie-3 fix, nu alleen zonder de Frame-laag erboven.
+- Nog NIET in-game herbevestigd (geen lokale lua/luac, user test zelf).
+  Volgende sessie/test: MONITOR instellen op de echte peripheral-naam,
+  update_full + startup, kijken of de Monitor nu wel de UI toont EN of
+  New Battle/History-knoppen op de Monitor aantikbaar blijven (Basalt2
+  monitor-touch-events, ongewijzigd logica-pad).
+
+NIEUWE FEATURE: match history (user's idee - "ik wil wel history opslaan,
+alleen recently, limiet 20 of zo, wie win/lose en hoeveel")
+- Nieuw bestand history.lua: load()/save()/add() op match_history.dat,
+  bewust dezelfde vorm als FossilLab's fossilhistory.lua (load/save/add,
+  newest-first, table.remove() van het einde om te trimmen) - geen nieuw
+  patroon uitgevonden, hergebruikt wat al bewezen werkt in deze repo.
+  HISTORY_MAX_ENTRIES = 20 in config.lua (zelfde default/naam-conventie als
+  FossilLab's HISTORY_MAX_ENTRIES).
+- Een match wordt PRECIES 1x gelogd: update() checkt na updateMatchStatus()
+  "isMatchOver() and not matchLogged" - matchLogged wordt gereset in
+  resetMatch() (dus bij elke Start Battle). Dit i.p.v. loggen op het
+  moment van New Battle-klik, zodat een match ook gelogd wordt als de
+  speler net op het Setup- of History-scherm zit wanneer 'ie afloopt.
+- Entry-vorm: { time (os.date "%m-%d %H:%M"), results = {per podium:
+  position/trainer/fainted/teamSize}, winner (trainer- of podiumnaam,
+  of nil bij gelijkspel/dubbele-KO) }. Generiek over elk aantal podiums
+  (niet hardcoded Left/Right), zelfde aanpak als de rest van startup.lua.
+- UI: nieuwe "History"-knop naast "New Battle" (bottom row in tweeen
+  gesplitst, zelfde x-splits-wiskunde als de podium-kolommen). Nieuw
+  History-scherm: titel, vaste vooraf-getekende rijen (ControlRoom/
+  FossilLab-conventie: widgets moeten voor basalt.run() bestaan, per
+  pagina hervuld i.p.v. dynamisch aangemaakt), Prev/Next/Page-pager
+  (1-op-1 ControlRoom's pagination-patroon), Back-knop terug naar live.
+  HISTORY_ROWS_PER_PAGE = h - 3 (titel, pager, back-knop eraf).
+- install.lua/update.lua/update_full.lua/uninstall.lua: history.lua
+  toegevoegd aan FILES (het is code, wordt elke keer opnieuw gedownload,
+  zelfde behandeling als fossilhistory.lua in FossilLab). match_history.dat
+  is runtime-data zoals team_sizes.dat - NIET in FILES, wel een eigen
+  y/N-vraag in uninstall.lua toegevoegd om 'm optioneel te verwijderen.
+
+OPEN / TE DOEN
+1. In-game bevestigen: Monitor toont nu wel de UI (root-cause-hypothese
+   hierboven controleren) en blijft aantikbaar.
+2. In-game bevestigen: History-knop opent het scherm, toont afgelopen
+   matches correct (tijd/trainer/fainted-tally/winner), Prev/Next/Back
+   werken, en een nieuwe match verschijnt bovenaan na afloop zonder dat
+   er dubbele entries ontstaan (matchLogged-guard testen door een tijdje
+   op het live-scherm te blijven staan na een DEFEAT/WINNER).
+3. Niet automatisch committen - wacht op expliciete vraag van de user.

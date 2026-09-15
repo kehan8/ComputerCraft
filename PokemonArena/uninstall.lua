@@ -1,6 +1,6 @@
 -- uninstall.lua: removes the files installed by install.lua/update.lua.
 
-local FILES = { "startup.lua", "rename.lua", "update.lua", "update_full.lua", "install.lua" }
+local FILES = { "startup.lua", "rename.lua", "history.lua", "update.lua", "update_full.lua", "install.lua" }
 
 print("This will remove: " .. table.concat(FILES, ", "))
 io.write("Also remove config.lua/locations.lua (your detector/podium settings)? (y/N): ")
@@ -13,6 +13,11 @@ end
 io.write("Also remove team_sizes.dat (your saved per-podium team sizes)? (y/N): ")
 if (read() or ""):lower() == "y" then
     table.insert(FILES, "team_sizes.dat")
+end
+
+io.write("Also remove match_history.dat (your saved recent match history)? (y/N): ")
+if (read() or ""):lower() == "y" then
+    table.insert(FILES, "match_history.dat")
 end
 
 for _, name in ipairs(FILES) do

@@ -4,8 +4,9 @@
 -- chosen in the "New Battle" setup screen, persisted in team_sizes.dat --
 -- see config.lua). Basalt2 UI: colored HP bars, boxed podium panels, a
 -- "New Battle" button (manual reset via a setup screen, no key rebind),
--- and an automatic jump to that same setup screen when a brand new
--- Pokemon shows up after a match is already over.
+-- an automatic jump to that same setup screen when a brand new Pokemon
+-- shows up after a match is already over, and a "History" screen listing
+-- the last few completed matches (see match_history.dat / history.lua).
 
 -- ====================== CONFIG ======================
 local config = require("config")
@@ -14,8 +15,10 @@ local OWNED_TAG = config.OWNED_TAG
 local POLL_INTERVAL = config.POLL_INTERVAL
 local MONITOR = config.MONITOR
 local MONITOR_TEXT_SCALE = config.MONITOR_TEXT_SCALE
+local HISTORY_MAX_ENTRIES = config.HISTORY_MAX_ENTRIES or 20
 
 local locations = require("locations")
+local matchHistory = require("history")
 
 if not locations.PODIUMS or #locations.PODIUMS == 0 then
     error("locations.lua must define PODIUMS with at least one podium table (see locations.lua).")
@@ -195,23 +198,67 @@ end
 local teamSizes = loadTeamSizes()
 local pendingTeamSizes = {} -- working copy edited on the setup screen
 
+-- ====================== MATCH HISTORY (match_history.dat) ======================
+local historyEntries = matchHistory.load() -- newest first, capped at HISTORY_MAX_ENTRIES
+
 -- ====================== STATE ======================
 -- index into podiums of the winning side once a match resolves, or nil
 -- while the match is ongoing (or ended in a mutual KO - no winner shown).
 -- Recomputed every scan by updateMatchStatus(), cleared by resetMatch().
 local matchWinnerIndex = nil
-local screenState = "live" -- "live" or "setup"
+local matchLogged = false -- true once the current (over) match has been
+                          -- written to historyEntries, so update() doesn't
+                          -- write a duplicate entry every subsequent scan
+                          -- while the match is still showing DEFEAT/WINNER
+local screenState = "live" -- "live", "setup", or "history"
 
 -- forward declarations: UI button handlers below reference these before
 -- their bodies are assigned further down, and vice versa.
-local renderLive, isMatchOver, resetMatch, openSetupScreen, startBattle, update
+local renderLive, isMatchOver, resetMatch, showScreen, openSetupScreen,
+      startBattle, openHistoryScreen, renderHistoryPage, logMatch, update
 
--- ====================== UI: LIVE SCREEN ======================
+-- ====================== UI ======================
+-- All widgets live directly on `screen` (no intermediate addFrame()
+-- nesting) -- this matches the ONLY proven monitor-compatible pattern
+-- elsewhere in this repo (GymArena/SimonSays, GymArena/TicTacToe,
+-- FossilLab, ControlRoom all add widgets straight onto `screen`, whether
+-- `screen` is the computer's basalt.getMainFrame() or a Monitor-backed
+-- basalt.createFrame():setTerm(mon)). An earlier version of this file used
+-- two child Frames (liveFrame/setupFrame added via screen:addFrame()) to
+-- get show/hide "screens" -- that toggled fine on the computer's own
+-- terminal (confirmed in-game) but is an untested combination when `screen`
+-- itself is a Monitor-backed frame, and is the prime suspect for "the
+-- Basalt2 UI renders on the computer but the Monitor stays blank" (user
+-- report, session 4). Fix: three flat groups of widgets added directly to
+-- `screen` (liveElements/setupElements/historyElements), toggled with
+-- individual :setVisible() calls via showScreen() below -- same
+-- :setVisible() API already confirmed working in-game (session 3 bugfix),
+-- just without the extra Frame layer. STILL NOT VERIFIED against the
+-- Basalt2 source (no network access in this session either, same as
+-- session 3) -- please retest the Monitor after pulling this update and
+-- report back if it's still blank.
 local w, h = screen:getSize()
 local colWidth = math.floor(w / #podiums)
 local BAR_WIDTH = math.max(4, colWidth - 4)
 
-local liveFrame = screen:addFrame():setSize(w, h):setPosition(1, 1)
+local liveElements = {}
+local setupElements = {}
+local historyElements = {}
+
+local function setElementsVisible(elements, visible)
+    for _, element in ipairs(elements) do
+        element:setVisible(visible)
+    end
+end
+
+showScreen = function(state)
+    screenState = state
+    setElementsVisible(liveElements, state == "live")
+    setElementsVisible(setupElements, state == "setup")
+    setElementsVisible(historyElements, state == "history")
+end
+
+-- ---------------------- LIVE SCREEN ----------------------
 local podiumUI = {}
 
 for i, podium in ipairs(podiums) do
@@ -219,58 +266,74 @@ for i, podium in ipairs(podiums) do
     local width = (i == #podiums) and (w - x + 1) or colWidth
 
     local ui = {}
-    ui.headerLabel = liveFrame:addLabel()
+    ui.headerLabel = screen:addLabel()
         :setText(podium.position)
         :setPosition(x, 1):setSize(width, 1)
         :setBackground(colors.gray):setForeground(colors.white)
-    ui.trainerLabel = liveFrame:addLabel()
+    ui.trainerLabel = screen:addLabel()
         :setText(""):setPosition(x, 2):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.gray)
-    ui.nameLabel = liveFrame:addLabel()
+    ui.nameLabel = screen:addLabel()
         :setText(""):setPosition(x, 3):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.black)
-    ui.barLabel = liveFrame:addLabel()
+    ui.barLabel = screen:addLabel()
         :setText(""):setPosition(x, 4):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.black)
-    ui.hpLabel = liveFrame:addLabel()
+    ui.hpLabel = screen:addLabel()
         :setText(""):setPosition(x, 5):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.black)
-    ui.faintedLabel = liveFrame:addLabel()
+    ui.faintedLabel = screen:addLabel()
         :setText(""):setPosition(x, 6):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.gray)
-    ui.bannerLabel = liveFrame:addLabel()
+    ui.bannerLabel = screen:addLabel()
         :setText(""):setPosition(x, 7):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.yellow)
 
     podiumUI[i] = ui
+    liveElements[#liveElements + 1] = ui.headerLabel
+    liveElements[#liveElements + 1] = ui.trainerLabel
+    liveElements[#liveElements + 1] = ui.nameLabel
+    liveElements[#liveElements + 1] = ui.barLabel
+    liveElements[#liveElements + 1] = ui.hpLabel
+    liveElements[#liveElements + 1] = ui.faintedLabel
+    liveElements[#liveElements + 1] = ui.bannerLabel
 end
 
-local NEW_BATTLE_WIDTH = math.min(w, 14)
-local newBattleButton = liveFrame:addButton()
+-- bottom row, split in half: New Battle (left) / History (right)
+local bottomHalf = math.floor(w / 2)
+local newBattleButton = screen:addButton()
     :setText("New Battle")
-    :setPosition(math.floor((w - NEW_BATTLE_WIDTH) / 2) + 1, h)
-    :setSize(NEW_BATTLE_WIDTH, 1)
+    :setPosition(1, h):setSize(bottomHalf, 1)
     :setBackground(colors.orange):setForeground(colors.white)
     :onClick(function() openSetupScreen() end)
+liveElements[#liveElements + 1] = newBattleButton
 
--- ====================== UI: SETUP SCREEN ======================
-local setupFrame = screen:addFrame():setSize(w, h):setPosition(1, 1)
-setupFrame:addLabel()
+local historyButton = screen:addButton()
+    :setText("History")
+    :setPosition(bottomHalf + 1, h):setSize(w - bottomHalf, 1)
+    :setBackground(colors.cyan):setForeground(colors.white)
+    :onClick(function() openHistoryScreen() end)
+liveElements[#liveElements + 1] = historyButton
+
+-- ---------------------- SETUP SCREEN ----------------------
+local setupTitle = screen:addLabel()
     :setText("New Battle - Team Size (1-6)")
     :setPosition(1, 1):setSize(w, 1)
     :setBackground(colors.black):setForeground(colors.white)
+setupElements[#setupElements + 1] = setupTitle
 
 local setupUI = {}
 for i, podium in ipairs(podiums) do
     local y = 2 + i
     setupUI[i] = {}
 
-    setupFrame:addLabel()
+    local label = screen:addLabel()
         :setText(podium.position .. ":")
         :setPosition(2, y):setSize(math.max(4, math.min(10, w - 12)), 1)
         :setBackground(colors.black):setForeground(colors.white)
+    setupElements[#setupElements + 1] = label
 
-    setupFrame:addButton()
+    local minusButton = screen:addButton()
         :setText("-")
         :setPosition(w - 9, y):setSize(3, 1)
         :setBackground(colors.red):setForeground(colors.white)
@@ -278,13 +341,15 @@ for i, podium in ipairs(podiums) do
             pendingTeamSizes[i] = clampTeamSize(pendingTeamSizes[i] - 1)
             setupUI[i].countLabel:setText(tostring(pendingTeamSizes[i]))
         end)
+    setupElements[#setupElements + 1] = minusButton
 
-    setupUI[i].countLabel = setupFrame:addLabel()
+    setupUI[i].countLabel = screen:addLabel()
         :setText("1")
         :setPosition(w - 6, y):setSize(3, 1)
         :setBackground(colors.black):setForeground(colors.white)
+    setupElements[#setupElements + 1] = setupUI[i].countLabel
 
-    setupFrame:addButton()
+    local plusButton = screen:addButton()
         :setText("+")
         :setPosition(w - 3, y):setSize(3, 1)
         :setBackground(colors.green):setForeground(colors.white)
@@ -292,15 +357,114 @@ for i, podium in ipairs(podiums) do
             pendingTeamSizes[i] = clampTeamSize(pendingTeamSizes[i] + 1)
             setupUI[i].countLabel:setText(tostring(pendingTeamSizes[i]))
         end)
+    setupElements[#setupElements + 1] = plusButton
 end
 
-setupFrame:addButton()
+local startBattleButton = screen:addButton()
     :setText("Start Battle")
     :setPosition(1, h):setSize(w, 1)
     :setBackground(colors.green):setForeground(colors.white)
     :onClick(function() startBattle() end)
+setupElements[#setupElements + 1] = startBattleButton
 
-setupFrame:setVisible(false)
+-- ---------------------- HISTORY SCREEN ----------------------
+-- Fixed, pre-drawn row slots (Basalt widgets should all exist before
+-- basalt.run() starts -- see ControlRoom/FossilLab, same convention),
+-- refilled per page rather than created/destroyed on demand.
+local historyTitle = screen:addLabel()
+    :setText("Match History (last " .. HISTORY_MAX_ENTRIES .. ")")
+    :setPosition(1, 1):setSize(w, 1)
+    :setBackground(colors.black):setForeground(colors.white)
+historyElements[#historyElements + 1] = historyTitle
+
+local HISTORY_ROWS_PER_PAGE = math.max(1, h - 3) -- row1 title, rows 2..h-2 list, h-1 pager, h back
+local historySlots = {}
+for i = 1, HISTORY_ROWS_PER_PAGE do
+    historySlots[i] = screen:addLabel()
+        :setText("")
+        :setPosition(1, 1 + i):setSize(w, 1)
+        :setBackground(colors.black):setForeground(colors.white)
+    historyElements[#historyElements + 1] = historySlots[i]
+end
+
+local historyPagerY = h - 1
+local historyPrevButton = screen:addButton()
+    :setText("< Prev")
+    :setPosition(1, historyPagerY):setSize(8, 1)
+    :setBackground(colors.gray):setForeground(colors.white)
+historyElements[#historyElements + 1] = historyPrevButton
+
+local historyNextButton = screen:addButton()
+    :setText("Next >")
+    :setPosition(w - 7, historyPagerY):setSize(8, 1)
+    :setBackground(colors.gray):setForeground(colors.white)
+historyElements[#historyElements + 1] = historyNextButton
+
+local historyPageLabel = screen:addLabel()
+    :setText("")
+    :setPosition(10, historyPagerY):setSize(math.max(1, w - 18), 1)
+    :setBackground(colors.black):setForeground(colors.white)
+historyElements[#historyElements + 1] = historyPageLabel
+
+local historyBackButton = screen:addButton()
+    :setText("Back")
+    :setPosition(1, h):setSize(w, 1)
+    :setBackground(colors.gray):setForeground(colors.white)
+    :onClick(function() showScreen("live") end)
+historyElements[#historyElements + 1] = historyBackButton
+
+local currentHistoryPage = 1
+
+local function totalHistoryPages()
+    return math.max(1, math.ceil(#historyEntries / HISTORY_ROWS_PER_PAGE))
+end
+
+-- one line per match: "<time>  <who> F/T vs <who> F/T  -> <winner> won" (or
+-- "-> Draw" on a simultaneous mutual KO). Generic over any podium count.
+local function formatHistoryEntry(entry)
+    local parts = {}
+    for _, r in ipairs(entry.results) do
+        local who = r.trainer or r.position
+        parts[#parts + 1] = who .. " " .. r.fainted .. "/" .. r.teamSize
+    end
+    local outcome = entry.winner and (entry.winner .. " won") or "Draw"
+    return (entry.time or "") .. "  " .. table.concat(parts, " vs ") .. "  -> " .. outcome
+end
+
+renderHistoryPage = function()
+    local pages = totalHistoryPages()
+    if currentHistoryPage > pages then currentHistoryPage = pages end
+    if currentHistoryPage < 1 then currentHistoryPage = 1 end
+
+    local startIndex = (currentHistoryPage - 1) * HISTORY_ROWS_PER_PAGE
+    for i = 1, HISTORY_ROWS_PER_PAGE do
+        local entry = historyEntries[startIndex + i]
+        historySlots[i]:setText(entry and formatHistoryEntry(entry) or "")
+    end
+    if #historyEntries == 0 then
+        historySlots[1]:setText("(no matches recorded yet)")
+    end
+    historyPageLabel:setText("Page " .. currentHistoryPage .. "/" .. pages)
+end
+
+historyPrevButton:onClick(function()
+    currentHistoryPage = currentHistoryPage - 1
+    renderHistoryPage()
+end)
+historyNextButton:onClick(function()
+    currentHistoryPage = currentHistoryPage + 1
+    renderHistoryPage()
+end)
+
+openHistoryScreen = function()
+    currentHistoryPage = 1
+    renderHistoryPage()
+    showScreen("history")
+end
+
+-- start with only the live screen visible
+setElementsVisible(setupElements, false)
+setElementsVisible(historyElements, false)
 
 -- ====================== DISPLAY / STATE LOGIC ======================
 local function healthBar(health, maxHealth)
@@ -393,6 +557,39 @@ isMatchOver = function()
     return false
 end
 
+-- Records the just-finished match to historyEntries/match_history.dat.
+-- Called exactly once per match, from update() the first scan cycle
+-- isMatchOver() goes true (see matchLogged below) -- independent of which
+-- screen is currently showing, so a match finishing while the player is on
+-- the History or Setup screen still gets logged.
+logMatch = function()
+    local results = {}
+    for i, podium in ipairs(podiums) do
+        results[i] = {
+            position = podium.position,
+            trainer = podium.lastTrainerName,
+            fainted = podium.faintedCount,
+            teamSize = teamSizes[i],
+        }
+    end
+
+    local winner = nil
+    if matchWinnerIndex then
+        local winnerPodium = podiums[matchWinnerIndex]
+        winner = winnerPodium.lastTrainerName or winnerPodium.position
+    end
+
+    historyEntries = matchHistory.add(historyEntries, {
+        time = os.date("%m-%d %H:%M"),
+        results = results,
+        winner = winner,
+    }, HISTORY_MAX_ENTRIES)
+
+    if screenState == "history" then
+        renderHistoryPage()
+    end
+end
+
 -- Clears the fainted tally + seen-uuid tracking on every podium and starts
 -- tracking a fresh match. Only called from startBattle() (i.e. after the
 -- setup screen's team sizes are committed) -- never directly from a
@@ -404,6 +601,7 @@ resetMatch = function()
         podium.seenUuids = {}
     end
     matchWinnerIndex = nil
+    matchLogged = false
 end
 
 -- Opens the team-size setup screen, prefilled with the currently active
@@ -417,9 +615,7 @@ openSetupScreen = function()
         pendingTeamSizes[i] = teamSizes[i]
         setupUI[i].countLabel:setText(tostring(pendingTeamSizes[i]))
     end
-    screenState = "setup"
-    liveFrame:setVisible(false)
-    setupFrame:setVisible(true)
+    showScreen("setup")
 end
 
 startBattle = function()
@@ -428,9 +624,7 @@ startBattle = function()
     end
     saveTeamSizes(teamSizes)
     resetMatch()
-    screenState = "live"
-    setupFrame:setVisible(false)
-    liveFrame:setVisible(true)
+    showScreen("live")
     renderLive()
 end
 
@@ -485,6 +679,12 @@ update = function()
         end
     end
     updateMatchStatus()
+
+    if isMatchOver() and not matchLogged then
+        logMatch()
+        matchLogged = true
+    end
+
     if screenState == "live" then
         renderLive()
     end
