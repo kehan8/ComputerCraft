@@ -223,8 +223,13 @@ IMPLEMENTATIE (startup.lua volledig herschreven, Basalt2 i.p.v. term.*)
   config.lua's TEAM_SIZE is nu puur fallback/default voor de eerste run
   (of een podium dat ontbreekt in een verouderd team_sizes.dat).
 - Twee Basalt-frames (liveFrame/setupFrame) op dezelfde screen, getoggled
-  via :show()/:hide() (aanname o.b.v. gangbare Basalt-Frame-API, net als de
-  rest van dit project ongetest zonder lokale lua/luac - in-game verifiëren).
+  via :setVisible(bool). BUGFIX (sessie 3, na in-game test): eerste versie
+  gebruikte :show()/:hide(), die in Basalt2 niet bestaan ("attempt to call
+  method 'hide' (a nil value)" op startup.lua:303) - Basalt2's VisualElement
+  gebruikt :setVisible(true/false) i.p.v. losse show/hide-methodes. Kon dit
+  niet tegen de Basalt2-bron verifiëren (geen netwerktoegang beschikbaar in
+  de sessie waarin de fix gemaakt is), dus nog steeds in-game bevestigen dat
+  :setVisible() bestaat en de frames daadwerkelijk toggelt.
 - scanPodium(podium) vervangt findActivePokemon(): EEN scanEntities()-call
   per podium per cyclus, geeft zowel de dichtstbijzijnde eigen Pokemon ALS
   de dichtstbijzijnde niet-Pokemon-entity (trainer) terug - nooit 2x scannen

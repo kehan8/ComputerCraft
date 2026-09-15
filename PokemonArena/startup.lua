@@ -300,7 +300,7 @@ setupFrame:addButton()
     :setBackground(colors.green):setForeground(colors.white)
     :onClick(function() startBattle() end)
 
-setupFrame:hide()
+setupFrame:setVisible(false)
 
 -- ====================== DISPLAY / STATE LOGIC ======================
 local function healthBar(health, maxHealth)
@@ -418,8 +418,8 @@ openSetupScreen = function()
         setupUI[i].countLabel:setText(tostring(pendingTeamSizes[i]))
     end
     screenState = "setup"
-    liveFrame:hide()
-    setupFrame:show()
+    liveFrame:setVisible(false)
+    setupFrame:setVisible(true)
 end
 
 startBattle = function()
@@ -429,8 +429,8 @@ startBattle = function()
     saveTeamSizes(teamSizes)
     resetMatch()
     screenState = "live"
-    setupFrame:hide()
-    liveFrame:show()
+    setupFrame:setVisible(false)
+    liveFrame:setVisible(true)
     renderLive()
 end
 
