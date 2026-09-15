@@ -4,12 +4,12 @@ VS-battle display for Cobblemon fights: one Environment Detector per podium show
 
 ![status](https://img.shields.io/badge/status-core--confirmed--in--game-brightgreen)
 
-Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, and win/lose tally are confirmed working live in-game. The Monitor output had a bug (UI rendered on the computer but stayed blank on the Monitor) -- fixed this session by dropping an untested nested-Frame pattern in favor of the flat-widgets-on-`screen` approach already proven by every other Monitor-using project in this repo, but **not yet re-tested in-game** -- please confirm the Monitor shows the UI after updating. The History screen (below) is also new this session and untested.
+Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, and win/lose tally are confirmed working live in-game. The Monitor stayed blank because it was never actually wired up (config.lua's `MONITOR` defaulted to "off", unlike every other Monitor-using project in this repo) -- fixed by switching to the same auto-detect convention as GymArena/SimonSays and GymArena/TicTacToe (see `MONITOR_NAME` below), and the "New Battle" setup screen was unreadable (white text invisible on a light background) because Basalt2 `Label` backgrounds don't render in this build -- fixed by switching every decorative panel to `Button` widgets instead, same fix already used in GymArena/TicTacToe. **Not yet re-tested in-game** -- please confirm the Monitor shows the UI and the setup screen is readable after updating. The History screen (below) is also new and untested.
 
 ## What it does
 
 - Every `POLL_INTERVAL` seconds, scans each podium's Environment Detector and finds the trainer-owned Pokemon closest to it (its active battler), plus the nearest player (that podium's trainer).
-- Shows, per podium, in a boxed panel: the trainer's name, the active Pokemon's name, a colored HP bar (green >50%, yellow 20-50%, red <20%) and `HP current/max` -- on screen, either the computer's own terminal by default, or an optional external **Monitor** if you set one up (see [Configure](#configure)).
+- Shows, per podium, in a boxed panel: the trainer's name, the active Pokemon's name, a colored HP bar (green >50%, yellow 20-50%, red <20%) and `HP current/max` -- on screen, mirrored automatically onto a wired external **Monitor** if one is present, or the computer's own terminal otherwise (see [Configure](#configure)).
 - Filters out anything that isn't a Cobblemon Pokemon (players, Loot Balls, etc. never have a `baby` field) and anything wild-spawned (no trainer), using tags set by a small companion datapack -- see [Datapack](#datapack) below.
 - A single missed scan (recall animation, scan jitter) doesn't blank the screen; it only clears after 2 consecutive misses.
 - Marks `FAINTED` once a shown Pokemon's HP hits 0.
@@ -21,7 +21,7 @@ Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 U
 - CC:Tweaked (Minecraft mod)
 - An **Advanced Computer** (and, if you want the mirrored display, an **Advanced Monitor**) -- Basalt2's UI (buttons, colored labels) needs the Advanced variants, unlike v1's plain text
 - Advanced Peripherals' **Environment Detector**, one per podium, each on a Wired Modem network -- see `locations.lua`
-- Optionally, a **Monitor** (any size, e.g. 6x8 blocks) on the same network if you want the display mirrored off the computer's own screen -- see `MONITOR` in [Configure](#configure)
+- Optionally, a **Monitor** (any size, e.g. 6x8 blocks) on the same network -- it's auto-detected and used automatically, no config needed (see `MONITOR_NAME` in [Configure](#configure))
 - Cobblemon
 - The companion **datapack** in `datapack/` loaded into the world (or merged into another datapack), so ownership tags exist -- see [Datapack](#datapack)
 - Internet access on the computer (HTTP API enabled) the first time it runs, so it can download the **Basalt2** UI library -- handled automatically by `install.lua`/`startup.lua`, same as GymArena/SimonSays
@@ -58,10 +58,12 @@ TEAM_SIZE = 1, -- default/fallback team size (1-6) used only before you've
                -- real per-podium team sizes live in team_sizes.dat once you
                -- have (see "Match tracking" below).
 
-MONITOR = nil, -- optional Monitor peripheral name (e.g. "monitor_0") to
-               -- mirror the display onto instead of the computer's own
-               -- terminal. Leave nil to keep using the computer's screen.
-MONITOR_TEXT_SCALE = 1, -- only used if MONITOR is set; passed to monitor.setTextScale()
+MONITOR_NAME = nil, -- e.g. "monitor_0" to force a specific monitor;
+                    -- nil = auto-detect via peripheral.find("monitor")
+                    -- (same convention as GymArena/SimonSays and
+                    -- GymArena/TicTacToe) -- falls back to the computer's
+                    -- own screen only if no monitor is found at all.
+MONITOR_SCALE = 1, -- passed to monitor.setTextScale() when a monitor is in use
 
 HISTORY_MAX_ENTRIES = 20, -- how many recent matches match_history.dat remembers
                           -- (oldest drop off first) -- see "Match history" below.

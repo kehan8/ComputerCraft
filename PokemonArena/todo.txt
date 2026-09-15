@@ -361,3 +361,61 @@ OPEN / TE DOEN
    er dubbele entries ontstaan (matchLogged-guard testen door een tijdje
    op het live-scherm te blijven staan na een DEFEAT/WINNER).
 3. Niet automatisch committen - wacht op expliciete vraag van de user.
+
+========================================================================
+SESSIE 5 - Monitor ECHT leeg (2 screenshots), team-size scherm onleesbaar
+========================================================================
+IN-GAME TEST RESULTAAT
+- User boos (2 screenshots): 1) setup-scherm ("Team Size") toont alleen de
+  -/+/Start Battle-knoppen, geen enkele titel/label/getal zichtbaar
+  (onleesbaar - "witte tekst op witte achtergrond"). 2) de fysieke Advanced
+  Monitor naast de computer is nog STEEDS volledig zwart/leeg, ondanks de
+  sessie-4 "fix". User vroeg expliciet om hetzelfde auto-detect gedrag als
+  GymArena/SimonSays en GymArena/TicTacToe.
+
+ROOT CAUSE 1 (Monitor écht leeg) - de sessie-4 hypothese was FOUT
+- De addFrame-nesting-fix uit sessie 4 was niet het probleem. De ECHTE
+  oorzaak: config.lua had nog steeds `MONITOR = nil`, en in DIT bestand
+  betekende nil "gebruik nooit een monitor, blijf op de computer" - dus de
+  monitor-peripheral werd letterlijk nooit gewrapt of beschreven, wat dan
+  ook nooit "test" was in sessie 3/4 (nooit ingevuld met een echte naam).
+  GymArena/SimonSays en GymArena/TicTacToe doen het annders: bij hen
+  betekent MONITOR_NAME = nil juist "auto-detect via
+  peripheral.find(\"monitor\")" - een wired monitor werkt daar dus zonder
+  dat de user ooit peripheral.getNames() hoeft te draaien.
+- FIX: config.lua's MONITOR/MONITOR_TEXT_SCALE hernoemd naar
+  MONITOR_NAME/MONITOR_SCALE (zelfde namen als de andere twee projecten) en
+  startup.lua gebruikt nu exact hetzelfde patroon: `local mon = MONITOR_NAME
+  and wrapPeripheral(...) or peripheral.find("monitor")`, alleen fail-fast
+  als een MONITOR_NAME expliciet is ingesteld maar niet gevonden wordt.
+  Geen handmatige naam-invoer meer nodig voor de normale (1 monitor) case.
+
+ROOT CAUSE 2 (team-size scherm onleesbaar) - bevestigde Basalt2-gotcha
+uit het TicTacToe-geheugen toegepast
+- Uit GymArena/TicTacToe (icontest.lua-debugscript, al eerder bevestigd):
+  Basalt2 Label-elementen RENDEREN GEEN achtergrondkleur in deze Basalt2-
+  build, alleen de tekst zelf tekent. startup.lua gebruikte overal
+  screen:addLabel():setBackground(...) voor de panelen (setup-titel, per-
+  podium-label, team-size-getal, history-rijen, live-panelen) - die
+  achtergronden deden dus NOOIT iets, en de tekst viel terug op het frame's
+  eigen (lichte) achtergrond. Waar de foreground ook wit was (setup-titel,
+  podium-label, team-size-getal) was de tekst daardoor onzichtbaar wit-op-
+  wit - precies wat het screenshot toonde (alleen de -/+/Start Battle-
+  KNOPPEN zichtbaar, want Button-achtergronden renderen wel, zoals ook al
+  bewezen door die knoppen zelf).
+- FIX: elke screen:addLabel() met een setBackground()-call vervangen door
+  screen:addButton() (zelfde chainable :setText()/:setPosition()/:setSize()/
+  :setBackground()/:setForeground() API, geen onClick nodig voor de decor-
+  panelen) - zelfde fix-patroon als TicTacToe's pixel-art boxes. Ook een
+  paar te-laag-contrast combinaties gecorrigeerd terwijl we er toch waren:
+  trainerLabel/faintedLabel foreground gray-op-lightGray -> black-op-
+  lightGray, bannerLabel (WINNER-tekst) achtergrond lightGray -> black zodat
+  het gele "*** WINNER ***"-bericht opvalt.
+
+OPEN / TE DOEN
+1. In-game bevestigen: de Advanced Monitor toont nu de UI zonder dat
+   MONITOR_NAME handmatig hoeft te worden ingevuld (gewoon update_full +
+   startup draaien).
+2. In-game bevestigen: het team-size (New Battle) scherm toont nu overal
+   leesbare tekst (titel, per-podium-label, team-size-getallen).
+3. Niet automatisch committen - wacht op expliciete vraag van de user.

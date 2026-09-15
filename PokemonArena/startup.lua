@@ -13,8 +13,8 @@ local config = require("config")
 local RADIUS = config.RADIUS
 local OWNED_TAG = config.OWNED_TAG
 local POLL_INTERVAL = config.POLL_INTERVAL
-local MONITOR = config.MONITOR
-local MONITOR_TEXT_SCALE = config.MONITOR_TEXT_SCALE
+local MONITOR_NAME = config.MONITOR_NAME
+local MONITOR_SCALE = config.MONITOR_SCALE
 local HISTORY_MAX_ENTRIES = config.HISTORY_MAX_ENTRIES or 20
 
 local locations = require("locations")
@@ -83,16 +83,20 @@ if not fs.exists("basalt") and not fs.exists("basalt.lua") then
 end
 local basalt = require("basalt")
 
--- optional: mirror the whole display onto an external Monitor instead of
--- the computer's own terminal. MONITOR = nil (config.lua default) keeps
--- using the computer's screen.
+-- Auto-detect a wired Advanced Monitor and mirror the whole display onto
+-- it, exactly like GymArena/SimonSays and GymArena/TicTacToe: MONITOR_NAME
+-- = nil (config.lua default) means "use whichever monitor
+-- peripheral.find("monitor") turns up", not "never use a monitor" -- no
+-- need to look up the exact peripheral name first. Only falls back to the
+-- computer's own terminal if no monitor is present on the network at all.
+local mon = MONITOR_NAME and wrapPeripheral(MONITOR_NAME, "Monitor") or peripheral.find("monitor")
+
 local screen
-if MONITOR then
-    local monitor = wrapPeripheral(MONITOR, "Monitor")
-    if MONITOR_TEXT_SCALE then
-        monitor.setTextScale(MONITOR_TEXT_SCALE)
+if mon then
+    if MONITOR_SCALE then
+        mon.setTextScale(MONITOR_SCALE)
     end
-    screen = basalt.createFrame():setTerm(monitor)
+    screen = basalt.createFrame():setTerm(mon)
 else
     screen = basalt.getMainFrame()
 end
@@ -223,20 +227,30 @@ local renderLive, isMatchOver, resetMatch, showScreen, openSetupScreen,
 -- elsewhere in this repo (GymArena/SimonSays, GymArena/TicTacToe,
 -- FossilLab, ControlRoom all add widgets straight onto `screen`, whether
 -- `screen` is the computer's basalt.getMainFrame() or a Monitor-backed
--- basalt.createFrame():setTerm(mon)). An earlier version of this file used
--- two child Frames (liveFrame/setupFrame added via screen:addFrame()) to
--- get show/hide "screens" -- that toggled fine on the computer's own
--- terminal (confirmed in-game) but is an untested combination when `screen`
--- itself is a Monitor-backed frame, and is the prime suspect for "the
--- Basalt2 UI renders on the computer but the Monitor stays blank" (user
--- report, session 4). Fix: three flat groups of widgets added directly to
--- `screen` (liveElements/setupElements/historyElements), toggled with
--- individual :setVisible() calls via showScreen() below -- same
--- :setVisible() API already confirmed working in-game (session 3 bugfix),
--- just without the extra Frame layer. STILL NOT VERIFIED against the
--- Basalt2 source (no network access in this session either, same as
--- session 3) -- please retest the Monitor after pulling this update and
--- report back if it's still blank.
+-- basalt.createFrame():setTerm(mon)). Three flat groups of widgets
+-- (liveElements/setupElements/historyElements) are toggled with individual
+-- :setVisible() calls via showScreen() below.
+--
+-- REAL root cause of "Monitor stays completely blank" (session 5): it was
+-- never the Frame nesting -- config.lua's MONITOR was still nil and nil
+-- meant "don't touch any monitor, ever" in this file, unlike every other
+-- Monitor-using project in this repo. GymArena/SimonSays and
+-- GymArena/TicTacToe treat MONITOR_NAME = nil as "auto-detect via
+-- peripheral.find("monitor")", so their Monitor lights up with zero config.
+-- Fixed above (see the `mon = MONITOR_NAME and ... or peripheral.find(...)`
+-- block) to match that exact convention.
+--
+-- Every screen:addButton() below that used to be screen:addLabel() (session
+-- 5): confirmed in GymArena/TicTacToe's memory notes that this Basalt2
+-- build does NOT render Label backgrounds -- only the text draws, the
+-- :setBackground() call is silently a no-op on a Label. That's what made
+-- the "New Battle" team-size screen unreadable (foto 1): every panel/title/
+-- count Label fell back to the frame's actual (light) default background,
+-- and several used a light foreground colour (white) on top of it --
+-- invisible. Button backgrounds DO render (proven by the already-working
+-- New Battle/Start Battle/History buttons in the same screenshot), so every
+-- decorative text panel now uses addButton() instead, same fix already
+-- applied in GymArena/TicTacToe for its pixel-art boxes.
 local w, h = screen:getSize()
 local colWidth = math.floor(w / #podiums)
 local BAR_WIDTH = math.max(4, colWidth - 4)
@@ -266,28 +280,28 @@ for i, podium in ipairs(podiums) do
     local width = (i == #podiums) and (w - x + 1) or colWidth
 
     local ui = {}
-    ui.headerLabel = screen:addLabel()
+    ui.headerLabel = screen:addButton()
         :setText(podium.position)
         :setPosition(x, 1):setSize(width, 1)
         :setBackground(colors.gray):setForeground(colors.white)
-    ui.trainerLabel = screen:addLabel()
+    ui.trainerLabel = screen:addButton()
         :setText(""):setPosition(x, 2):setSize(width, 1)
-        :setBackground(colors.lightGray):setForeground(colors.gray)
-    ui.nameLabel = screen:addLabel()
+        :setBackground(colors.lightGray):setForeground(colors.black)
+    ui.nameLabel = screen:addButton()
         :setText(""):setPosition(x, 3):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.black)
-    ui.barLabel = screen:addLabel()
+    ui.barLabel = screen:addButton()
         :setText(""):setPosition(x, 4):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.black)
-    ui.hpLabel = screen:addLabel()
+    ui.hpLabel = screen:addButton()
         :setText(""):setPosition(x, 5):setSize(width, 1)
         :setBackground(colors.lightGray):setForeground(colors.black)
-    ui.faintedLabel = screen:addLabel()
+    ui.faintedLabel = screen:addButton()
         :setText(""):setPosition(x, 6):setSize(width, 1)
-        :setBackground(colors.lightGray):setForeground(colors.gray)
-    ui.bannerLabel = screen:addLabel()
+        :setBackground(colors.lightGray):setForeground(colors.black)
+    ui.bannerLabel = screen:addButton()
         :setText(""):setPosition(x, 7):setSize(width, 1)
-        :setBackground(colors.lightGray):setForeground(colors.yellow)
+        :setBackground(colors.black):setForeground(colors.yellow)
 
     podiumUI[i] = ui
     liveElements[#liveElements + 1] = ui.headerLabel
@@ -316,7 +330,7 @@ local historyButton = screen:addButton()
 liveElements[#liveElements + 1] = historyButton
 
 -- ---------------------- SETUP SCREEN ----------------------
-local setupTitle = screen:addLabel()
+local setupTitle = screen:addButton()
     :setText("New Battle - Team Size (1-6)")
     :setPosition(1, 1):setSize(w, 1)
     :setBackground(colors.black):setForeground(colors.white)
@@ -327,7 +341,7 @@ for i, podium in ipairs(podiums) do
     local y = 2 + i
     setupUI[i] = {}
 
-    local label = screen:addLabel()
+    local label = screen:addButton()
         :setText(podium.position .. ":")
         :setPosition(2, y):setSize(math.max(4, math.min(10, w - 12)), 1)
         :setBackground(colors.black):setForeground(colors.white)
@@ -343,7 +357,7 @@ for i, podium in ipairs(podiums) do
         end)
     setupElements[#setupElements + 1] = minusButton
 
-    setupUI[i].countLabel = screen:addLabel()
+    setupUI[i].countLabel = screen:addButton()
         :setText("1")
         :setPosition(w - 6, y):setSize(3, 1)
         :setBackground(colors.black):setForeground(colors.white)
@@ -371,7 +385,7 @@ setupElements[#setupElements + 1] = startBattleButton
 -- Fixed, pre-drawn row slots (Basalt widgets should all exist before
 -- basalt.run() starts -- see ControlRoom/FossilLab, same convention),
 -- refilled per page rather than created/destroyed on demand.
-local historyTitle = screen:addLabel()
+local historyTitle = screen:addButton()
     :setText("Match History (last " .. HISTORY_MAX_ENTRIES .. ")")
     :setPosition(1, 1):setSize(w, 1)
     :setBackground(colors.black):setForeground(colors.white)
@@ -380,7 +394,7 @@ historyElements[#historyElements + 1] = historyTitle
 local HISTORY_ROWS_PER_PAGE = math.max(1, h - 3) -- row1 title, rows 2..h-2 list, h-1 pager, h back
 local historySlots = {}
 for i = 1, HISTORY_ROWS_PER_PAGE do
-    historySlots[i] = screen:addLabel()
+    historySlots[i] = screen:addButton()
         :setText("")
         :setPosition(1, 1 + i):setSize(w, 1)
         :setBackground(colors.black):setForeground(colors.white)
@@ -400,7 +414,7 @@ local historyNextButton = screen:addButton()
     :setBackground(colors.gray):setForeground(colors.white)
 historyElements[#historyElements + 1] = historyNextButton
 
-local historyPageLabel = screen:addLabel()
+local historyPageLabel = screen:addButton()
     :setText("")
     :setPosition(10, historyPagerY):setSize(math.max(1, w - 18), 1)
     :setBackground(colors.black):setForeground(colors.white)

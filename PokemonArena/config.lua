@@ -33,17 +33,18 @@ return {
                    -- team_sizes.dat is NOT touched by update.lua/
                    -- update_full.lua, same reasoning as config.lua itself.
 
-    MONITOR = nil, -- optional Monitor peripheral name (e.g. "monitor_0") to
-                   -- mirror the whole Basalt2 UI onto instead of the
-                   -- computer's own terminal. Leave nil to keep using the
-                   -- computer's screen (default, what we've been testing
-                   -- with). Once the monitor is placed and wired, run
-                   -- peripheral.getNames() to find its exact name (numeric
-                   -- suffix depends on placement order).
-    MONITOR_TEXT_SCALE = 1, -- only used if MONITOR is set; passed to
-                            -- monitor.setTextScale(). Lower (e.g. 0.5) fits
-                            -- more text on a small monitor; 1 is the
-                            -- CC:Tweaked default.
+    MONITOR_NAME = nil, -- e.g. "monitor_0" to force a specific monitor;
+                        -- nil = auto-detect via peripheral.find("monitor")
+                        -- -- same convention as GymArena/SimonSays and
+                        -- GymArena/TicTacToe, so any wired Advanced Monitor
+                        -- is picked up automatically with zero config, no
+                        -- need to look up peripheral.getNames(). Falls back
+                        -- to the computer's own screen only if no monitor
+                        -- is found at all. Set this only if you have
+                        -- multiple monitors and need to pick a specific one.
+    MONITOR_SCALE = 1, -- passed to monitor.setTextScale() when a monitor is
+                       -- in use. Lower (e.g. 0.5) fits more text on a small
+                       -- monitor; 1 is the CC:Tweaked default.
 
     HISTORY_MAX_ENTRIES = 20, -- how many recent matches match_history.dat
                               -- remembers (oldest drop off first), shown on
