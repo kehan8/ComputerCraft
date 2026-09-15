@@ -808,3 +808,85 @@ OPEN / TE DOEN
 3. In-game bevestigen: de kaart oogt nu gebalanceerd (dikke balk boven EN
    onder), geen nieuwe lege/dode ruimte door de gewijzigde totaalhoogte.
 4. Niet automatisch committen - wacht op expliciete vraag van de user.
+
+========================================================================
+SESSIE 11 - VS is een echt pixel-art logo geworden (TTT-stijl), i.p.v. tekst
+========================================================================
+AANLEIDING (user testte sessie 10 in-game, plus discussie in plan-mode)
+- "VS is toch niet meegegroeid." Root cause gevonden: setSize(1,
+  HEADER_ROWS) op een tekst-button maakt alleen de gekleurde achtergrond
+  dikker - een tekst-teken ("V"/"S") is in CC:Tweaked altijd precies 1
+  scherm-rij hoog, hoe groot de button ook wordt. Dat verklaart waarom de
+  letters piepklein bleven staan midden in de dikkere balk.
+- User opperde zelf: "kunnen we misschien zelfde manier als TTT doen? die
+  O en X. nadoen voor VS?" - klopte helemaal: GymArena/TicTacToe tekent
+  zijn X/O niet als tekst maar als pixel-art (ICON_PATTERNS: 5x5-grid van
+  1'en/0'en, per "1" een eigen kleine zwarte addButton()).
+- Eerst 3 losse voorstel-opties gegeven (focus op extra hoogte, 3 vs 5
+  regels) - user ging expliciet NIET akkoord: "geen van alle opties.
+  oneens. je focus hoogte. mag ook focus op breedte. daar hebben we erg
+  genoeg ruimte voor breedte." Daarna alsnog akkoord gegaan met hoogte 5
+  regels, MAAR pas nadat user zelf het exacte 11 (breed) x 5 (hoog)
+  bitmap-patroon getekend had in ASCII-art (zie prompt), inclusief
+  expliciete herinnering: "dan vergeet ook niet groen meegroeien" (de
+  groene winner-banner moet met de header meegroeien, niet alleen de
+  header).
+
+FIX (ui.lua)
+- Nieuwe module-level constanten VS_LETTER_COLS=11, VS_LETTER_ROWS=5, en
+  VS_PATTERNS.V / VS_PATTERNS.S: het exacte 11x5 bitmap-patroon dat de
+  user zelf tekende, 1-op-1 overgenomen (1 = zwarte pixel, 0 = niks
+  tekenen, laat de accentkleur van de header eronder gewoon zien - zelfde
+  aanpak als TTT's CELL_STYLE-achtergrond die door de icon-pixels heen
+  blijft schijnen op de "0"-posities).
+- HEADER_ROWS/BANNER_ROWS: 3 -> 5, zodat de header-balk exact even hoog is
+  als het VS-patroon (geen losse scaling nodig, 1 patroon-cel = 1 fysieke
+  scherm-rij/kolom, anders dan TTT dat wel schaalt naar de celgrootte).
+  PODIUM_CARD_ROWS ging van 11 naar 15 (5+5+5) - net als bij sessie 10
+  rekent liveTop's verticale centrering hier automatisch mee door. De
+  groene winner-banner is bewust meegegroeid naar 5 regels (niet alleen
+  de header), exact zoals user vroeg.
+- Het oude "if showVs then" blok (twee losse 1x1-tekst-buttons met
+  setText("V")/setText("S")) is vervangen door een drawVsLetter(pattern,
+  startX)-helper: itereert over het 11x5-patroon en zet voor elke "1" een
+  eigen kleine (1x1) zwarte addButton() neer - exact dezelfde techniek als
+  TTT's renderCell()-icon-loop, alleen zonder de pixelW/rowH-schaling
+  omdat 1 patroon-cel hier toevallig al exact 1 scherm-cel is.
+- showVs kreeg een extra breedte-check: (#podiums == 2) and (colWidth >=
+  VS_LETTER_COLS) - bij een te smal scherm (kolom < 11 breed) valt het nu
+  netjes terug op "geen VS", i.p.v. de letters half af te snijden of over
+  de trainer-naam-tekst heen te laten vallen.
+- De V hangt nog steeds met zijn rechterkant tegen de naad (laatste 11
+  kolommen van podium 1's balk), de S met zijn linkerkant net na de naad
+  (eerste 11 kolommen van podium 2's balk) - zelfde seam-positie als
+  sessie 9/10, alleen nu met een echt herkenbaar, dik pixel-logo i.p.v.
+  een los lettertje.
+
+BESTANDEN AANGEPAST
+- ui.lua: module-header-comment (sessie 11-alinea toegevoegd), nieuwe
+  VS_LETTER_COLS/VS_LETTER_ROWS/VS_PATTERNS-constanten, showVs-check,
+  HEADER_ROWS/BANNER_ROWS/PODIUM_CARD_ROWS-waarden, VS-render-blok
+  vervangen door drawVsLetter()-pixel-loop, twee stale "3 rows tall"
+  code-comments bijgewerkt naar "5 rows tall".
+- README.md: "Look & feel"-sectie bijgewerkt (5-regel header/banner i.p.v.
+  3, VS-beschrijving vervangen door de pixel-art/TTT-vergelijking incl. de
+  nieuwe kolombreedte-eis van 11).
+
+NIET GEDAAN / BEWUST UITGESTELD
+- Nog steeds geen lokale lua/luac beschikbaar - ongetest, zelfde beperking
+  als elke sessie hiervoor.
+- Geen scaling/aanpassing van het patroon zelf naar andere schermgroottes
+  - het is een vaste 11x5 bitmap; op een breder scherm blijft de VS dus
+  even groot (niet evenredig meegroeiend met de kolombreedte), alleen de
+  aanwezigheid ervan is aan/uit via de colWidth>=11-check.
+
+OPEN / TE DOEN
+1. In-game bevestigen: header- en banner-balk zijn nu zichtbaar 5 regels
+   dik.
+2. In-game bevestigen: de "V" en "S" tonen als herkenbare dikke
+   pixel-letters (niet als rommelig blokpatroon of per ongeluk
+   gespiegeld/verschoven) op de naad tussen de twee podiums.
+3. In-game bevestigen: bij een te smal scherm (kolom < 11 breed, bv. 3+
+   podiums of een kleine monitor-scale) verschijnt er geen kapotte/
+   afgesneden VS, gewoon niks - zoals bedoeld.
+4. Niet automatisch committen - wacht op expliciete vraag van de user.

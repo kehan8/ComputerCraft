@@ -47,6 +47,29 @@
 --   - The V/S seam letters grew to match the new 3-row header height
 --     (same column, same accent background, just taller) and their
 --     foreground changed from white to black per the mockup.
+-- - Session 11 restyle (user feedback: "VS is toch niet meegegroeid" --
+--   setSize() on a text button only thickens the colored background, a
+--   single character glyph never scales with it; user proposed reusing
+--   GymArena/TicTacToe's pixel-art icon technique instead, then hand-drew
+--   an exact 11 (wide) x 5 (tall) bitmap per letter):
+--   - VS_PATTERNS below holds that hand-drawn V/S bitmap verbatim (1 =
+--     filled pixel). Same technique as TTT's ICON_PATTERNS: each filled
+--     cell becomes its own small black addButton() layered on top of the
+--     existing colored header bar; unfilled cells draw nothing, letting
+--     the header's accent color show through underneath. Unlike TTT,
+--     there's no per-cell scaling -- one pattern cell is exactly one
+--     physical screen row/column, since HEADER_ROWS/BANNER_ROWS were
+--     raised from 3 to 5 specifically to match the pattern's height ("dan
+--     vergeet ook niet groen meegroeien" -- the banner grows with the
+--     header again, same top/bottom balance reasoning as session 10).
+--     PODIUM_CARD_ROWS is now 15 (5+5+5), was 11.
+--   - The V's right edge sits flush against podium 1's right edge (the
+--     seam) and the S's left edge sits flush against podium 2's left edge,
+--     same seam position as sessions 9-10 -- just wide/tall enough to
+--     read as actual letters instead of 1-character dots. showVs now also
+--     requires colWidth >= 11 so the full-width pattern can't overlap the
+--     trainer name text on a narrow screen; below that width no V/S is
+--     drawn at all (same graceful-fallback pattern as the 3+ podium case).
 --
 -- Basalt2 gotcha (confirmed via GymArena/TicTacToe project memory): Label
 -- elements never render a background in this Basalt2 build -- only Button
@@ -83,6 +106,28 @@ local function headerColorFor(index)
     return HEADER_COLORS[((index - 1) % #HEADER_COLORS) + 1]
 end
 
+-- "VS" seam pixel-art (session 11, see header comment): user-drawn 11
+-- (wide) x 5 (tall) bitmap per letter, 1 = filled/black pixel. Same
+-- technique as GymArena/TicTacToe's ICON_PATTERNS, drawn at 1:1 scale.
+local VS_LETTER_COLS = 11
+local VS_LETTER_ROWS = 5
+local VS_PATTERNS = {
+    V = {
+        {1,1,0,0,0,0,0,0,0,1,1},
+        {0,1,1,0,0,0,0,0,1,1,0},
+        {0,0,1,1,0,0,0,1,1,0,0},
+        {0,0,0,1,1,0,1,1,0,0,0},
+        {0,0,0,0,1,1,1,0,0,0,0},
+    },
+    S = {
+        {1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,0,0,0,0,0,0,0},
+        {1,1,1,1,1,1,1,1,1,1,1},
+        {0,0,0,0,0,0,0,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1},
+    },
+}
+
 -- screen: the Basalt frame (computer main frame or Monitor-backed frame).
 -- paletteTarget: raw term/monitor object for softenPalette(), or nil.
 -- podiums: the live podium state tables (mutated elsewhere, read here).
@@ -107,7 +152,10 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
     -- (see header comment on the VS marker for why that was dropped).
     local colWidth = math.floor(w / #podiums)
     local BAR_WIDTH = math.max(4, colWidth - 4)
-    local showVs = (#podiums == 2) -- embed V/S into the header seam below
+    -- Embed V/S into the header seam below -- only for exactly 2 podiums,
+    -- and only if the pixel-art pattern (11 columns wide) actually fits a
+    -- column without overlapping the trainer name text (session 11).
+    local showVs = (#podiums == 2) and (colWidth >= VS_LETTER_COLS)
 
     local function columnFor(i)
         local x = (i - 1) * colWidth + 1
@@ -138,11 +186,12 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
     -- vertically centered in the space above the bottom New Battle/History
     -- row, so it doesn't stay pinned to the top with a dead strip below it
     -- on a tall monitor.
-    -- header(3) + trainer/name/bar/hp/fainted(5x1) + banner(3) = 11 rows --
-    -- see session 10 restyle comment above (header/banner tripled in
-    -- height; was 7 rows total with a 1-row header/banner before that).
-    local HEADER_ROWS = 3
-    local BANNER_ROWS = 3
+    -- header(5) + trainer/name/bar/hp/fainted(5x1) + banner(5) = 15 rows --
+    -- see session 11 restyle comment above (header/banner raised from 3 to
+    -- 5 rows to match the VS pixel-art pattern's height; was 11 rows total
+    -- with a 3-row header/banner before that).
+    local HEADER_ROWS = 5
+    local BANNER_ROWS = 5
     local PODIUM_CARD_ROWS = HEADER_ROWS + 5 + BANNER_ROWS
     local liveBodyHeight = h - 1 -- rows 1..(h-1); row h is New Battle/History
     local liveTop = 1 + math.max(0, math.floor((liveBodyHeight - PODIUM_CARD_ROWS) / 2))
@@ -157,7 +206,8 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         -- Header: colored accent bar instead of the "Left"/"Right" text --
         -- the trainer name label right below carries the same accent color
         -- (see renderLive), so color + name work together as one header.
-        -- 3 rows tall (session 10: "triple regels/bar" for balance).
+        -- 5 rows tall (session 11: raised from 3 to match the VS pixel-art
+        -- pattern's height).
         ui_.headerLabel = screen:addButton()
             :setText(""):setPosition(x, liveTop):setSize(width, HEADER_ROWS)
             :setBackground(accent):setForeground(colors.white)
@@ -176,8 +226,8 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         ui_.faintedLabel = screen:addButton()
             :setText(""):setPosition(x, liveTop + HEADER_ROWS + 4):setSize(width, 1)
             :setBackground(colors.lightBlue):setForeground(colors.black)
-        -- Winner banner: also 3 rows tall (session 10: thickened to match
-        -- the header, so the card reads balanced top/bottom).
+        -- Winner banner: also 5 rows tall (session 11: grew with the
+        -- header again, same top/bottom balance reasoning as session 10).
         ui_.bannerLabel = screen:addButton()
             :setText(""):setPosition(x, liveTop + HEADER_ROWS + 5):setSize(width, BANNER_ROWS)
             :setBackground(colors.green):setForeground(colors.white)
@@ -192,28 +242,36 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         liveElements[#liveElements + 1] = ui_.bannerLabel
     end
 
-    -- "VS" seam marker: a single-column "V" flush against the right edge of
-    -- podium 1's colored header bar, and a single-column "S" flush against
-    -- the left edge of podium 2's header bar (see header comment) -- drawn
-    -- over the same rows as the (now 3-row-tall) header bars, only for
-    -- exactly 2 podiums. Session 10: grown from 1 to HEADER_ROWS tall to
-    -- match the thicker header, and text color switched white -> black
-    -- per user mockup.
+    -- "VS" seam marker (session 11): pixel-art V/S bitmaps (VS_PATTERNS,
+    -- see module header comment), same "1 = filled pixel -> its own small
+    -- addButton()" technique as GymArena/TicTacToe's icons. The V's right
+    -- edge sits flush against podium 1's right edge (the seam); the S's
+    -- left edge sits flush against podium 2's left edge -- same seam
+    -- position as sessions 9-10, just drawn as real letters instead of a
+    -- single character. Only for exactly 2 podiums with a wide-enough
+    -- column (see showVs above).
     if showVs then
         local x1, width1 = columnFor(1)
         local x2 = columnFor(2)
+        local vx = x1 + width1 - VS_LETTER_COLS
+        local sx = x2
 
-        local vLetter = screen:addButton()
-            :setText("V")
-            :setPosition(x1 + width1 - 1, liveTop):setSize(1, HEADER_ROWS)
-            :setBackground(headerColorFor(1)):setForeground(colors.black)
-        liveElements[#liveElements + 1] = vLetter
+        local function drawVsLetter(pattern, startX)
+            for pr = 1, VS_LETTER_ROWS do
+                for pc = 1, VS_LETTER_COLS do
+                    if pattern[pr][pc] == 1 then
+                        local pixel = screen:addButton()
+                            :setText("")
+                            :setPosition(startX + pc - 1, liveTop + pr - 1):setSize(1, 1)
+                            :setBackground(colors.black)
+                        liveElements[#liveElements + 1] = pixel
+                    end
+                end
+            end
+        end
 
-        local sLetter = screen:addButton()
-            :setText("S")
-            :setPosition(x2, liveTop):setSize(1, HEADER_ROWS)
-            :setBackground(headerColorFor(2)):setForeground(colors.black)
-        liveElements[#liveElements + 1] = sLetter
+        drawVsLetter(VS_PATTERNS.V, vx)
+        drawVsLetter(VS_PATTERNS.S, sx)
     end
 
     -- bottom row, split in half: New Battle (left) / History (right)
