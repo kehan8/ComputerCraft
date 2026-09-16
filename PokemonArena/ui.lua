@@ -128,7 +128,7 @@ local VS_LETTER_ROWS = 5
 -- Session 12: extra columns of gap opened between the V and S boxes when
 -- drawing (see drawVsLetter call site below) -- purely a positioning
 -- shift, not part of either bitmap.
-local VS_GAP = 2
+local VS_GAP = 1
 local VS_PATTERNS = {
     V = {
         {1,1,0,0,0,0,0,0,0,1,1},
@@ -329,8 +329,14 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         local accent = headerColorFor(i)
         setupUI[i] = {}
 
+        -- Session 13: "Left:"/"Right:" read as unlabeled directions with no
+        -- context (user feedback: "geen logisch kunst of zo"); prefixing
+        -- "Trainer (...)" makes clear these are per-trainer size pickers
+        -- while still keeping the physical Left/Right orientation that's
+        -- useful standing at the actual podiums. Generic over any podium
+        -- count/position text (e.g. a 3rd "Middle" podium), no extra code.
         local label = screen:addButton()
-            :setText(podium.position .. ":")
+            :setText("Trainer (" .. podium.position .. "):")
             :setPosition(2, y):setSize(math.max(4, w - 14), 1)
             :setBackground(colors.lightBlue):setForeground(accent)
         setupElements[#setupElements + 1] = label
@@ -464,7 +470,18 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
             local ui_ = podiumUI[i]
             local defeated = podium.faintedCount >= teamSizes[i]
 
+            -- Session 13: fainted-tally color now escalates with progress --
+            -- black while nobody's down yet, orange partway through the
+            -- team (a warning, matches the WINNER banner's "gold" orange),
+            -- red once the whole team's out (matches DEFEAT's red).
+            local faintedColor = colors.black
+            if defeated then
+                faintedColor = colors.red
+            elseif podium.faintedCount > 0 then
+                faintedColor = colors.orange
+            end
             ui_.faintedLabel:setText("(" .. podium.faintedCount .. "/" .. teamSizes[i] .. " fainted)")
+                :setForeground(faintedColor)
 
             if defeated then
                 ui_.trainerLabel:setText("")
@@ -476,13 +493,21 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
 
                 if podium.lastName then
                     local nameText = podium.lastName
-                    if podium.lastHealth and podium.lastHealth <= 0 then
+                    -- Session 13: this individual mon's FAINTED tag now
+                    -- turns the name red (matches "*** DEFEAT ***" below --
+                    -- previously stayed black, no visual signal at all).
+                    local isFainted = podium.lastHealth and podium.lastHealth <= 0
+                    if isFainted then
                         nameText = nameText .. "  FAINTED"
                     end
-                    ui_.nameLabel:setText(nameText):setForeground(colors.black)
+                    ui_.nameLabel:setText(nameText):setForeground(isFainted and colors.red or colors.black)
                     ui_.barLabel:setText("[" .. match.healthBar(podium.lastHealth, podium.lastMaxHealth, BAR_WIDTH) .. "]")
                         :setForeground(match.hpColor(podium.lastHealth, podium.lastMaxHealth))
+                    -- Session 13: HP text now reuses the same green/yellow/
+                    -- red gradient as the bar above it, instead of staying
+                    -- static black.
                     ui_.hpLabel:setText("HP " .. (podium.lastHealth or 0) .. "/" .. (podium.lastMaxHealth or 0))
+                        :setForeground(match.hpColor(podium.lastHealth, podium.lastMaxHealth))
                 else
                     ui_.nameLabel:setText("(no Pokemon detected)"):setForeground(colors.gray)
                     ui_.barLabel:setText("")
@@ -490,7 +515,7 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
                 end
             end
 
-            ui_.bannerLabel:setText(matchWinnerIndex == i and "*** WINNER ***" or "")
+            ui_.bannerLabel:setText(matchWinnerIndex == i and "*** WINNER ***" or ""):setForeground(colors.orange)
         end
     end
 

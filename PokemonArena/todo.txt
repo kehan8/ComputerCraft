@@ -932,6 +932,67 @@ BESTANDEN AANGEPAST
   VS_GAP-constante toegevoegd, vx/sx-berekening en showVs-check
   aangepast, module-header-comment sessie-12-alinea herschreven naar het
   juiste verhaal (incl. korte vermelding van de teruggedraaide misstap).
+
+========================================================================
+SESSIE 13 - in-game "ultimate test" feedback: VS_GAP=1, WINNER-kleur,
+kleurenschema naam/HP/fainted, team-size-labels
+========================================================================
+AANLEIDING (user testte sessie 12 live, 4 screenshots: live-scherm x2
+in-world + computer-editor, History-scherm, New Battle/Team Size-scherm)
+- "ik ben alles tevreden" op de algehele restyle. Twee eigen aanpassingen
+  had de user zelf al in de code gezet, nog niet gepusht, en gevraagd om
+  na te kijken via `git diff`:
+  1. VS_GAP: 2 -> 1 (user vond gap=2 te breed, 1 kolom is beter).
+  2. `*** WINNER ***`-banner-tekst kreeg `colors.orange` in plaats van
+     wit ("ik gaf orange aan WINNER want lijkt op goud").
+  Beide gecheckt tegen de rest van de code (comments, aangrenzende
+  logica) - geen bijwerkingen, niets stuk, gewoon overgenomen zoals de
+  user ze al had ingevoerd.
+- Nieuwe feedback/vragen, User Confirmed History-scherm werkt/ziet er
+  goed uit (geen wijziging nodig):
+  1. "ik weet niet welke kleur voor pokemon naam, HP (niet bar) en
+     fainted. Ook no pokemon detected" - vier tekst-elementen op het
+     live-scherm hadden nog geen (of geen doordacht) kleurenschema:
+     pokemon-naam, de "HP x/y"-tekst (de bar erboven had al wel een
+     kleurgradient via match.hpColor), de "(x/y fainted)"-teller, en de
+     "(no Pokemon detected)"-tekst.
+  2. Team Size-scherm: "Left:"/"Right:" als labels vond de user "geen
+     logisch kunst of zo" - te kaal/onduidelijk. Voorstel gegeven met 4
+     opties (Trainer 1/2, Trainer (Left)/(Right), Trainer (Blue)/(Red),
+     eigen naam); user koos optie 2: "Trainer (Left):"/"Trainer
+     (Right):".
+
+FIX (ui.lua, renderLive())
+- Pokemon-naam: blijft zwart normaal; zodra dit specifieke mon FAINTED is
+  (podium.lastHealth <= 0) wordt de naam + "FAINTED"-tekst rood, zelfde
+  rood als "*** DEFEAT ***" - voorheen bleef dit altijd zwart, geen
+  visueel signaal op mon-niveau (enkel op team-niveau via DEFEAT).
+- "HP x/y"-tekst: hergebruikt nu gewoon match.hpColor() (dezelfde functie
+  die de bar al kleurt) in plaats van static zwart - 1 regel, geen nieuwe
+  logica.
+- "(x/y fainted)"-teller: zwart bij 0 fainted, oranje zodra 0 < fainted <
+  teamSize (waarschuwing), rood zodra fainted >= teamSize (matcht
+  DEFEAT). Berekend met de bestaande `defeated`-variabele, geen nieuwe
+  state nodig.
+- "(no Pokemon detected)": was al `colors.gray` - geen wijziging nodig,
+  user had het waarschijnlijk over het hoofd gezien.
+
+FIX (ui.lua, setup-scherm label)
+- `podium.position .. ":"` -> `"Trainer (" .. podium.position .. "):"`.
+  1-regel wijziging, generiek over elk aantal podiums/posities (werkt
+  ook automatisch voor een toekomstige 3e "Middle"-podium zonder verdere
+  code-aanpassing).
+
+BESTANDEN AANGEPAST
+- ui.lua: user's eigen VS_GAP=1 en WINNER-oranje aanpassingen behouden
+  (al aanwezig, gecontroleerd); nieuwe kleurlogica voor naam/HP/fainted
+  toegevoegd in renderLive(); setup-scherm label-tekst aangepast naar
+  "Trainer (<position>):".
+- README.md: "Look & feel" VS-gap-tekst 13->12 tekens / 2-column-> 1-
+  column gap (matcht user's eigen VS_GAP=1 wijziging); nieuwe bullets
+  voor de WINNER-banner-kleur en het naam/HP/fainted-kleurenschema;
+  "Match tracking" sectie vermeldt nu het "Trainer (<position>):"-label.
+- todo.txt: deze sessie-13-entry.
 - README.md: "Look & feel"-sectie aangepast - minimale kolombreedte nu
   13 (11 + 2 gat) i.p.v. 11, en de tekst legt het gat tussen V/S uit i.p.v.
   de (teruggedraaide) aspect-ratio-uitleg.
