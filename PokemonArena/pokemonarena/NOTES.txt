@@ -3,7 +3,7 @@ This is a minimal standalone datapack so PokemonArena's Lua code (see
 spawns. scanEntities() (Advanced Peripherals' Environment Detector) has no
 ownership info at all - only tags/health/position/name/uuid/etc, no raw
 NBT - so the only way to expose ownership to Lua is to have something else
-write it into a tag. See ../todo.txt for the full background/investigation.
+write it into a tag.
 
 WHAT IT DOES
 Every ~1 second (20 ticks), tags every not-yet-checked cobblemon:pokemon

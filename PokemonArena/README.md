@@ -43,7 +43,7 @@ A soft blue/green/red battle-arena palette (via `setPaletteColor`, where the ter
 - Advanced Peripherals' **Environment Detector**, one per podium, each on a Wired Modem network -- see `locations.lua`
 - Optionally, a **Monitor** (any size, e.g. 6x8 blocks) on the same network -- it's auto-detected and used automatically, no config needed (see [Configure](#configure))
 - Cobblemon
-- The companion **datapack** in `datapack/` loaded into the world (or merged into another datapack), so ownership tags exist -- see [Datapack](#datapack)
+- The companion **datapack** in `pokemonarena/` loaded into the world (or merged into another datapack), so ownership tags exist -- see [Datapack](#datapack)
 - Internet access on the computer (HTTP API enabled) the first time it runs, so it can download the **Basalt2** UI library -- handled automatically by `install.lua`/`startup.lua`, same as GymArena/SimonSays
 
 ## Install
@@ -57,7 +57,7 @@ install
 
 This downloads `config.lua`, `locations.lua`, `startup.lua`, `scan.lua`, `teamsizes.lua`, `match.lua`, `ui.lua`, `rename.lua`, `history.lua`, `update.lua`, `update_full.lua`, and `uninstall.lua`, and also installs the **Basalt2** UI library if it isn't already present. If `config.lua`/`locations.lua` already exist (e.g. reinstalling after `uninstall.lua` kept them), they're left untouched -- only the other files are refreshed.
 
-The `datapack/` folder is **not** part of this download (it's not CC:Tweaked code) -- copy it into the world's `datapacks/` folder yourself, or merge it into an existing datapack. See [Datapack](#datapack).
+The `pokemonarena/` folder is **not** part of this download (it's not CC:Tweaked code) -- copy it into the world's `datapacks/` folder yourself, or merge it into an existing datapack. See [Datapack](#datapack).
 
 ## Configure
 
@@ -125,7 +125,7 @@ Each podium needs its own Environment Detector placed near that trainer's spot -
 
 ## Datapack
 
-Advanced Peripherals' `scanEntities()` has no idea whether a Pokemon belongs to a trainer or is a wild spawn -- that only exists in raw NBT (`Pokemon.PokemonOriginalTrainerType`), which the Lua API doesn't expose. `datapack/` is a small standalone datapack that tags every Cobblemon Pokemon with `pa_owned` or `pa_wild` every ~1 second based on that NBT field, so `startup.lua` can filter on the tag instead. It also tags every online player `pa_player` every cycle, so the "Trainer:" guess can require an actual player instead of "any entity without a baby field" (that older heuristic also matched ordinary mobs -- confirmed in-game, a wandering Bat got shown as `Trainer: Bat`). See `datapack/NOTES.txt` for exactly what it does, how to merge it into an existing datapack instead of running it standalone, and a folder-naming gotcha if your modpack pins an older Minecraft version.
+Advanced Peripherals' `scanEntities()` has no idea whether a Pokemon belongs to a trainer or is a wild spawn -- that only exists in raw NBT (`Pokemon.PokemonOriginalTrainerType`), which the Lua API doesn't expose. `pokemonarena/` is a small standalone datapack that tags every Cobblemon Pokemon with `pa_owned` or `pa_wild` every ~1 second based on that NBT field, so `startup.lua` can filter on the tag instead. It also tags every online player `pa_player` every cycle, so the "Trainer:" guess can require an actual player instead of "any entity without a baby field" (that older heuristic also matched ordinary mobs -- confirmed in-game, a wandering Bat got shown as `Trainer: Bat`). See `pokemonarena/NOTES.txt` for exactly what it does, how to merge it into an existing datapack instead of running it standalone, and a folder-naming gotcha if your modpack pins an older Minecraft version.
 
 ## Match tracking (win/lose)
 
@@ -202,7 +202,7 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 | `update.lua` | Re-downloads the code, keeps your `config.lua`/`locations.lua` |
 | `update_full.lua` | Re-downloads everything, including `config.lua`/`locations.lua` |
 | `uninstall.lua` | Removes the installed files |
-| `datapack/` | Standalone Minecraft datapack tagging Pokemon ownership (not downloaded by `install.lua`, copy manually -- see above) |
+| `pokemonarena/` | Standalone Minecraft datapack tagging Pokemon ownership (not downloaded by `install.lua`, copy manually -- see above) |
 | `team_sizes.dat` | Runtime-generated: saved per-podium team sizes, written whenever you click "Start Battle" -- not part of the repo, not downloaded, only created/read on the computer itself |
 | `match_history.dat` | Runtime-generated: last `HISTORY_MAX_ENTRIES` completed matches, written whenever a match resolves -- not part of the repo, not downloaded, only created/read on the computer itself |
 | `basalt`/`basalt.lua` | The Basalt2 UI library, auto-installed by `install.lua`/`startup.lua` the first time it's missing -- not part of this repo either |

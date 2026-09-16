@@ -3,7 +3,7 @@
 return {
     RADIUS = 8, -- scanEntities() half-width per detector; 16 is the practical max (17+ returns nothing)
 
-    -- Tags set by the tag_ownership datapack function (see ../datapack/)
+    -- Tags set by the tag_ownership datapack function (see ../pokemonarena/)
     OWNED_TAG = "pa_owned",   -- trainer-owned Pokemon; this is what gets shown
     WILD_TAG = "pa_wild",     -- wild-spawned Pokemon; unused by startup.lua, kept for debugging
     PLAYER_TAG = "pa_player", -- set on every real player; used to pick the "Trainer:" name
