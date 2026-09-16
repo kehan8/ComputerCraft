@@ -84,6 +84,20 @@
 --   instead of touching. showVs now requires colWidth >= VS_LETTER_COLS +
 --   VS_GAP so the widened footprint still can't overlap the trainer name
 --   text on a narrow screen.
+-- - Session 14 (user feedback: HP gradient had no orange step -- see
+--   match.lua; background color made configurable per computer via
+--   config.lua's new BACKGROUND_COLOR, opts.backgroundColor here, still
+--   defaulting to light gray; and a "cooler" WINNER banner):
+--   - screen:setBackground() now reads opts.backgroundColor instead of a
+--     hardcoded colors.lightGray, so a gym leader running their own
+--     computer can theme it via config.lua without touching this file.
+--   - WINNER banner: was a single 5-row button with text only on its
+--     (effectively) centered line, the other 4 rows always blank green
+--     space. Now 5 separate 1-row buttons (bannerRows), each showing one
+--     line of WINNER_BANNER_LINES (a star pattern thinning out toward the
+--     top/bottom, "* * * WINNER * * *" through the middle) -- see that
+--     constant's comment above for why no manual column alignment is
+--     needed (Basalt centers button text by default).
 --
 -- Basalt2 gotcha (confirmed via GymArena/TicTacToe project memory): Label
 -- elements never render a background in this Basalt2 build -- only Button
@@ -146,6 +160,25 @@ local VS_PATTERNS = {
     },
 }
 
+-- Session 14: user asked for a "cooler" WINNER banner, sketching stars
+-- scattered around the word, thinning out toward the top/bottom row --
+-- e.g. "*   *   *   *" above/below, "* * * WINNER * * *" through the
+-- middle. The old banner was ONE 5-row-tall button with text only on
+-- (effectively) its single centered line -- the other 4 rows were just
+-- empty green space. It's now split into 5 separate 1-row buttons (see
+-- bannerRows below), one per line of this pattern, so each row can carry
+-- its own line of text. Basalt centers button text horizontally by
+-- default (same assumption the V/S seam letters and every other label in
+-- this file already rely on), so no manual column alignment is needed
+-- here either -- just plain strings.
+local WINNER_BANNER_LINES = {
+    "*    *    *    *    *",
+    "  *    *    *    *",
+    "* * *  WINNER  * * *",
+    "  *    *    *    *",
+    "*    *    *    *    *",
+}
+
 -- screen: the Basalt frame (computer main frame or Monitor-backed frame).
 -- paletteTarget: raw term/monitor object for softenPalette(), or nil.
 -- podiums: the live podium state tables (mutated elsewhere, read here).
@@ -162,8 +195,11 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
 
     -- Gray background instead of Basalt's default white -- see header
     -- comment. All three screens (live/setup/history) share this one
-    -- frame, so one call covers all of them.
-    screen:setBackground(colors.lightGray)
+    -- frame, so one call covers all of them. Session 14: configurable per
+    -- computer via config.lua's BACKGROUND_COLOR (a gym leader's own arena
+    -- may want its own theme instead of the shared default), falling back
+    -- to the original light gray if opts doesn't provide one.
+    screen:setBackground(opts.backgroundColor or colors.lightGray)
 
     -- ---------------------- COLUMN LAYOUT ----------------------
     -- Always edge-to-edge equal-width columns, no reserved center gutter
@@ -247,9 +283,20 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
             :setBackground(colors.lightBlue):setForeground(colors.black)
         -- Winner banner: also 5 rows tall (session 11: grew with the
         -- header again, same top/bottom balance reasoning as session 10).
-        ui_.bannerLabel = screen:addButton()
-            :setText(""):setPosition(x, liveTop + HEADER_ROWS + 5):setSize(width, BANNER_ROWS)
-            :setBackground(colors.green):setForeground(colors.white)
+        -- Session 14: split into 5 separate 1-row buttons (one per
+        -- WINNER_BANNER_LINES entry) instead of one 5-row button with text
+        -- on only its (visually) centered line -- see the constant's
+        -- comment above. bannerRows[3] is the "* * * WINNER * * *" middle
+        -- line; foreground stays orange on all 5 rows (user's existing
+        -- "looks like gold" choice from their own edit, kept as-is).
+        ui_.bannerRows = {}
+        for r = 1, BANNER_ROWS do
+            local row = screen:addButton()
+                :setText(""):setPosition(x, liveTop + HEADER_ROWS + 5 + (r - 1)):setSize(width, 1)
+                :setBackground(colors.green):setForeground(colors.orange)
+            ui_.bannerRows[r] = row
+            liveElements[#liveElements + 1] = row
+        end
 
         podiumUI[i] = ui_
         liveElements[#liveElements + 1] = ui_.headerLabel
@@ -258,7 +305,6 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         liveElements[#liveElements + 1] = ui_.barLabel
         liveElements[#liveElements + 1] = ui_.hpLabel
         liveElements[#liveElements + 1] = ui_.faintedLabel
-        liveElements[#liveElements + 1] = ui_.bannerLabel
     end
 
     -- "VS" seam marker (session 11): pixel-art V/S bitmaps (VS_PATTERNS,
@@ -515,7 +561,14 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
                 end
             end
 
-            ui_.bannerLabel:setText(matchWinnerIndex == i and "*** WINNER ***" or ""):setForeground(colors.orange)
+            -- Session 14: banner is now 5 rows (see WINNER_BANNER_LINES /
+            -- bannerRows above) instead of one row of "*** WINNER ***"
+            -- text -- same on/off condition as before, just fans it out
+            -- across all 5 rows (or blanks all 5) instead of one.
+            local isWinner = matchWinnerIndex == i
+            for r = 1, #ui_.bannerRows do
+                ui_.bannerRows[r]:setText(isWinner and WINNER_BANNER_LINES[r] or "")
+            end
         end
     end
 

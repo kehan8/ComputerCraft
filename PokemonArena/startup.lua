@@ -22,6 +22,7 @@ local PLAYER_TAG = config.PLAYER_TAG
 local POLL_INTERVAL = config.POLL_INTERVAL
 local MONITOR_SCALE = config.MONITOR_SCALE
 local HISTORY_MAX_ENTRIES = config.HISTORY_MAX_ENTRIES or 20
+local BACKGROUND_COLOR = config.BACKGROUND_COLOR or colors.lightGray -- Session 14
 
 local locations = require("locations")
 local matchHistory = require("history")
@@ -141,6 +142,7 @@ local matchState = {
 local ui = require("ui")
 local screenUI = ui.build(screen, paletteTarget, podiums, teamSizes, matchState.historyEntries, {
     historyMaxEntries = HISTORY_MAX_ENTRIES,
+    backgroundColor = BACKGROUND_COLOR,
     onStartBattle = function(pendingSizes)
         for i in ipairs(podiums) do
             teamSizes[i] = pendingSizes[i]

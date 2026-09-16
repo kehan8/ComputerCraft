@@ -56,4 +56,19 @@ return {
                               -- the "History" screen (New Battle's neighbor
                               -- button on the live screen). Same convention
                               -- as FossilLab's HISTORY_MAX_ENTRIES.
+
+    -- Session 14: user's idea -- this arena is neutral, but a gym leader
+    -- running their own PokemonArena computer might want their own theme
+    -- instead of the shared default. Frame background only (podium accent
+    -- colors/header colors are unchanged, still the rotating blue/red/green
+    -- from ui.lua -- not made configurable, no request for that yet).
+    -- MUST be one of the 16 named CC:Tweaked `colors.*` values (colors.white,
+    -- colors.orange, colors.magenta, colors.lightBlue, colors.yellow,
+    -- colors.lime, colors.pink, colors.gray, colors.lightGray, colors.cyan,
+    -- colors.purple, colors.blue, colors.brown, colors.green, colors.red,
+    -- colors.black) -- CC:Tweaked/Basalt2 can't render arbitrary RGB
+    -- backgrounds this way, only these 16 (setPaletteColor, used elsewhere
+    -- in ui.lua, can retint what a name means, but that's a different,
+    -- more advanced knob -- not this setting).
+    BACKGROUND_COLOR = colors.lightGray,
 }

@@ -9,7 +9,7 @@ Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 U
 ## What it does
 
 - Every `POLL_INTERVAL` seconds, scans every podium's Environment Detector and finds the trainer-owned Pokemon closest to it (its active battler), plus the nearest player (that podium's trainer). Because the scan radius can see the whole arena from any podium (see `RADIUS` below), the same Pokemon uuid is resolved to exactly one podium per cycle -- whichever detector is physically closest to it -- so a podium with no Pokemon of its own never "borrows" the other podium's Pokemon/trainer just because it's the only one on the field.
-- Shows, per podium, in a boxed panel: the trainer's name, the active Pokemon's name, a colored HP bar (green >50%, yellow 20-50%, red <20%) and `HP current/max` -- on screen, mirrored automatically onto a wired external **Monitor** if one is present, or the computer's own terminal otherwise (see [Configure](#configure)).
+- Shows, per podium, in a boxed panel: the trainer's name, the active Pokemon's name, a colored HP bar (green >50%, yellow 25-50%, orange 10-25%, red <=10%) and `HP current/max` -- on screen, mirrored automatically onto a wired external **Monitor** if one is present, or the computer's own terminal otherwise (see [Configure](#configure)).
 - Filters out anything that isn't a Cobblemon Pokemon (players, Loot Balls, etc. never have a `baby` field) and anything wild-spawned (no trainer), using tags set by a small companion datapack -- see [Datapack](#datapack) below.
 - Trainer names only come from real players (tagged `pa_player` by the datapack), never from a wandering mob, and the guess is locked to whichever Pokemon uuid is currently shown -- it's picked once per send-out (nearest tagged player to that Pokemon) and never re-guessed while the same Pokemon stays active, so a bystander walking past the podium can't steal the label.
 - A single missed scan (recall animation, scan jitter) doesn't blank the screen; it only clears after 2 consecutive misses.
@@ -19,13 +19,21 @@ Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 U
 
 ## Look & feel
 
-A soft blue/green/red battle-arena palette (via `setPaletteColor`, where the terminal supports it -- both an Advanced Computer and Advanced Monitor do), a light gray background, replacing the earlier plain gray/white/black look:
+A soft blue/green/red battle-arena palette (via `setPaletteColor`, where the terminal supports it -- both an Advanced Computer and Advanced Monitor do), a configurable background, replacing the earlier plain gray/white/black look:
 
-- The frame background is light gray (`colors.lightGray`) instead of Basalt's default white, so the empty space around/below the podium cards isn't stark white.
+- The frame background defaults to light gray (`colors.lightGray`) instead of Basalt's default white, so the empty space around/below the podium cards isn't stark white -- and, since a gym leader might run their own PokemonArena computer for their own themed arena (not just this neutral one), it's configurable per computer via `config.lua`'s `BACKGROUND_COLOR` -- see [Configure](#configure).
 - Each podium gets a rotating accent color (blue, red, green, repeating for a 3rd+ podium) shown as a 5-row-thick colored bar where the podium used to just say "Left"/"Right" -- the trainer's name is still shown right below it, tinted the same accent color, so color and name work together instead of one replacing the other.
 - With **exactly 2 podiums** (and a wide enough screen -- each podium column needs to be at least 12 characters wide: the 11-column letter pattern plus a 1-column gap), the two columns sit edge-to-edge (no reserved center gap) and a hand-drawn pixel-art "V"/"S" pair is drawn near the seam between the two colored header bars -- built the same way as GymArena/TicTacToe's X/O icons (an 11x5 bitmap, one small black square per filled pixel, layered on top of the header's accent color), not text, so the letters can actually be big and legible instead of a single stretched character. The V and S each sit pulled back 1 column from the seam (V left, S right), opening a small strip of each podium's own header color between the two letters instead of having them touch. With 3+ podiums (e.g. a "Middle" podium added in `locations.lua` for a triple battle), or a screen too narrow for the pattern + gap, there's no single seam to put it at, so no V/S is shown.
-- The green winner banner at the bottom of each podium card is also 5 rows thick, matching the header, so the card reads visually balanced top-to-bottom instead of only the header standing out; its `*** WINNER ***` text is orange (looks gold against the green background).
-- HP bar colors are unchanged (green >50%, yellow 20-50%, red <20%); the `HP current/max` text now uses that same color instead of staying static black.
+- The green winner banner at the bottom of each podium card is also 5 rows thick, matching the header, so the card reads visually balanced top-to-bottom instead of only the header standing out. It now shows a small star pattern across all 5 rows instead of one line of plain text, e.g.:
+  ```
+  *    *    *    *    *
+    *    *    *    *
+  * * *  WINNER  * * *
+    *    *    *    *
+  *    *    *    *    *
+  ```
+  all in orange against the green background (looks gold).
+- HP bar colors now have 4 steps instead of 3 (green >50%, yellow 25-50%, orange 10-25%, red <=10%) -- the extra orange step was added so a low-HP Pokemon reads closer to Cobblemon's own HP bar (a separate, unrelated UI with its own thresholds -- the two bars can legitimately show different colors at the same HP%, that's not a bug). The `HP current/max` text uses that same color instead of staying static black.
 - The active Pokemon's name is black normally, and turns red with its `FAINTED` tag once that specific Pokemon's HP hits 0 (matching `*** DEFEAT ***`'s red). The `(X/Y fainted)` tally is black while the team's still full strength, orange once at least one has fainted, and red once the whole team is out. `(no Pokemon detected)` stays gray (unrelated to match state).
 
 ## Requirements
@@ -86,6 +94,15 @@ MONITOR_SCALE = 1, -- passed to monitor.setTextScale() when a monitor is in use
 
 HISTORY_MAX_ENTRIES = 20, -- how many recent matches match_history.dat remembers
                           -- (oldest drop off first) -- see "Match history" below.
+
+BACKGROUND_COLOR = colors.lightGray, -- frame background, default light gray.
+                          -- Change this if your gym has its own theme.
+                          -- MUST be one of CC:Tweaked's 16 named colors.*
+                          -- values (colors.white/orange/magenta/lightBlue/
+                          -- yellow/lime/pink/gray/lightGray/cyan/purple/
+                          -- blue/brown/green/red/black) -- CC:Tweaked/
+                          -- Basalt2 can't render arbitrary custom RGB
+                          -- backgrounds this way, only these 16 names.
 ```
 
 And `locations.lua`:
@@ -172,7 +189,7 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 
 | File | Purpose |
 |---|---|
-| `config.lua` | Your local settings (scan radius, ownership tags, poll interval, team size, optional monitor, history limit) -- not touched by `update.lua` |
+| `config.lua` | Your local settings (scan radius, ownership tags, poll interval, team size, optional monitor, history limit, background color) -- not touched by `update.lua` |
 | `locations.lua` | Podium list: label + Environment Detector name per podium -- not touched by `update.lua` |
 | `startup.lua` | Orchestration only: loads config, builds the podium table, bootstraps Basalt2 + the monitor, wires the modules below together, and runs the scan loop |
 | `scan.lua` | Turns raw Environment Detector `scanEntities()` output into "active Pokemon + trainer per podium", including the cross-podium dedup fix |

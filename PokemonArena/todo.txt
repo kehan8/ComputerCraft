@@ -1013,3 +1013,126 @@ OPEN / TE DOEN
 3. Als het gat te klein of te groot oogt: VS_GAP in ui.lua aanpassen (1
    kolom kleiner/groter per stap) - enige plek die moet veranderen.
 4. Niet automatisch committen - wacht op expliciete vraag van de user.
+
+========================================================================
+SESSIE 14 - HP-kleur uitgelegd + oranje stap, config achtergrondkleur,
+            WINNER-banner met sterren
+========================================================================
+AANLEIDING (2 screenshots + vragen, plan mode)
+- User kon de HP-kleurlogica niet terugvinden in de code en vroeg om
+  aanwijzing. Kon niet direct reproduceren wat op de screenshots te zien
+  was: foto 1 (Archaludon 3/12 HP = exact 25%) bleef GEEL op ons scherm,
+  terwijl Cobblemon's EIGEN HP-balk (los UI-element van Minecraft/Cobblemon
+  zelf, linksboven/rechtsboven) net onder 25% al donker-oranje werd. Foto 2
+  (Zapdos 1/13 HP ~ 7.7%) werd terecht rood, maar user vroeg zich af waar
+  "oranje" in de gradient zat - nergens, onze gradient had geen oranje-stap.
+- Uitleg gegeven: match.lua's match.hpColor() (regel 22-35) is de enige
+  plek, gebruikt door zowel de HP-balk als (sinds sessie 13) de HP-tekst.
+  Was een 3-traps groen/geel/rood gradient zonder oranje. Foto 1's "blijft
+  geel" was dus GEEN bug - 25% valt precies op de grens (`> 0.2` -> geel).
+  Cobblemon's eigen balk is een compleet los systeem met eigen drempels,
+  niet iets wat onze code beinvloedt.
+- User's fainted-kleur (sessie 13, oranje partial/rood whole-team) apart
+  bevestigd als "TOP GEWELDIG!", geen wijziging nodig.
+- User's nieuwe idee: PokemonArena is nu gebouwd voor 1 neutraal arena,
+  maar een gym-type-leider met een eigen computer wil misschien een eigen
+  themakleur i.p.v. de gedeelde light gray default - opt-in via config.lua.
+- User's WINNER-banner-wens: sterren "rond" het woord WINNER laten uitzien,
+  met een eigen ASCII-mockup als richting (ster-dichtheid dunt uit naar
+  boven/onder).
+- Alle 3 voorstellen uit het vorige (plan-mode) antwoord goedgekeurd:
+  1. AKKOORD, meteen.
+  2. Ja graag, MET de eis dat README uitlegt dat het alleen bestaande
+     CC:Tweaked colors.*-namen mag zijn (user stuurde de officiele 16-
+     kleuren-tabel als referentie/foto 1 van dit bericht).
+  3. "WWWWWWWWOOOOOOOOOWWWWWWWW. ALLERBEST!" - sterren-patroon-voorstel
+     zoals aangeboden, geen verdere aanpassingen gevraagd.
+
+FIX 1: oranje HP-gradient-stap (match.lua)
+- match.hpColor(): groen >50%, GEEL 25-50% (was 20-50%), NIEUW ORANJE
+  10-25%, rood <=10% (was <20%). Zowel de HP-balk als de HP-tekst
+  hergebruiken deze ene functie (sessie 13), dus 1 plek aangepast volstaat
+  voor allebei. Drempels (50/25/10) zijn de user's letterlijk akkoord
+  gegeven voorstel-getallen uit de vorige (plan-mode) beurt.
+
+FIX 2: configureerbare achtergrondkleur (config.lua/startup.lua/ui.lua)
+- config.lua: nieuwe BACKGROUND_COLOR = colors.lightGray, met een
+  commentaarblok dat expliciet opsomt dat dit een van de 16 named
+  colors.*-waarden moet zijn (CC:Tweaked/Basalt2 kan geen losse RGB-
+  achtergrond op deze manier tonen, alleen deze 16 namen) - user's eigen
+  eis, direct overgenomen uit de kleurentabel-screenshot.
+- startup.lua: `local BACKGROUND_COLOR = config.BACKGROUND_COLOR or
+  colors.lightGray` (fallback voor een stale config.lua zonder dit veld,
+  zelfde conventie als HISTORY_MAX_ENTRIES's `or 20`), doorgegeven als
+  `backgroundColor` in de opts-tabel aan ui.build().
+- ui.lua: `screen:setBackground(colors.lightGray)` ->
+  `screen:setBackground(opts.backgroundColor or colors.lightGray)` - 1
+  regel, geldt nog steeds voor alle 3 schermen (live/setup/history) want
+  ze delen dezelfde `screen`-frame. Podium-accentkleuren (headerColorFor,
+  blauw/rood/groen rotatie) blijven ONGEWIJZIGD - niet gevraagd, en apart
+  configureerbaar maken zou een grotere ontwerpvraag zijn (welke kleur
+  per podium-index?) die de user niet heeft gesteld.
+
+FIX 3: sterren-WINNER-banner (ui.lua)
+- Nieuwe constante WINNER_BANNER_LINES: 5 regels tekst (sterren dunnen uit
+  naar boven/onder, "* * *  WINNER  * * *" in het midden), zie ui.lua voor
+  het exacte patroon.
+- De banner was voorheen 1 button van 5 rijen hoog met tekst op maar 1
+  (visueel gecentreerde) regel - de andere 4 rijen waren altijd lege groene
+  ruimte. Nu 5 aparte 1-rij-buttons (ui_.bannerRows[1..5]) per podium, elk
+  met zijn eigen regel uit WINNER_BANNER_LINES. Basalt centreert button-
+  tekst standaard horizontaal (zelfde aanname als de V/S-pixel-art en elk
+  ander label in dit bestand al gebruikt), dus geen handmatige kolom-
+  uitlijning nodig - gewoon platte strings per rij.
+- renderLive(): itereert nu over ui_.bannerRows en zet per rij de
+  bijbehorende WINNER_BANNER_LINES-regel (of leeg) i.p.v. 1x
+  "*** WINNER ***" op de oude bannerLabel. Zelfde on/off-voorwaarde
+  (matchWinnerIndex == i) als voorheen, nu gewoon uitgesmeerd over 5 rijen.
+- Foreground blijft oranje op alle 5 rijen (user's eigen sessie-13-edit,
+  "gold"-look, ongewijzigd behouden - niet opnieuw ter discussie gesteld).
+
+BESTANDEN AANGEPAST
+- match.lua: hpColor() oranje-stap toegevoegd + comment bijgewerkt.
+- config.lua: BACKGROUND_COLOR toegevoegd met 16-kleuren-comment.
+- startup.lua: BACKGROUND_COLOR uitgelezen + doorgegeven aan ui.build()'s
+  opts.
+- ui.lua: setBackground() leest nu opts.backgroundColor; WINNER-banner
+  opgesplitst in 5 rij-buttons + WINNER_BANNER_LINES-sterrenpatroon; module-
+  header-comment uitgebreid met een sessie-14-bullet.
+- README.md: HP-gradient-tekst (2x, "What it does" + "Look & feel") bijge-
+  werkt naar 4 stappen incl. oranje; "Look & feel" achtergrond-bullet
+  vermeldt nu BACKGROUND_COLOR; WINNER-banner-bullet toont het sterren-
+  patroon; Configure-codeblok kreeg een BACKGROUND_COLOR-regel met de 16-
+  kleuren-lijst; Files-tabel config.lua-rij vermeldt nu ook "background
+  color".
+- todo.txt: deze sessie-14-entry.
+
+NIET GEDAAN / BEWUST UITGESTELD
+- Nog steeds geen lokale lua/luac beschikbaar - alle 3 wijzigingen
+  ongetest, zelfde beperking als elke sessie hiervoor.
+- Per-podium accentkleuren (headerColorFor) NIET configurabel gemaakt -
+  user vroeg specifiek alleen om de achtergrond, niet de podium-kleuren.
+- WINNER_BANNER_LINES-sterrenpatroon is de agent's eigen interpretatie van
+  user's ASCII-mockup (die user zelf "niet goed in" noemde), niet 1-op-1
+  overgetypt - als het patroon in-game niet mooi oogt (te dicht/te los op
+  een smalle kolom), is dit de eerste plek om bij te stellen.
+
+OPEN / TE DOEN
+1. In-game bevestigen: HP-balk/tekst toont nu een zichtbare oranje stap
+   tussen geel en rood (bv. rond 15-20% HP), en de bestaande groen/geel/
+   rood-overgangen zijn niet per ongeluk verschoven op een onbedoelde
+   plek.
+2. In-game bevestigen: achtergrond blijft light gray met de ongewijzigde
+   config.lua (BACKGROUND_COLOR net toegevoegd met dezelfde default) -
+   geen visuele regressie puur door deze config-toevoeging.
+3. In-game bevestigen: de sterren-WINNER-banner oogt goed op de echte
+   Monitor-breedte/schaal (niet afgekapt, sterren niet te dicht/te los) -
+   user's eigen woorden waren enthousiast over het VOORSTEL, dit is de
+   eerste keer dat de daadwerkelijke implementatie gezien wordt.
+4. Als de user een andere gym-leider-computer opzet: BACKGROUND_COLOR in
+   die computer's eigen config.lua aanpassen (bv. colors.red/colors.blue/
+   etc.) en testen dat dit niet crasht op een niet-colors.*-waarde (geen
+   validatie ingebouwd - fail-fast bij een typo is niet expliciet
+   toegevoegd, zou een volgende kleine verbetering kunnen zijn als dit in
+   de praktijk misgaat).
+5. Niet automatisch committen - wacht op expliciete vraag van de user.

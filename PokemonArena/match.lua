@@ -19,7 +19,13 @@ function match.healthBar(health, maxHealth, barWidth)
     return string.rep("#", filled) .. string.rep("-", barWidth - filled)
 end
 
--- green >50%, yellow 20-50%, red <20% (as agreed)
+-- Session 14: 3-step gradient (green/yellow/red) had no orange step, so a
+-- Pokemon sitting just under 25% HP (user's screenshot: Archaludon 3/12 =
+-- exactly 25%) rendered yellow, not the "dark orange" user expected from
+-- Cobblemon's own HP bar (a different, unrelated UI with its own
+-- thresholds -- see README). Added an orange step between yellow and red
+-- so our gradient reads closer to that: green >50%, yellow 25-50%, orange
+-- 10-25%, red <=10%.
 function match.hpColor(health, maxHealth)
     if not health or not maxHealth or maxHealth <= 0 then
         return colors.gray
@@ -27,8 +33,10 @@ function match.hpColor(health, maxHealth)
     local pct = health / maxHealth
     if pct > 0.5 then
         return colors.green
-    elseif pct > 0.2 then
+    elseif pct > 0.25 then
         return colors.yellow
+    elseif pct > 0.1 then
+        return colors.orange
     else
         return colors.red
     end
