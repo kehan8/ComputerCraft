@@ -1,9 +1,6 @@
--- teamsizes.lua: load/save/clamp helpers for team_sizes.dat (per-podium
--- team size, 1-6, chosen in the "New Battle" setup screen). Split out of
--- startup.lua (session 8 module refactor). Deliberately NOT part of
--- config.lua, so update.lua/update_full.lua never clobber it and a config
--- reset doesn't erase an in-progress event's sizes -- same reasoning as
--- before the split, just moved.
+-- teamsizes.lua: load/save/clamp helpers for team_sizes.dat (per-podium team
+-- size, 1-6, chosen in the "New Battle" setup screen). Deliberately not part
+-- of config.lua, so update.lua/update_full.lua never clobber it.
 
 local teamsizes = {}
 
@@ -17,9 +14,8 @@ function teamsizes.clamp(n)
     return math.floor(n)
 end
 
--- count = number of podiums, fallback = config.TEAM_SIZE (used only for a
--- podium missing from a stale/missing team_sizes.dat, e.g. before the very
--- first "Start Battle" or after adding a podium to locations.lua).
+-- count = number of podiums, fallback = config.TEAM_SIZE (used for a podium
+-- missing from a stale/missing team_sizes.dat)
 function teamsizes.load(count, fallback)
     local saved = nil
     if fs.exists(FILE) then

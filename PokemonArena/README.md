@@ -2,9 +2,9 @@
 
 VS-battle display for Cobblemon fights: one Environment Detector per podium shows the trainer + active Pokemon + HP on that side, in a Basalt2 UI with colored HP bars and a "New Battle" flow for tracking wins/losses.
 
-![status](https://img.shields.io/badge/status-core--confirmed--in--game-brightgreen)
+![status](https://img.shields.io/badge/status-working-brightgreen)
 
-Core scanning/display (name, HP, left/right switching mid-battle), the Basalt2 UI, trainer name, win/lose tally, Monitor auto-detect, and the cross-podium "empty side borrows the other side's Pokemon" fix are all confirmed working live in-game (Monitor scale 2 confirmed sharp/readable). **Not yet re-tested in-game:** the code was just split into modules (`scan.lua`/`teamsizes.lua`/`match.lua`/`ui.lua`, see [Files](#files)) and restyled with a soft blue/green/red palette, a light gray background, a colored header (replacing the plain "Left"/"Right" text) with the trainer name shown alongside it, and a "V"/"S" pair embedded into the two podiums' headers at the seam between them -- see [Look & feel](#look--feel) below. The module split is meant to be a pure refactor (no behavior change), but please re-verify the Monitor still auto-connects and nothing regressed.
+Core scanning/display, the Basalt2 UI, trainer name locking, win/lose tally, Monitor auto-detect, match history, and the battle-arena restyle (colored headers, VS seam, HP gradient, configurable background, star WINNER banner) are all confirmed working live in-game.
 
 ## What it does
 
@@ -133,7 +133,7 @@ Each podium counts how many of its own **distinct** Pokemon (by in-game uuid, so
 
 ```
 Right              (2/6 fainted)
-Trainer: KnightKehan
+Trainer: Player1
 Sprigatito
 [######----------]
 HP 8/27
@@ -154,7 +154,7 @@ Note: lowering a podium's team size below its current fainted count on the setup
 Every finished match (a `DEFEAT`/`WINNER`, or a mutual KO with no winner) is logged once to `match_history.dat`, most recent first, capped at `HISTORY_MAX_ENTRIES` (default 20 -- oldest entries drop off). Click **History** (next to **New Battle** on the live screen) to browse it: one line per match, e.g.
 
 ```
-09-15 20:41  KnightKehan 5/5 vs Kehan88 0/1  -> Kehan88 won
+09-15 20:41  Player1 5/5 vs Player2 0/1  -> Player2 won
 ```
 
 showing each side's trainer (or podium position, if no trainer was detected that match), its fainted/team-size tally, and the winner -- or `Draw` for a mutual KO. Use **< Prev** / **Next >** to page through older matches, and **Back** to return to the live screen. A match is recorded the moment it resolves (even if you're on the Setup or History screen when it happens), not when you click **New Battle** -- so it survives even if you forget to check the score before starting the next one.
@@ -203,7 +203,6 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 | `update_full.lua` | Re-downloads everything, including `config.lua`/`locations.lua` |
 | `uninstall.lua` | Removes the installed files |
 | `datapack/` | Standalone Minecraft datapack tagging Pokemon ownership (not downloaded by `install.lua`, copy manually -- see above) |
-| `todo.txt` | Design notes/history from building this -- not needed to run it, kept for context on why things are the way they are |
 | `team_sizes.dat` | Runtime-generated: saved per-podium team sizes, written whenever you click "Start Battle" -- not part of the repo, not downloaded, only created/read on the computer itself |
 | `match_history.dat` | Runtime-generated: last `HISTORY_MAX_ENTRIES` completed matches, written whenever a match resolves -- not part of the repo, not downloaded, only created/read on the computer itself |
 | `basalt`/`basalt.lua` | The Basalt2 UI library, auto-installed by `install.lua`/`startup.lua` the first time it's missing -- not part of this repo either |

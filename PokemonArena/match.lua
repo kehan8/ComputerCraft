@@ -1,10 +1,7 @@
--- match.lua: HP-bar/color display helpers + match tracking (winner/defeat
--- detection, resetting a podium's tally, logging a finished match to
--- match_history.dat). Split out of startup.lua (session 8 module refactor).
--- No UI code here -- healthBar/hpColor return plain strings/colors.* values
--- for ui.lua to paint; updateStatus/reset/log mutate a small "match state"
--- table (winnerIndex/logged/historyEntries) that startup.lua owns and
--- passes in, so this module has no hidden globals of its own.
+-- match.lua: HP-bar/color helpers + match tracking (winner/defeat detection,
+-- resetting a podium's tally, logging a finished match to match_history.dat).
+-- No UI code here -- ui.lua paints using these; startup.lua owns the
+-- matchState table (winnerIndex/logged/historyEntries) passed in.
 
 local matchHistory = require("history")
 
@@ -19,13 +16,8 @@ function match.healthBar(health, maxHealth, barWidth)
     return string.rep("#", filled) .. string.rep("-", barWidth - filled)
 end
 
--- Session 14: 3-step gradient (green/yellow/red) had no orange step, so a
--- Pokemon sitting just under 25% HP (user's screenshot: Archaludon 3/12 =
--- exactly 25%) rendered yellow, not the "dark orange" user expected from
--- Cobblemon's own HP bar (a different, unrelated UI with its own
--- thresholds -- see README). Added an orange step between yellow and red
--- so our gradient reads closer to that: green >50%, yellow 25-50%, orange
--- 10-25%, red <=10%.
+-- 4-step HP gradient: green >50%, yellow 25-50%, orange 10-25%, red <=10%.
+-- Drives both the bar color and the HP text color.
 function match.hpColor(health, maxHealth)
     if not health or not maxHealth or maxHealth <= 0 then
         return colors.gray
@@ -51,11 +43,8 @@ function match.isOver(podiums, teamSizes)
     return false
 end
 
--- A podium counts as "defeated" once faintedCount reaches its teamSize; if
--- exactly one podium isn't defeated, it's the winner. Simultaneous mutual
--- KOs (everyone defeated at once) show no winner (all podiums show
--- DEFEAT). Monotonic: faintedCount only goes up between resets, so this
--- never flickers mid-match.
+-- Winner = the only podium not yet defeated. A simultaneous mutual KO
+-- (everyone defeated at once) shows no winner (all podiums show DEFEAT).
 function match.updateStatus(state, podiums, teamSizes)
     local aliveIndex, aliveCount = nil, 0
     for i, podium in ipairs(podiums) do
@@ -69,13 +58,11 @@ function match.updateStatus(state, podiums, teamSizes)
     elseif aliveCount == #podiums then
         state.winnerIndex = nil -- nobody defeated yet
     end
-    -- otherwise (2+ still alive with 3+ podiums, or aliveCount == 0 mutual
-    -- KO) leave state.winnerIndex as-is: no single winner to report.
+    -- otherwise leave state.winnerIndex as-is: no single winner to report
 end
 
--- Clears the fainted tally + seen-uuid tracking on every podium and starts
--- tracking a fresh match. Only called after the setup screen's team sizes
--- are committed (Start Battle) -- never directly from a "reset" button.
+-- Clears the fainted tally + seen-uuid tracking on every podium and starts a
+-- fresh match. Only called after "Start Battle" on the setup screen.
 function match.reset(state, podiums)
     for _, podium in ipairs(podiums) do
         podium.faintedCount = 0
@@ -87,11 +74,8 @@ function match.reset(state, podiums)
     state.logged = false
 end
 
--- Records the just-finished match to state.historyEntries/match_history.dat.
--- Called exactly once per match by startup.lua's update() (guarded by
--- state.logged), independent of which screen is currently showing, so a
--- match finishing while the player is on the History or Setup screen still
--- gets logged. Returns the (possibly trimmed) historyEntries list.
+-- Records the just-finished match. Called exactly once per match by
+-- startup.lua's update() (guarded by state.logged).
 function match.log(state, podiums, teamSizes, historyMaxEntries)
     local results = {}
     for i, podium in ipairs(podiums) do

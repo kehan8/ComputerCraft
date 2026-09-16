@@ -1,108 +1,19 @@
 -- ui.lua: all Basalt2 screen building + render functions (live/setup/
--- history screens). Split out of startup.lua (session 8 module refactor).
--- startup.lua owns the actual match/scan state (podiums, teamSizes,
--- matchState) and just hands ui.build() references to it + one callback
--- (onStartBattle) for the one action that needs match/teamsizes logic
--- outside this file's concern. Everything else (New Battle, History,
--- Back, Prev/Next paging, +/- team-size pickers) is self-contained here
--- since it only touches UI-local state (current screen, pending sizes,
--- history page number) or mutates the podiums/teamSizes tables in place
--- (same references startup.lua holds, so changes are visible both ways
--- without extra plumbing).
+-- history screens). startup.lua owns the actual match/scan state (podiums,
+-- teamSizes, matchState) and hands ui.build() references to it + one
+-- callback (onStartBattle) for the one action that needs match/teamsizes
+-- logic outside this file. Everything else (New Battle, History, Back,
+-- Prev/Next paging, +/- team-size pickers) is self-contained here.
 --
--- Session 8 restyle (soft blue/green/red battle-arena palette, replacing
--- the old gray/lightGray/black/orange/cyan mix):
--- - setPaletteColor() stretch option: redefines what colors.blue/
---   lightBlue/green/red/cyan actually render as (softer/pastel RGB)
---   wherever the terminal supports it (Advanced Computer/Monitor, both
---   required by this project already -- see README). Wrapped in pcall
---   since this couldn't be tested locally; if the target doesn't support
---   it, the UI still works with CC's stock colors, just less "soft".
--- - Per-podium header: used to show the podium's position text ("Left"/
---   "Right"); now shows a plain colored accent bar instead (rotating
---   blue/red/green per podium index), and the trainer name label
---   (already shown one row below) is tinted with that same accent color
---   -- "color instead of text" and "trainer name" mix into one look
---   instead of being either/or.
--- - VS marker: originally a small red "VS" reserved in its own center
---   gutter column, but that disrupted the middle of the arena (user
---   feedback: not what was pictured -- see mockup in session notes). Now,
---   when there are EXACTLY 2 podiums, columns sit edge-to-edge (no
---   reserved gap) and a single-cell "V" is tucked into the right end of
---   podium 1's colored header bar, with "S" tucked into the left end of
---   podium 2's header bar -- the two letters sit flush against each other
---   at the seam, reading "VS" without stealing any board width. With 3+
---   podiums there's no single seam to put it at, so no V/S is shown.
--- - Frame background: explicit light gray (colors.lightGray) instead of
---   Basalt's default white, so the empty space around/below the podium
---   cards isn't stark white.
--- - Session 10 restyle (user mockup + feedback: header/VS "mogen wat
---   dikker" for balance, VS text should be black):
---   - The colored header bar (accent color, top of each podium card) and
---     the green winner banner (bottom of the card) both went from 1 row
---     tall to 3 rows tall ("triple regels/bar") -- thickening both the top
---     AND bottom bars keeps the card visually balanced instead of only
---     the top growing. The middle content rows (trainer/name/HP bar/HP
---     text/fainted count) are unchanged at 1 row each.
---   - The V/S seam letters grew to match the new 3-row header height
---     (same column, same accent background, just taller) and their
---     foreground changed from white to black per the mockup.
--- - Session 11 restyle (user feedback: "VS is toch niet meegegroeid" --
---   setSize() on a text button only thickens the colored background, a
---   single character glyph never scales with it; user proposed reusing
---   GymArena/TicTacToe's pixel-art icon technique instead, then hand-drew
---   an exact 11 (wide) x 5 (tall) bitmap per letter):
---   - VS_PATTERNS below holds that hand-drawn V/S bitmap verbatim (1 =
---     filled pixel). Same technique as TTT's ICON_PATTERNS: each filled
---     cell becomes its own small black addButton() layered on top of the
---     existing colored header bar; unfilled cells draw nothing, letting
---     the header's accent color show through underneath. Unlike TTT,
---     there's no per-cell scaling -- one pattern cell is exactly one
---     physical screen row/column, since HEADER_ROWS/BANNER_ROWS were
---     raised from 3 to 5 specifically to match the pattern's height ("dan
---     vergeet ook niet groen meegroeien" -- the banner grows with the
---     header again, same top/bottom balance reasoning as session 10).
---     PODIUM_CARD_ROWS is now 15 (5+5+5), was 11.
---   - The V's right edge sits flush against podium 1's right edge (the
---     seam) and the S's left edge sits flush against podium 2's left edge,
---     same seam position as sessions 9-10 -- just wide/tall enough to
---     read as actual letters instead of 1-character dots. showVs now also
---     requires colWidth >= 11 so the full-width pattern can't overlap the
---     trainer name text on a narrow screen; below that width no V/S is
---     drawn at all (same graceful-fallback pattern as the 3+ podium case).
--- - Session 12 (user feedback on session 11's V/S: overall very happy across
---   4 different monitor scales, but wanted a visible gap opened up between
---   the V and S -- "V gaat iets links en S gaat rechts" -- instead of the
---   two letters sitting flush against each other at the seam. (A first
---   attempt at this diagnosed the wrong problem -- monitor cell aspect
---   ratio -- and shrank the V's bitmap instead of moving it; reverted, see
---   below.) The actual fix: VS_PATTERNS.V is back to its original session
---   11 shape (full 11-column diagonal, right edge flush at the seam,
---   unchanged), and a new VS_GAP constant shifts the whole V box left and
---   the whole S box right by that many columns when drawing, opening a
---   small strip of each podium's own header color between the two letters
---   instead of touching. showVs now requires colWidth >= VS_LETTER_COLS +
---   VS_GAP so the widened footprint still can't overlap the trainer name
---   text on a narrow screen.
--- - Session 14 (user feedback: HP gradient had no orange step -- see
---   match.lua; background color made configurable per computer via
---   config.lua's new BACKGROUND_COLOR, opts.backgroundColor here, still
---   defaulting to light gray; and a "cooler" WINNER banner):
---   - screen:setBackground() now reads opts.backgroundColor instead of a
---     hardcoded colors.lightGray, so a gym leader running their own
---     computer can theme it via config.lua without touching this file.
---   - WINNER banner: was a single 5-row button with text only on its
---     (effectively) centered line, the other 4 rows always blank green
---     space. Now 5 separate 1-row buttons (bannerRows), each showing one
---     line of WINNER_BANNER_LINES (a star pattern thinning out toward the
---     top/bottom, "* * * WINNER * * *" through the middle) -- see that
---     constant's comment above for why no manual column alignment is
---     needed (Basalt centers button text by default).
+-- Battle-arena palette: soft blue/green/red via setPaletteColor (where
+-- supported), rotating per-podium accent color (blue/red/green), a "VS"
+-- pixel-art seam marker between exactly 2 podiums, a star-decorated WINNER
+-- banner, and a configurable background (config.lua's BACKGROUND_COLOR).
 --
 -- Basalt2 gotcha (confirmed via GymArena/TicTacToe project memory): Label
 -- elements never render a background in this Basalt2 build -- only Button
 -- backgrounds do. Every decorative/colored panel below uses addButton(),
--- not addLabel(), same fix already applied project-wide.
+-- not addLabel().
 
 local match = require("match")
 local teamsizes = require("teamsizes")
@@ -126,23 +37,18 @@ local function softenPalette(target)
     end)
 end
 
--- Rotating per-podium accent color: podium 1 = blue, 2 = red, 3 = green,
--- then repeats. Two podiums (the common case) reads as "blue side vs red
--- side", matching the V/S seam markers below.
+-- Rotating per-podium accent color: podium 1 = blue, 2 = red, 3 = green, then repeats.
 local HEADER_COLORS = { colors.blue, colors.red, colors.green }
 local function headerColorFor(index)
     return HEADER_COLORS[((index - 1) % #HEADER_COLORS) + 1]
 end
 
--- "VS" seam pixel-art (session 11, see header comment): user-drawn 11
--- (wide) x 5 (tall) bitmap per letter, 1 = filled/black pixel. Same
--- technique as GymArena/TicTacToe's ICON_PATTERNS, drawn at 1:1 scale.
+-- "VS" seam pixel-art: hand-drawn 11 (wide) x 5 (tall) bitmap per letter,
+-- 1 = filled/black pixel. Same technique as GymArena/TicTacToe's
+-- ICON_PATTERNS, drawn at 1:1 scale.
 local VS_LETTER_COLS = 11
 local VS_LETTER_ROWS = 5
--- Session 12: extra columns of gap opened between the V and S boxes when
--- drawing (see drawVsLetter call site below) -- purely a positioning
--- shift, not part of either bitmap.
-local VS_GAP = 1
+local VS_GAP = 1 -- columns of gap opened between the V and S boxes when drawing
 local VS_PATTERNS = {
     V = {
         {1,1,0,0,0,0,0,0,0,1,1},
@@ -160,17 +66,10 @@ local VS_PATTERNS = {
     },
 }
 
--- Session 14: user asked for a "cooler" WINNER banner, sketching stars
--- scattered around the word, thinning out toward the top/bottom row --
--- e.g. "*   *   *   *" above/below, "* * * WINNER * * *" through the
--- middle. The old banner was ONE 5-row-tall button with text only on
--- (effectively) its single centered line -- the other 4 rows were just
--- empty green space. It's now split into 5 separate 1-row buttons (see
--- bannerRows below), one per line of this pattern, so each row can carry
--- its own line of text. Basalt centers button text horizontally by
--- default (same assumption the V/S seam letters and every other label in
--- this file already rely on), so no manual column alignment is needed
--- here either -- just plain strings.
+-- WINNER banner: one line of text per row, split across 5 separate 1-row
+-- buttons (bannerRows below) instead of one 5-row button with text only on
+-- its centered line. Basalt centers button text horizontally by default,
+-- so no manual column alignment is needed here.
 local WINNER_BANNER_LINES = {
     "*    *    *    *    *",
     "  *    *    *    *",
@@ -185,31 +84,24 @@ local WINNER_BANNER_LINES = {
 -- teamSizes: array, index -> current team size (mutated in place by the
 --            onStartBattle callback below; this module never replaces it).
 -- historyEntries: the SAME table reference match.lua's state.historyEntries
---                 holds (history.lua mutates in place via table.insert/
---                 remove, so this reference stays valid for the whole run).
--- opts.historyMaxEntries, opts.onStartBattle(pendingSizesCopy)
+--                 holds (history.lua mutates in place, so this stays valid for the run).
+-- opts.historyMaxEntries, opts.backgroundColor, opts.onStartBattle(pendingSizesCopy)
 function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opts)
     softenPalette(paletteTarget)
 
     local w, h = screen:getSize()
 
-    -- Gray background instead of Basalt's default white -- see header
-    -- comment. All three screens (live/setup/history) share this one
-    -- frame, so one call covers all of them. Session 14: configurable per
-    -- computer via config.lua's BACKGROUND_COLOR (a gym leader's own arena
-    -- may want its own theme instead of the shared default), falling back
-    -- to the original light gray if opts doesn't provide one.
+    -- All three screens (live/setup/history) share this one frame, so one
+    -- call covers all of them. Falls back to light gray if opts doesn't provide one.
     screen:setBackground(opts.backgroundColor or colors.lightGray)
 
     -- ---------------------- COLUMN LAYOUT ----------------------
-    -- Always edge-to-edge equal-width columns, no reserved center gutter
-    -- (see header comment on the VS marker for why that was dropped).
+    -- Always edge-to-edge equal-width columns, no reserved center gutter.
     local colWidth = math.floor(w / #podiums)
     local BAR_WIDTH = math.max(4, colWidth - 4)
     -- Embed V/S into the header seam below -- only for exactly 2 podiums,
-    -- and only if the pixel-art pattern plus the session 12 gap (11 + 2
-    -- columns wide) actually fits a column without overlapping the trainer
-    -- name text (session 11 / 12).
+    -- and only if the pixel-art pattern plus the gap actually fit without
+    -- overlapping the trainer name text.
     local showVs = (#podiums == 2) and (colWidth >= VS_LETTER_COLS + VS_GAP)
 
     local function columnFor(i)
@@ -237,14 +129,11 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
     end
 
     -- ---------------------- LIVE SCREEN ----------------------
-    -- The podium card (header/trainer/name/bar/hp/fainted/banner) is
-    -- vertically centered in the space above the bottom New Battle/History
-    -- row, so it doesn't stay pinned to the top with a dead strip below it
-    -- on a tall monitor.
+    -- The podium card is vertically centered in the space above the bottom
+    -- New Battle/History row, so it doesn't stay pinned to the top with a
+    -- dead strip below it on a tall monitor.
     -- header(5) + trainer/name/bar/hp/fainted(5x1) + banner(5) = 15 rows --
-    -- see session 11 restyle comment above (header/banner raised from 3 to
-    -- 5 rows to match the VS pixel-art pattern's height; was 11 rows total
-    -- with a 3-row header/banner before that).
+    -- header/banner are 5 rows tall to match the VS pixel-art pattern's height.
     local HEADER_ROWS = 5
     local BANNER_ROWS = 5
     local PODIUM_CARD_ROWS = HEADER_ROWS + 5 + BANNER_ROWS
@@ -258,11 +147,8 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         local accent = headerColorFor(i)
 
         local ui_ = {}
-        -- Header: colored accent bar instead of the "Left"/"Right" text --
-        -- the trainer name label right below carries the same accent color
-        -- (see renderLive), so color + name work together as one header.
-        -- 5 rows tall (session 11: raised from 3 to match the VS pixel-art
-        -- pattern's height).
+        -- Header: colored accent bar (no "Left"/"Right" text) -- the
+        -- trainer name label right below carries the same accent color.
         ui_.headerLabel = screen:addButton()
             :setText(""):setPosition(x, liveTop):setSize(width, HEADER_ROWS)
             :setBackground(accent):setForeground(colors.white)
@@ -281,14 +167,9 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         ui_.faintedLabel = screen:addButton()
             :setText(""):setPosition(x, liveTop + HEADER_ROWS + 4):setSize(width, 1)
             :setBackground(colors.lightBlue):setForeground(colors.black)
-        -- Winner banner: also 5 rows tall (session 11: grew with the
-        -- header again, same top/bottom balance reasoning as session 10).
-        -- Session 14: split into 5 separate 1-row buttons (one per
-        -- WINNER_BANNER_LINES entry) instead of one 5-row button with text
-        -- on only its (visually) centered line -- see the constant's
-        -- comment above. bannerRows[3] is the "* * * WINNER * * *" middle
-        -- line; foreground stays orange on all 5 rows (user's existing
-        -- "looks like gold" choice from their own edit, kept as-is).
+        -- Winner banner: 5 separate 1-row buttons, one per WINNER_BANNER_LINES
+        -- entry. bannerRows[3] is the "* * * WINNER * * *" middle line;
+        -- foreground stays orange on all 5 rows (looks gold on the green background).
         ui_.bannerRows = {}
         for r = 1, BANNER_ROWS do
             local row = screen:addButton()
@@ -307,13 +188,12 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         liveElements[#liveElements + 1] = ui_.faintedLabel
     end
 
-    -- "VS" seam marker (session 11): pixel-art V/S bitmaps (VS_PATTERNS,
-    -- see module header comment), same "1 = filled pixel -> its own small
-    -- addButton()" technique as GymArena/TicTacToe's icons. Session 12:
-    -- both boxes are pulled VS_GAP columns away from the seam (V left,
-    -- S right) instead of sitting flush against each other, opening a
-    -- small strip of each podium's own header color in between. Only for
-    -- exactly 2 podiums with a wide-enough column (see showVs above).
+    -- "VS" seam marker: pixel-art V/S bitmaps (VS_PATTERNS above), same
+    -- "1 = filled pixel -> its own small addButton()" technique as
+    -- GymArena/TicTacToe's icons. Both boxes are pulled VS_GAP columns away
+    -- from the seam (V left, S right), opening a small strip of each
+    -- podium's own header color in between. Only for exactly 2 podiums with
+    -- a wide-enough column (see showVs above).
     if showVs then
         local x1, width1 = columnFor(1)
         local x2 = columnFor(2)
@@ -360,8 +240,7 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
     setupElements[#setupElements + 1] = setupTitle
 
     -- Vertically centered per-podium rows, same reasoning as the live
-    -- screen's card centering (a tall monitor shouldn't leave a big dead
-    -- strip below the pickers).
+    -- screen's card centering.
     local SETUP_ROW_HEIGHT = 2 -- 1 content row + 1 blank spacer row
     local setupBodyHeight = h - 2 -- rows 2..(h-1): below title, above Start Battle
     local setupBlockHeight = #podiums * SETUP_ROW_HEIGHT
@@ -375,12 +254,9 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
         local accent = headerColorFor(i)
         setupUI[i] = {}
 
-        -- Session 13: "Left:"/"Right:" read as unlabeled directions with no
-        -- context (user feedback: "geen logisch kunst of zo"); prefixing
         -- "Trainer (...)" makes clear these are per-trainer size pickers
-        -- while still keeping the physical Left/Right orientation that's
-        -- useful standing at the actual podiums. Generic over any podium
-        -- count/position text (e.g. a 3rd "Middle" podium), no extra code.
+        -- while keeping the physical Left/Right orientation, generic over
+        -- any podium count/position text.
         local label = screen:addButton()
             :setText("Trainer (" .. podium.position .. "):")
             :setPosition(2, y):setSize(math.max(4, w - 14), 1)
@@ -416,8 +292,8 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
 
     -- ---------------------- HISTORY SCREEN ----------------------
     -- Fixed, pre-drawn row slots (Basalt widgets should all exist before
-    -- basalt.run() starts -- see ControlRoom/FossilLab, same convention),
-    -- refilled per page rather than created/destroyed on demand.
+    -- basalt.run() starts -- see ControlRoom/FossilLab), refilled per page
+    -- rather than created/destroyed on demand.
     local historyTitle = screen:addButton()
         :setText("Match History (last " .. opts.historyMaxEntries .. ")")
         :setPosition(1, 1):setSize(w, 1)
@@ -516,10 +392,9 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
             local ui_ = podiumUI[i]
             local defeated = podium.faintedCount >= teamSizes[i]
 
-            -- Session 13: fainted-tally color now escalates with progress --
-            -- black while nobody's down yet, orange partway through the
-            -- team (a warning, matches the WINNER banner's "gold" orange),
-            -- red once the whole team's out (matches DEFEAT's red).
+            -- fainted tally color escalates with progress: black while
+            -- nobody's down yet, orange partway through the team, red once
+            -- the whole team's out.
             local faintedColor = colors.black
             if defeated then
                 faintedColor = colors.red
@@ -539,9 +414,7 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
 
                 if podium.lastName then
                     local nameText = podium.lastName
-                    -- Session 13: this individual mon's FAINTED tag now
-                    -- turns the name red (matches "*** DEFEAT ***" below --
-                    -- previously stayed black, no visual signal at all).
+                    -- a fainted individual mon turns its name red too (matches "*** DEFEAT ***")
                     local isFainted = podium.lastHealth and podium.lastHealth <= 0
                     if isFainted then
                         nameText = nameText .. "  FAINTED"
@@ -549,9 +422,6 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
                     ui_.nameLabel:setText(nameText):setForeground(isFainted and colors.red or colors.black)
                     ui_.barLabel:setText("[" .. match.healthBar(podium.lastHealth, podium.lastMaxHealth, BAR_WIDTH) .. "]")
                         :setForeground(match.hpColor(podium.lastHealth, podium.lastMaxHealth))
-                    -- Session 13: HP text now reuses the same green/yellow/
-                    -- red gradient as the bar above it, instead of staying
-                    -- static black.
                     ui_.hpLabel:setText("HP " .. (podium.lastHealth or 0) .. "/" .. (podium.lastMaxHealth or 0))
                         :setForeground(match.hpColor(podium.lastHealth, podium.lastMaxHealth))
                 else
@@ -561,10 +431,6 @@ function ui.build(screen, paletteTarget, podiums, teamSizes, historyEntries, opt
                 end
             end
 
-            -- Session 14: banner is now 5 rows (see WINNER_BANNER_LINES /
-            -- bannerRows above) instead of one row of "*** WINNER ***"
-            -- text -- same on/off condition as before, just fans it out
-            -- across all 5 rows (or blanks all 5) instead of one.
             local isWinner = matchWinnerIndex == i
             for r = 1, #ui_.bannerRows do
                 ui_.bannerRows[r]:setText(isWinner and WINNER_BANNER_LINES[r] or "")

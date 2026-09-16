@@ -1,9 +1,7 @@
--- history.lua: persists a log of completed PokemonArena matches to disk
--- (per-podium fainted/team-size tally + winner), most-recent-first, trimmed
--- to a configurable max so it doesn't grow forever. Same load/save/add
--- shape as FossilLab's fossilhistory.lua -- same convention, different data.
--- Not part of config.lua (see startup.lua), so update.lua/update_full.lua
--- never touch the saved data file, only this code file.
+-- history.lua: persists completed matches to match_history.dat, most-recent-
+-- first, trimmed to a configurable max. Same shape as FossilLab's
+-- fossilhistory.lua. Not part of config.lua, so update.lua/update_full.lua
+-- never touch the saved data.
 
 local history = {}
 
