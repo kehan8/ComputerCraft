@@ -14,9 +14,9 @@ function teamsizes.clamp(n)
     return math.floor(n)
 end
 
--- count = number of podiums, fallback = config.TEAM_SIZE (used for a podium
--- missing from a stale/missing team_sizes.dat)
-function teamsizes.load(count, fallback)
+-- count = number of podiums; a podium missing from a stale/missing
+-- team_sizes.dat starts at MIN (1) -- adjust it yourself in "New Battle"
+function teamsizes.load(count)
     local saved = nil
     if fs.exists(FILE) then
         local file = fs.open(FILE, "r")
@@ -28,10 +28,9 @@ function teamsizes.load(count, fallback)
         end
     end
 
-    local fallbackClamped = teamsizes.clamp(fallback)
     local sizes = {}
     for i = 1, count do
-        sizes[i] = teamsizes.clamp((saved and saved[i]) or fallbackClamped)
+        sizes[i] = teamsizes.clamp(saved and saved[i])
     end
     return sizes
 end

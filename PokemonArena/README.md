@@ -74,17 +74,11 @@ RADIUS = 8, -- scanEntities() radius per detector (half-width, so this
             -- the underlying limit.
 
 OWNED_TAG = "pa_owned", -- set by the datapack on trainer-owned Pokemon
-WILD_TAG = "pa_wild",   -- set on wild-spawned Pokemon (unused by startup.lua for now)
 PLAYER_TAG = "pa_player", -- set by the datapack on every real player;
                           -- required for a "Trainer:" candidate, so a
                           -- wandering mob can never be shown as the trainer
 
 POLL_INTERVAL = 2.2, -- seconds between scans
-
-TEAM_SIZE = 1, -- default/fallback team size (1-6) used only before you've
-               -- ever clicked "New Battle" -> "Start Battle" in-game; the
-               -- real per-podium team sizes live in team_sizes.dat once you
-               -- have (see "Match tracking" below).
 
 -- Monitor is always auto-detected via peripheral.find("monitor")
 -- (same convention as GymArena/SimonSays and GymArena/TicTacToe) --
@@ -125,7 +119,7 @@ Each podium needs its own Environment Detector placed near that trainer's spot -
 
 ## Datapack
 
-Advanced Peripherals' `scanEntities()` has no idea whether a Pokemon belongs to a trainer or is a wild spawn -- that only exists in raw NBT (`Pokemon.PokemonOriginalTrainerType`), which the Lua API doesn't expose. `pokemonarena/` is a small standalone datapack that tags every Cobblemon Pokemon with `pa_owned` or `pa_wild` every ~1 second based on that NBT field, so `startup.lua` can filter on the tag instead. It also tags every online player `pa_player` every cycle, so the "Trainer:" guess can require an actual player instead of "any entity without a baby field" (that older heuristic also matched ordinary mobs -- confirmed in-game, a wandering Bat got shown as `Trainer: Bat`). See `pokemonarena/NOTES.txt` for exactly what it does, how to merge it into an existing datapack instead of running it standalone, and a folder-naming gotcha if your modpack pins an older Minecraft version.
+Advanced Peripherals' `scanEntities()` has no idea whether a Pokemon belongs to a trainer or is a wild spawn -- that only exists in raw NBT (`Pokemon.PokemonOriginalTrainerType`), which the Lua API doesn't expose. `pokemonarena/` is a small standalone datapack that tags every trainer-owned Cobblemon Pokemon with `pa_owned` every ~1 second based on that NBT field, so `startup.lua` can filter on the tag instead; wild-spawned Pokemon simply never get it. It also tags every online player `pa_player` every cycle, so the "Trainer:" guess only ever picks an actual player, never a wandering mob. See `pokemonarena/NOTES.txt` for exactly what it does, how to merge it into an existing datapack instead of running it standalone, and a folder-naming gotcha if your modpack pins an older Minecraft version.
 
 ## Match tracking (win/lose)
 
@@ -141,7 +135,7 @@ HP 8/27
 
 Once a podium's fainted count reaches its team size, that podium shows `*** DEFEAT ***` instead of Pokemon info. If that leaves exactly one other podium still standing, that one shows `*** WINNER ***` under its Pokemon info. If every podium gets defeated at once (mutual KO), no winner is shown -- all podiums just show `DEFEAT`.
 
-Only **owned** Pokemon count (wild-tagged entities are already filtered out before this logic runs), so this only tracks each trainer's own team, not anything else that might wander into scan range.
+Only **owned** Pokemon count (wild-spawned entities are already filtered out before this logic runs, since they never get `pa_owned`), so this only tracks each trainer's own team, not anything else that might wander into scan range.
 
 **Starting a new match ("New Battle"):** click the **New Battle** button (on the computer, or tap it on the Monitor -- both work, Basalt2 handles monitor touch events) to open a setup screen with a `-`/`+` picker per podium (1-6) for that podium's team size, prefilled with whatever was last used. Each picker is labeled `Trainer (<position>):`, e.g. `Trainer (Left):`/`Trainer (Right):`, so it reads as "whose team size is this" instead of a bare direction. Click **Start Battle** to clear both podiums' tallies and start tracking with the chosen sizes -- no key rebind, no timer/countdown needed. Team size is chosen **per podium**, not shared, and is saved to `team_sizes.dat` (not `config.lua`), so it survives `update.lua` and isn't reset by `update_full.lua` either.
 
@@ -206,6 +200,10 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 | `team_sizes.dat` | Runtime-generated: saved per-podium team sizes, written whenever you click "Start Battle" -- not part of the repo, not downloaded, only created/read on the computer itself |
 | `match_history.dat` | Runtime-generated: last `HISTORY_MAX_ENTRIES` completed matches, written whenever a match resolves -- not part of the repo, not downloaded, only created/read on the computer itself |
 | `basalt`/`basalt.lua` | The Basalt2 UI library, auto-installed by `install.lua`/`startup.lua` the first time it's missing -- not part of this repo either |
+
+## Related projects
+
+Also check out [turboblitz181/mcdatapacks](https://github.com/turboblitz181/mcdatapacks/releases) -- a bigger standalone Cobblemon datapack project, separate from this repo. Use it on its own, or run it alongside PokemonArena's own `pokemonarena/` companion datapack (see [Datapack](#datapack) above) -- pick whichever fits your world, or both.
 
 ## Known limitations
 

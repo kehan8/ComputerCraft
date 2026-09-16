@@ -110,7 +110,7 @@ else
 end
 
 -- ====================== PER-PODIUM TEAM SIZE (team_sizes.dat) ======================
-local teamSizes = teamsizes.load(#podiums, config.TEAM_SIZE)
+local teamSizes = teamsizes.load(#podiums)
 
 -- ====================== MATCH HISTORY (match_history.dat) ======================
 -- matchState: winnerIndex (nil while ongoing/no single winner), logged

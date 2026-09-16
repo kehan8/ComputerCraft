@@ -7,21 +7,19 @@ write it into a tag.
 
 WHAT IT DOES
 Every ~1 second (20 ticks), tags every not-yet-checked cobblemon:pokemon
-entity with either:
-  - pa_owned  (Pokemon.PokemonOriginalTrainerType != "NONE", i.e. has a trainer)
-  - pa_wild   (Pokemon.PokemonOriginalTrainerType == "NONE", i.e. wild-spawned)
-then marks it pa_checked so it's never re-evaluated again (a Pokemon's
-original trainer doesn't change after capture, so this stays cheap even
-with lots of Pokemon around - only new/untagged ones get checked each run).
+entity pa_owned if it has a trainer (Pokemon.PokemonOriginalTrainerType !=
+"NONE"), then marks it pa_checked either way so it's never re-evaluated
+again (a Pokemon's original trainer doesn't change after capture, so this
+stays cheap even with lots of Pokemon around - only new/untagged ones get
+checked each run). Wild-spawned Pokemon simply never get pa_owned.
 
 Also tags every online player pa_player, every cycle (players can't be
 "pre-checked" the same way - no birth event to hook - but re-adding an
 existing tag is free, so this stays cheap regardless).
 
 startup.lua filters scanEntities() results on pa_owned for which Pokemon to
-show, and on pa_player for who counts as a candidate "Trainer:" name (a
-real player only, not just "any entity without a baby field" - that older
-heuristic also matched ordinary mobs like a wandering Bat).
+show, and on pa_player for who counts as a candidate "Trainer:" name - a
+real player only, never a wandering mob.
 
 FILES
   pack.mcmeta                                       - datapack metadata
