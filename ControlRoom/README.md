@@ -1,6 +1,6 @@
 # ControlRoom (CC:Tweaked)
 
-The main overview computer for every other project in this repo: [AdminDoor](../AdminDoor), [GymLock](../GymArena/GymLock), [Tic Tac Toe](../GymArena/TicTacToe), [Simon Says](../GymArena/SimonSays), [WelcomeDoor](../WelcomeDoor), [FossilLab](../FossilLab) and [DaylightDetector](../DaylightDetector). Shows live status for all of them on one monitor, and lets you remotely reset Tic Tac Toe / Simon Says or toggle WelcomeDoor's ACTIVE/INACTIVE state, so you don't have to walk over and press the button yourself.
+The main overview computer for every other project in this repo: [AdminDoor](../AdminDoor), [GymLock](../GymArena/GymLock), [Tic Tac Toe](../GymArena/TicTacToe), [Simon Says](../GymArena/SimonSays), [WelcomeDoor](../WelcomeDoor), [FossilLab](../FossilLab), [DaylightDetector](../DaylightDetector) and [PokemonArena](../PokemonArena). Shows live status for all of them on one monitor, and lets you remotely reset Tic Tac Toe / Simon Says or toggle WelcomeDoor's ACTIVE/INACTIVE state, so you don't have to walk over and press the button yourself.
 
 ![status](https://img.shields.io/badge/status-working-brightgreen)
 
@@ -12,7 +12,7 @@ The main overview computer for every other project in this repo: [AdminDoor](../
 - `ROWS_PER_PAGE` rows are pre-drawn (blank) at startup and get filled in as devices check in. Once more devices check in than fit on one page, a **"< Prev" / "Next >"** bar appears below the rows with a **"Page X/Y"** counter — click through to see the rest instead of needing a bigger monitor. Devices beyond `ROWS_PER_PAGE` just land on page 2, 3, ... in the order they first checked in.
 - Tic Tac Toe and Simon Says rows get a **Reset** button — it tells that computer to run the exact same reset its own "New game"/"Start" button would (board/pattern cleared, door closed), just from here instead of walking over.
 - WelcomeDoor's row gets an **ACTIVE**/**INACTIVE** button instead — same colors and text as its own on-screen button, and clicking it sends the exact same toggle, so you can open/close it remotely.
-- AdminDoor, GymLock, FossilLab, and DaylightDetector are read-only here — no controls, matching how they work locally.
+- AdminDoor, GymLock, FossilLab, DaylightDetector, and PokemonArena are read-only here — no controls, matching how they work locally. PokemonArena only ever reports a bare "Running" status — no podium/trainer/Pokemon details — so nothing about the live battle leaks onto this shared screen.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ The main overview computer for every other project in this repo: [AdminDoor](../
 - A **Computer** with a **wireless modem** attached
 - An **Advanced Monitor** recommended (regular Monitor works too, just no touch needed since Reset is the only button) — optional; falls back to the computer's own screen if none is found
 - [Basalt2](https://github.com/Pyroxenium/Basalt2) for the UI — installed automatically on first run
-- Every device you want to see here (AdminDoor, GymLock, TicTacToe, SimonSays, WelcomeDoor, FossilLab, DaylightDetector) also needs its own **wireless modem** and the ControlRoom-aware version of its `startup.lua`/`config.lua` (i.e. update those projects too)
+- Every device you want to see here (AdminDoor, GymLock, TicTacToe, SimonSays, WelcomeDoor, FossilLab, DaylightDetector, PokemonArena) also needs its own **wireless modem** and the ControlRoom-aware version of its `startup.lua`/`config.lua` (i.e. update those projects too)
 
 ## Install
 

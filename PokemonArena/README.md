@@ -16,6 +16,7 @@ Core scanning/display, the Basalt2 UI, trainer name locking, win/lose tally, Mon
 - Marks `FAINTED` once a shown Pokemon's HP hits 0.
 - Tracks how many of each podium's own Pokemon have fainted against that podium's team size, and shows `DEFEAT`/`WINNER` once a side's team is wiped out -- see [Match tracking](#match-tracking-winlose) below.
 - Logs every finished match (win/lose/draw + fainted tally) to a browsable, paged **History** screen, capped at the last `HISTORY_MAX_ENTRIES` matches -- see [Match history](#match-history) below.
+- Broadcasts a bare "Running" status over rednet so a [ControlRoom](../ControlRoom) computer can show it alongside the other gym devices -- deliberately no podium/trainer/Pokemon details go out, and there's no remote command either, so it's read-only there, no Reset button.
 
 ## Look & feel
 
@@ -42,6 +43,7 @@ A soft blue/green/red battle-arena palette (via `setPaletteColor`, where the ter
 - An **Advanced Computer** (and, if you want the mirrored display, an **Advanced Monitor**) -- Basalt2's UI (buttons, colored labels) needs the Advanced variants, unlike v1's plain text
 - Advanced Peripherals' **Environment Detector**, one per podium, each on a Wired Modem network -- see `locations.lua`
 - Optionally, a **Monitor** (any size, e.g. 6x8 blocks) on the same network -- it's auto-detected and used automatically, no config needed (see [Configure](#configure))
+- Optionally, a **wireless modem**, only if you want it reporting to [ControlRoom](../ControlRoom)
 - Cobblemon
 - The companion **datapack** in `pokemonarena/` loaded into the world (or merged into another datapack), so ownership tags exist -- see [Datapack](#datapack)
 - Internet access on the computer (HTTP API enabled) the first time it runs, so it can download the **Basalt2** UI library -- handled automatically by `install.lua`/`startup.lua`, same as GymArena/SimonSays
@@ -97,7 +99,12 @@ BACKGROUND_COLOR = colors.lightGray, -- frame background, default light gray.
                           -- blue/brown/green/red/black) -- CC:Tweaked/
                           -- Basalt2 can't render arbitrary custom RGB
                           -- backgrounds this way, only these 16 names.
+
+MODEM_NAME = "back",   -- wireless modem used to talk to ControlRoom
+MODEM_ENABLED = false, -- set true if you have a wireless modem attached
 ```
+
+> Updating from an older install? `update.lua` never touches `config.lua`, so `MODEM_NAME`/`MODEM_ENABLED` won't appear on their own -- run `update_full` (see below) or add the lines yourself.
 
 And `locations.lua`:
 
@@ -183,9 +190,9 @@ Removes everything `install.lua` put on the computer (optionally including `conf
 
 | File | Purpose |
 |---|---|
-| `config.lua` | Your local settings (scan radius, ownership tags, poll interval, team size, optional monitor, history limit, background color) -- not touched by `update.lua` |
+| `config.lua` | Your local settings (scan radius, ownership tags, poll interval, optional monitor, history limit, background color, optional modem) -- not touched by `update.lua` |
 | `locations.lua` | Podium list: label + Environment Detector name per podium -- not touched by `update.lua` |
-| `startup.lua` | Orchestration only: loads config, builds the podium table, bootstraps Basalt2 + the monitor, wires the modules below together, and runs the scan loop |
+| `startup.lua` | Orchestration only: loads config, builds the podium table, bootstraps Basalt2 + the monitor, wires the modules below together, runs the scan loop, and reports a bare "Running" status to ControlRoom |
 | `scan.lua` | Turns raw Environment Detector `scanEntities()` output into "active Pokemon + trainer per podium", including the cross-podium dedup fix |
 | `teamsizes.lua` | Load/save/clamp helpers for `team_sizes.dat` (per-podium team size, 1-6) |
 | `match.lua` | HP-bar/color display helpers + match tracking (winner/defeat detection, resetting a podium's tally, logging a finished match) |

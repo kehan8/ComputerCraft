@@ -21,6 +21,8 @@ local POLL_INTERVAL = config.POLL_INTERVAL
 local MONITOR_SCALE = config.MONITOR_SCALE
 local HISTORY_MAX_ENTRIES = config.HISTORY_MAX_ENTRIES or 20
 local BACKGROUND_COLOR = config.BACKGROUND_COLOR or colors.lightGray
+local MODEM_NAME = config.MODEM_NAME
+local MODEM_ENABLED = config.MODEM_ENABLED
 
 local locations = require("locations")
 local matchHistory = require("history")
@@ -107,6 +109,20 @@ if mon then
 else
     screen = basalt.getMainFrame()
     paletteTarget = term
+end
+
+-- ====================== CONTROLROOM (rednet) ======================
+-- Reports a bare "Running" status to ControlRoom (see ../ControlRoom) --
+-- no podium/trainer/Pokemon info goes out, and there's no command to
+-- receive either, so read-only there, no Reset/toggle button.
+local PROTOCOL = "controlroom"
+local DEVICE_TYPE = "PokemonArena"
+
+if MODEM_ENABLED then
+    if not peripheral.isPresent(MODEM_NAME) then
+        error("Could not find modem '" .. MODEM_NAME .. "'. Check the wireless modem is attached and named correctly.")
+    end
+    rednet.open(MODEM_NAME)
 end
 
 -- ====================== PER-PODIUM TEAM SIZE (team_sizes.dat) ======================
@@ -207,6 +223,10 @@ local function update()
 
     if screenUI.getState() == "live" then
         screenUI.renderLive(matchState.winnerIndex)
+    end
+
+    if MODEM_ENABLED then
+        rednet.broadcast({ label = os.getComputerLabel(), type = DEVICE_TYPE, status = "Running" }, PROTOCOL)
     end
 end
 

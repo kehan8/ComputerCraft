@@ -18,4 +18,8 @@ return {
     -- (white/orange/magenta/lightBlue/yellow/lime/pink/gray/lightGray/cyan/
     -- purple/blue/brown/green/red/black) -- no arbitrary RGB.
     BACKGROUND_COLOR = colors.lightGray,
+
+    -- Wireless modem to report status to ControlRoom. False if no modem.
+    MODEM_NAME = "back",
+    MODEM_ENABLED = false,
 }
